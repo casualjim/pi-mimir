@@ -1,0 +1,7 @@
+{
+  "name": "pi-openspec-workflow",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ]
+}

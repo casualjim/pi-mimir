@@ -1,0 +1,57 @@
+{
+  "name": "pi-openspec-workflow",
+  "version": "0.1.0",
+  "description": "OpenSpec-driven development workflow for Pi Agent",
+  "keywords": [
+    "pi-package"
+  ],
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "extensions/",
+    "skills/",
+    "agents/",
+    "openspec/",
+    "rules/",
+    "templates/",
+    "README.md"
+  ],
+  "pi": {
+    "extensions": [
+      "extensions/openspec-core"
+    ],
+    "skills": [
+      "skills/explore",
+      "skills/propose",
+      "skills/apply",
+      "skills/verify",
+      "skills/review",
+      "skills/commit",
+      "skills/continue-change"
+    ]
+  },
+  "peerDependencies": {
+    "@tintinweb/pi-subagents": ">=0.1.0",
+    "@juicesharp/rpiv-ask-user-question": ">=0.1.0",
+    "@juicesharp/rpiv-todo": ">=0.1.0",
+    "@juicesharp/rpiv-web-tools": ">=0.1.0",
+    "@juicesharp/rpiv-args": ">=0.1.0"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependenciesMeta": {
+    "@tintinweb/pi-subagents": { "optional": true },
+    "@juicesharp/rpiv-ask-user-question": { "optional": true },
+    "@juicesharp/rpiv-todo": { "optional": true },
+    "@juicesharp/rpiv-web-tools": { "optional": true },
+    "@juicesharp/rpiv-args": { "optional": true }
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^3.1.0"
+  }
+}
