@@ -1,6 +1,6 @@
 name: review-gated
 version: 1
-description: Review-gated OpenSpec workflow - proposal → review-proposal → specs/design → review-specs/review-design → tasks → review-tasks → apply
+description: Review-gated OpenSpec workflow - proposal → review-proposal → specs/design → review-specs/review-design → tasks → review-tasks → apply → review-tests/review-architecture/review-data-flow
 artifacts:
   - id: proposal
     generates: proposal.md
@@ -14,9 +14,10 @@ artifacts:
       Sections:
       - **Why**: State the problem, opportunity, motivation, and expected benefit. Include only the background needed to understand why this change is worth doing now.
       - **What Changes**: Describe the high-level WHAT: new, modified, or removed behavior/capabilities; proposal-level goals/outcomes; scope boundaries; explicit non-goals or limitations when they prevent ambiguity. Mark breaking changes with **BREAKING**.
-      - **Capabilities**: Identify which specs will be created or modified:
-        - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<name>/spec.md`. Use kebab-case names (e.g., `user-auth`, `data-export`).
-        - **Modified Capabilities**: List existing capabilities whose REQUIREMENTS are changing. Only include if spec-level behavior changes (not just implementation details). Each needs a delta spec file. Check `openspec/specs/` for existing spec names. Leave empty if no requirement changes.
+      - **Capabilities**: Identify which existing specs will be modified or which genuinely new capability specs are needed:
+        - Check `openspec/specs/` for existing capability names before creating new ones. Reuse an existing capability when the behavior belongs to an existing concept; do not create overlapping specs for the same behavior.
+        - **New Capabilities**: List only capabilities that introduce a distinct new product/domain concept not covered by an existing spec. Each becomes a new `specs/<capability>/spec.md`. Use kebab-case capability names (e.g., `user-auth`, `data-export`), not the change name.
+        - **Modified Capabilities**: List existing capabilities whose REQUIREMENTS are changing. Only include if spec-level behavior changes (not just implementation details). Each needs a delta spec file. Leave empty if no requirement changes.
       - **Impact**: Affected users, code, APIs, dependencies, systems, compatibility, operations, risks, constraints, caveats, or open questions at proposal level.
 
       IMPORTANT: The Capabilities section is critical. It creates the contract between
@@ -333,15 +334,177 @@ artifacts:
     requires:
       - tasks
 
+  - id: review-tests
+    generates: reviews/tests.md
+    description: Review output for implemented test coverage against specs
+    template: planning-review.md
+    instruction: |
+      Review the implemented tests as a Test Reviewer.
+
+      The review output goes to reviews/tests.md using the planning-review.md template. The template is a prose/bullet review report; do not turn it into a table.
+
+      Inputs:
+      - openspec/changes/<change-name>/specs/**/*.md
+      - openspec/changes/<change-name>/proposal.md, if needed for scope context
+      - openspec/changes/<change-name>/tasks.md, if needed for implementation scope context
+      - implementation test files relevant to the change
+      - implementation code only as needed to understand whether tests exercise real behavior
+
+      Scope:
+      - Review only whether every spec requirement has meaningful implemented test coverage.
+      - If implementation test files are not present yet, mark Decision as Fail with a blocker stating that test coverage cannot be reviewed before tests exist.
+      - Do not perform a general code review, task review, CI review, archive review, or implementation architecture review.
+      - Do not accept tests as sufficient merely because test files, test names, snapshots, mocks, or assertions exist.
+
+      Test coverage mapping:
+      - Enumerate every changed spec requirement and scenario from specs/**/*.md.
+      - For each requirement/scenario, identify the corresponding test file, test case name, and concrete assertion or observable behavior being checked.
+      - Mark each requirement/scenario as covered, partially covered, weakly covered, or uncovered.
+      - If a requirement has multiple important success, failure, permission/security, boundary, edge, compatibility, or migration cases, verify that the tests cover the relevant cases instead of only the happy path.
+
+      Weak, tautological, or superficial tests:
+      - tests that only assert the implementation was called, a mock returned its own configured value, or the code mirrors the test setup;
+      - tests that check only object existence, snapshots, wiring, types, or unchanged constants while missing the required observable behavior;
+      - tests whose name mentions the requirement but whose assertions would still pass if the required behavior were broken;
+      - tests that duplicate implementation logic instead of checking externally meaningful outcomes;
+      - tests that cover only happy paths while ignoring specified failure, boundary, authorization, compatibility, or migration behavior;
+      - tests that are skipped, flaky, non-deterministic, or dependent on unrelated external state without a controlled fixture.
+
+      Confidence-building test expectations:
+      - tests should fail for a plausible regression of the requirement they claim to cover;
+      - tests should exercise behavior through the narrowest realistic public/API boundary, not only internal implementation details, unless the requirement is explicitly internal;
+      - tests should include adversarial cases for invalid input, missing permission, conflict/race, boundary values, error handling, rollback/migration, and compatibility where relevant to the specs;
+      - tests should use meaningful fixtures and assertions that demonstrate user-visible or system-observable outcomes;
+      - tests should avoid over-mocking the behavior under test so the asserted outcome builds confidence in the real implementation.
+
+      Findings:
+      - `blocker`: a requirement/scenario is uncovered, only tautologically covered, or lacks a meaningful assertion for required behavior.
+      - `concern`: coverage exists but is partial, brittle, over-mocked, too happy-path-only, or not adversarial enough for an important risk.
+      - `suggestion`: optional improvement that would increase confidence without blocking acceptance.
+
+      Record findings as bullets under the template sections. Include a requirement-to-test coverage map in Evidence, with file paths/test names and the smallest concrete remediation for each blocker or concern. If all requirements have meaningful coverage, mark Decision as Pass and leave findings sections empty.
+    requires:
+      - tasks
+      - review-tasks
+
+  - id: review-architecture
+    generates: reviews/architecture.md
+    description: Review output for architecture fit and system cohesion
+    template: planning-review.md
+    instruction: |
+      Review the implemented change as an Architecture Reviewer.
+
+      The review output goes to reviews/architecture.md using the planning-review.md template. The template is a prose/bullet review report; do not turn it into a table.
+
+      Role:
+      - Verify that the implementation fits the repository's existing architecture and preserves conceptual integrity.
+      - Enforce repository-local rules first, then the actual established code shape.
+      - Do not apply branded architecture doctrines or generic clean-code patterns.
+      - Do not review implementation correctness against specs; OpenSpec verify owns implementation-claim verification.
+      - Do not review test adequacy; the Test Reviewer owns spec-to-test coverage quality.
+
+      Inputs:
+      - repository-local rules such as AGENTS.md, CLAUDE.md, or project instructions, when present
+      - existing package/module/feature structure needed to understand architecture fit
+      - changed implementation files relevant to the change
+      - nearby code needed to judge ownership, dependencies, boundaries, public surfaces, and data flow
+      - proposal.md, specs/**/*.md, design.md, and tasks.md only as needed to understand intended scope
+
+      Scope:
+      - Review architecture fit, ownership, boundaries, dependency direction, public surfaces, and data-flow shape.
+      - If implementation files are not present yet, mark Decision as Fail with a blocker stating that architecture fit cannot be reviewed before implementation exists.
+      - Do not perform a general code review, style review, test review, CI review, archive review, or broad refactor proposal.
+      - Do not recommend abstractions, layers, interfaces, events, packages, or shared modules unless they solve a concrete present problem in this repository.
+
+      Architecture review criteria:
+      - **Cohesion**: changed behavior belongs with the feature/module/package that owns the concept. Related behavior stays together; unrelated concerns are not mixed.
+      - **Dependency direction**: imports, calls, and package/module dependencies follow the repository's established direction. Lower-level code does not depend upward on facades, interfaces, transports, or concrete adapters unless that is already the accepted architecture.
+      - **Ownership**: types, validation, persistence, orchestration, state transitions, and business rules live at the layer or feature that owns them. Behavior is not dumped into a convenient but conceptually wrong location.
+      - **Public surface**: cross-boundary calls use the intended public API. Internal files, private helpers, concrete adapters, and unstable implementation details are not exposed or imported unnecessarily.
+      - **Boundary validation**: untrusted input is validated at trust boundaries and converted to typed or domain-safe values. Interior code does not repeatedly revalidate trusted data, silently normalize after the boundary, or weaken required errors into optional behavior.
+      - **Concrete seams**: abstractions, interfaces, wrappers, events, dependency injection, or indirection exist only when they solve a concrete present problem. Prefer direct, explicit dependencies where the repository architecture expects them.
+      - **Extraction pressure**: shared code is extracted only when the concept is stable, clearly owned, and improves clarity. Do not extract just to reduce duplication, hide uncertainty, or prepare for hypothetical reuse.
+      - **Redundant helpers**: flag helpers, utility functions, wrapper functions, or indirection that only rename, forward, fragment, or obscure behavior without improving ownership, readability, testability, or reuse.
+      - **Owned behavior shape**: flag free-standing functions that mostly operate on one existing struct, class, object, module-owned type, or domain value and should instead be an owned member/method/constructor/associated function where that is the repository's established style. Treat clusters of free-standing functions with the same primary first argument or concept owner, especially with similar extra arguments, as evidence of an anemic owner and scattered behavior.
+      - **Misowned behavior**: flag behavior placed in the wrong feature, layer, package, interface, shared module, adapter, utility area, facade, or standalone helper.
+      - **Speculative abstraction**: flag interfaces with one implementation, generic wrappers, event indirection, abstract base types, broad extension points, or extra layers justified only by future flexibility.
+      - **Hidden fallbacks**: flag defaults, optional paths, swallowed errors, early success returns, feature gates, ignored work, or degraded behavior that weakens required behavior.
+      - **Buffering/data-flow violations**: flag unbounded buffering, premature collection, broken streaming boundaries, post-pagination filtering, or data-flow shapes that contradict repository rules.
+
+      Findings:
+      - `blocker`: architecture rule violation, wrong dependency direction, misowned behavior, hidden fallback, or data-flow violation that damages system integrity.
+      - `concern`: architecture fit is questionable, ownership is ambiguous, helper/member shape is weak, or an abstraction/extraction is weakly justified.
+      - `suggestion`: local simplification, naming, placement, or public-surface improvement that improves cohesion without changing behavior.
+
+      Record findings as bullets under the template sections. Include the violated construct, location, evidence, why it does not fit this repository, and the smallest concrete remediation. If there are no issues, mark Decision as Pass and leave findings sections empty.
+    requires:
+      - tasks
+      - review-tasks
+
+  - id: review-data-flow
+    generates: reviews/data-flow.md
+    description: Review output for data movement, materialization, and allocation pressure
+    template: planning-review.md
+    instruction: |
+      Review the implemented change as a Data-Flow Reviewer.
+
+      The review output goes to reviews/data-flow.md using the planning-review.md template. The template is a prose/bullet review report; do not turn it into a table.
+
+      Role:
+      - Verify that data moves through the system in the intended shape: filtered, bounded, streamed, borrowed/shared, lazily transformed, or intentionally materialized only at a real owner or sink.
+      - Review language-agnostic data movement invariants, not generic performance preferences or micro-optimizations.
+      - Treat allocation, copying, cloning, string conversion, buffering, and per-item external work as reviewable when they occur on large, user-controlled, external, or otherwise unbounded paths.
+      - Do not review implementation correctness against specs; OpenSpec verify owns implementation-claim verification.
+      - Do not review test adequacy; the Test Reviewer owns spec-to-test coverage quality.
+      - Do not review broad architecture fit except where ownership or boundaries cause data-flow harm.
+
+      Inputs:
+      - repository-local rules about streaming, pagination, search/database predicates, batching, allocation, or data ownership, when present
+      - changed implementation files relevant to data movement
+      - nearby code needed to understand sources, reductions, transformations, boundaries, and sinks
+      - proposal.md, specs/**/*.md, design.md, and tasks.md only as needed to understand expected data scale and behavior
+
+      Scope:
+      - Review data movement, cardinality, materialization, streaming/backpressure, predicate ordering, batching, duplication, and allocation pressure.
+      - If implementation files are not present yet, mark Decision as Fail with a blocker stating that data flow cannot be reviewed before implementation exists.
+      - Do not ask for optimization without a concrete data-flow reason tied to scale, cardinality, ownership, or repeated work.
+      - Do not flag materialization after a real sink or owner boundary when that owner intentionally needs the complete data set.
+
+      Data-flow review vocabulary:
+      - **Source**: database, search backend, filesystem, network, queue, API, user-controlled collection, generated stream, or external service.
+      - **Reduction**: filter, predicate, projection, aggregation, sort, limit, offset, cursor, or deduplication.
+      - **Transformation**: map, parse, encode, decode, format, enrich, normalize, or convert representation.
+      - **Materialization**: collect into array/vector/list/map/string/buffer/object graph, load all rows, build full response, or otherwise own the whole data set.
+      - **Boundary**: API, module, feature, service, transport, storage adapter, worker, process, thread, or async task boundary.
+      - **Sink/owner**: response stream, file write, database write, queue publish, explicit bounded page, cache, or in-memory model whose job is to own the complete data set.
+      - **Cardinality**: known bounded, caller-bounded, user-controlled, external, unknown, or unbounded.
+      - **Work shape**: set-oriented/batched/streaming work versus per-item sequential work or N+1 external calls.
+
+      Data-flow review criteria:
+      - **Reduction before pagination**: filtering, authorization, relationship checks, search predicates, file/path/label filters, and other selection logic happen before limit/offset/skip/cursor pagination whenever the backend can express them. If a required predicate cannot be pushed down, prefer a structured error or explicit bounded candidate strategy over silent partial-looking results.
+      - **No post-pagination filtering surprises**: flag code that fetches a limited or offset candidate set and then filters it in application code, making result counts, pagination, or ordering misleading.
+      - **Streaming until sink**: external, user-controlled, or unknown-size data remains streaming/lazy until a real sink or owner boundary. Flag premature collection, buffering, or full response assembly before that boundary.
+      - **Bounded materialization**: materialization must have a clear bound or owner. Flag unbounded arrays/vectors/lists/maps/buffers and APIs that force callers to own a whole data set when a stream, cursor, iterator, page, or sink would preserve flow.
+      - **Allocation and duplication pressure**: flag avoidable copying, cloning, string conversion, serialization/deserialization loops, intermediate collection builds, wrapper allocations, or representation churn on large, repeated, hot, external, or user-controlled paths.
+      - **Batching and N+1 work**: flag per-item database/search/network/filesystem calls or predicate checks when the work should be expressed as a set-oriented query, batch request, join, prefetch, or streaming pipeline.
+      - **Transformation placement**: transformations should happen at the boundary that owns the representation change. Flag repeated parse/format/normalize/encode/decode work across layers when one clear boundary should perform it once.
+      - **Backpressure and response flow**: flag buffering a stream before sending, writing, publishing, or handing it to the intended sink when streaming/backpressure should be preserved.
+      - **Sequential async or concurrent work shape**: flag one-at-a-time async loops or unbounded concurrency when batching, bounded concurrency, streaming, or backpressure would better match the source and sink.
+      - **Intentional owners**: do not report complete materialization when the changed code is itself the explicit owner/sink, such as an in-memory analytical model, bounded page object, cache fill, export object, or required aggregate result.
+
+      Findings:
+      - `blocker`: data-flow shape can produce incorrect or misleading results, unbounded memory use, broken pagination, lost backpressure, or forbidden predicate/materialization behavior.
+      - `concern`: data-flow shape is probably safe but has avoidable duplication, allocation pressure, N+1 work, weak bounds, or unclear sink ownership.
+      - `suggestion`: local simplification that reduces copying, buffering, repeated conversion, or per-item work without changing behavior.
+
+      Record findings as bullets under the template sections. Include the source, cardinality, reduction/transformation/materialization point, sink/owner boundary, evidence, and smallest concrete remediation. If there are no issues, mark Decision as Pass and leave findings sections empty.
+    requires:
+      - tasks
+      - review-tasks
+
 apply:
   requires: [tasks, review-tasks]
   tracks: tasks.md
   instruction: |
-    Use OpenSpec apply instructions and this tracked task file as the source of truth.
-    Read every context file returned by OpenSpec before implementation.
-    Confirm the planning review artifacts (`reviews/proposal.md`, `reviews/specs.md`, `reviews/design.md`, and `reviews/tasks.md`) have passed or were explicitly accepted by the user before implementation starts.
-    Work through pending tasks incrementally and mark each checkbox complete only after the corresponding implementation is done.
-    After tasks are complete, verify implementation against proposal, specs, design, and tasks.
-
-    Stop after implementation verification. Report that generated OpenSpec archive behavior can be run separately only if the planning review gates are resolved. Do not run git commit, git push, PR creation, archive, or Superpowers finishing-branch behavior.
+    Read context files, work through pending tasks, mark complete as you go.
     Pause if you hit blockers or need clarification.

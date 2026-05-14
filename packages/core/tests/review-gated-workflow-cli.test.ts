@@ -1,10 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { cpSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const SOURCE_SCHEMA_DIR = "openspec/schemas/review-gated";
+
+const EXPECTED_OUTPUTS = new Map([
+	["proposal", "proposal.md"],
+	["review-proposal", "reviews/proposal.md"],
+	["design", "design.md"],
+	["review-design", "reviews/design.md"],
+	["specs", "specs/**/*.md"],
+	["review-specs", "reviews/specs.md"],
+	["tasks", "tasks.md"],
+	["review-tasks", "reviews/tasks.md"],
+	["review-architecture", "reviews/architecture.md"],
+	["review-data-flow", "reviews/data-flow.md"],
+	["review-tests", "reviews/tests.md"],
+]);
 
 type CmdResult = ReturnType<typeof spawnSync> & { combined: string };
 
@@ -28,12 +42,9 @@ function json<T>(cwd: string, args: string[]): T {
 
 function setupProject(): { cwd: string; change: string } {
 	const cwd = join(tmpdir(), `openspec-review-gated-cli-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-	mkdirSync(cwd, { recursive: true });
-	run(cwd, ["init", ".", "--tools", "pi", "--force"]);
 	mkdirSync(join(cwd, "openspec", "schemas"), { recursive: true });
 	cpSync(SOURCE_SCHEMA_DIR, join(cwd, "openspec", "schemas", "review-gated"), { recursive: true });
 	writeFileSync(join(cwd, "openspec", "config.yaml"), "schema: review-gated\n");
-	run(cwd, ["update", "--force", "."]);
 
 	const change = "cli-review-flow";
 	run(cwd, ["new", "change", change]);
@@ -107,53 +118,43 @@ function writePlanningReviewArtifacts(cwd: string, change: string): void {
 	const reviewDir = join(cwd, "openspec", "changes", change, "reviews");
 	mkdirSync(reviewDir, { recursive: true });
 	for (const name of ["proposal", "specs", "design", "tasks"]) {
-		writeFileSync(join(reviewDir, `${name}.md`), `# ${name} review\n\n## Result\n\n- [x] PASS — no blockers or unresolved concerns.\n`);
+		writeFileSync(
+			join(reviewDir, `${name}.md`),
+			[
+				"# Planning Artifact Review",
+				"",
+				"## Decision",
+				"",
+				"- [x] Pass",
+				"- [ ] Pass with concerns",
+				"- [ ] Fail",
+				"",
+			].join("\n"),
+		);
 	}
 }
 
 describe("review-gated OpenSpec workflow CLI behavior", () => {
-	it("expands the default workflow with schema-owned review milestones and generated Pi skills use those milestones", () => {
+	it("exposes the current schema graph, apply gate, and specialist review instructions", () => {
 		const { cwd, change } = setupProject();
 		try {
-			const proposeSkill = readFileSync(join(cwd, ".pi", "skills", "openspec-propose", "SKILL.md"), "utf8");
-			const applySkill = readFileSync(join(cwd, ".pi", "skills", "openspec-apply-change", "SKILL.md"), "utf8");
-
-			// Generated OpenSpec skills must be milestone-driven, not hard-coded to tasks.
-			expect(proposeSkill).toContain("applyRequires");
-			expect(proposeSkill).toContain("Continue until all `applyRequires` artifacts are complete");
-			expect(applySkill).toContain("openspec instructions apply");
-			expect(applySkill).toContain("contextFiles");
-
 			const initial = json<any>(cwd, ["status", "--change", change]);
 			expect(initial.schemaName).toBe("review-gated");
-			expect(initial.applyRequires).toEqual(["review-tasks"]);
-			expect(new Map(initial.artifacts.map((a: any) => [a.id, a.outputPath]))).toEqual(
-				new Map([
-					["proposal", "proposal.md"],
-					["design", "design.md"],
-					["specs", "specs/**/*.md"],
-					["tasks", "tasks.md"],
-					["review-proposal", "reviews/proposal.md"],
-					["review-specs", "reviews/specs.md"],
-					["review-design", "reviews/design.md"],
-					["review-tasks", "reviews/tasks.md"],
-					["review-claims", "reviews/claims.md"],
-					["review-architecture", "reviews/architecture.md"],
-					["review-tests", "reviews/tests.md"],
-					["review-performance", "reviews/performance.md"],
-					["review-security", "reviews/security.md"],
-				]),
-			);
+			expect(initial.applyRequires).toEqual(["tasks", "review-tasks"]);
+			expect(new Map(initial.artifacts.map((artifact: any) => [artifact.id, artifact.outputPath]))).toEqual(EXPECTED_OUTPUTS);
+			expect(initial.artifacts.find((artifact: any) => artifact.id === "proposal").status).toBe("ready");
+			expect(initial.artifacts.find((artifact: any) => artifact.id === "review-tasks").missingDeps).toEqual(["tasks"]);
 
 			writePlanningArtifacts(cwd, change);
-			const readyForReview = json<any>(cwd, ["status", "--change", change]);
-			expect(readyForReview.artifacts.find((a: any) => a.id === "review-proposal").status).toBe("ready");
-			expect(readyForReview.isComplete).toBe(false);
+			const readyForPlanningReviews = json<any>(cwd, ["status", "--change", change]);
+			expect(readyForPlanningReviews.artifacts.find((artifact: any) => artifact.id === "review-proposal").status).toBe("ready");
+			expect(readyForPlanningReviews.artifacts.find((artifact: any) => artifact.id === "review-tasks").status).toBe("ready");
+			expect(readyForPlanningReviews.isComplete).toBe(false);
 
 			const proposalReview = json<any>(cwd, ["instructions", "review-proposal", "--change", change]);
 			expect(proposalReview.outputPath).toBe("reviews/proposal.md");
-			expect(proposalReview.template).toContain("# Proposal Review");
-			expect(proposalReview.instruction).toContain("/skill:review-proposal <change-name>");
+			expect(proposalReview.template).toContain("# Planning Artifact Review");
+			expect(proposalReview.instruction).toContain("Review proposal.md as a proposal artifact.");
 
 			const blockedApply = json<any>(cwd, ["instructions", "apply", "--change", change]);
 			expect(blockedApply.state).toBe("blocked");
@@ -162,23 +163,39 @@ describe("review-gated OpenSpec workflow CLI behavior", () => {
 			writePlanningReviewArtifacts(cwd, change);
 			const applyReady = json<any>(cwd, ["instructions", "apply", "--change", change]);
 			expect(applyReady.state).toBe("ready");
-			expect(applyReady.contextFiles["review-tasks"].map((p: string) => realpathSync(p))).toEqual([
+			expect(applyReady.instruction).toBe(
+				"Read context files, work through pending tasks, mark complete as you go.\nPause if you hit blockers or need clarification.",
+			);
+			expect(applyReady.contextFiles.tasks.map((file: string) => realpathSync(file))).toEqual([
+				realpathSync(join(cwd, "openspec", "changes", change, "tasks.md")),
+			]);
+			expect(applyReady.contextFiles["review-tasks"].map((file: string) => realpathSync(file))).toEqual([
 				realpathSync(join(cwd, "openspec", "changes", change, "reviews", "tasks.md")),
 			]);
-			expect(applyReady.instruction).toContain("Run claim, architecture, tests, performance, and security review gates only after verification passes.");
 
-			const claimsReview = json<any>(cwd, ["instructions", "review-claims", "--change", change]);
-			expect(claimsReview.outputPath).toBe("reviews/claims.md");
-			expect(claimsReview.template).toContain("# Claims Review");
-			expect(claimsReview.instruction).toContain("/skill:review-claims <change-name>");
+			const readyForSpecialistReviews = json<any>(cwd, ["status", "--change", change]);
+			expect(readyForSpecialistReviews.artifacts.find((artifact: any) => artifact.id === "review-tests").status).toBe("ready");
+			expect(readyForSpecialistReviews.artifacts.find((artifact: any) => artifact.id === "review-architecture").status).toBe("ready");
+			expect(readyForSpecialistReviews.artifacts.find((artifact: any) => artifact.id === "review-data-flow").status).toBe("ready");
 
-			const securityReview = json<any>(cwd, ["instructions", "review-security", "--change", change]);
-			expect(securityReview.outputPath).toBe("reviews/security.md");
-			expect(securityReview.template).toContain("# Security Review");
-			expect(securityReview.instruction).toContain("/skill:review-security <change-name>");
-			expect(securityReview.instruction).toContain("explicit OpenSpec archive behavior separately");
+			const testsReview = json<any>(cwd, ["instructions", "review-tests", "--change", change]);
+			expect(testsReview.outputPath).toBe("reviews/tests.md");
+			expect(testsReview.instruction).toContain("Test Reviewer");
+			expect(testsReview.instruction).toContain("meaningful implemented test coverage");
+
+			const architectureReview = json<any>(cwd, ["instructions", "review-architecture", "--change", change]);
+			expect(architectureReview.outputPath).toBe("reviews/architecture.md");
+			expect(architectureReview.instruction).toContain("Architecture Reviewer");
+			expect(architectureReview.instruction).toContain("Redundant helpers");
+			expect(architectureReview.instruction).toContain("Owned behavior shape");
+
+			const dataFlowReview = json<any>(cwd, ["instructions", "review-data-flow", "--change", change]);
+			expect(dataFlowReview.outputPath).toBe("reviews/data-flow.md");
+			expect(dataFlowReview.instruction).toContain("Data-Flow Reviewer");
+			expect(dataFlowReview.instruction).toContain("Reduction before pagination");
+			expect(dataFlowReview.instruction).toContain("Allocation and duplication pressure");
 		} finally {
 			rmSync(cwd, { recursive: true, force: true });
 		}
-	});
+	}, 60_000);
 });

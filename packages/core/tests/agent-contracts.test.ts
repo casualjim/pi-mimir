@@ -2,35 +2,32 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 
 describe("agent and skill contracts", () => {
-	it("implement skill delegates isolated apply with required skill prefix", () => {
+	it("implement skill uses OpenSpec apply instructions and stops before archive/git workflows", () => {
 		const text = readFileSync("skills/implement/SKILL.md", "utf-8");
-		expect(text).toContain("/skill:openspec-apply-change <change-name>");
-		expect(text).toMatch(/isolated `apply` agent|apply agent does not inherit context/);
+		expect(text).toContain("openspec instructions apply --change <name> --json");
+		expect(text).toContain("Verify implementation against proposal, specs, design, and tasks");
+		expect(text).toContain("Run implementation review by invoking `review-implementation`");
+		expect(text).toContain("Do not run archive, git commit, git push, PR creation, or finishing-branch behavior");
 	});
 
-	it("plan skill documents the required OpenSpec skill-agent prefix", () => {
+	it("plan skill uses OpenSpec status/instructions and invokes planning review gates", () => {
 		const text = readFileSync("skills/plan/SKILL.md", "utf-8");
-		expect(text).toContain("/skill:<openspec-skill-name> <change-name>");
-		expect(text).toContain("planning and plan-verification subagents inherit the active context");
+		expect(text).toContain("openspec status --change <name> --json");
+		expect(text).toContain("openspec instructions <artifact-id> --change <name> --json");
+		expect(text).toContain("`review-proposal`");
+		expect(text).toContain("`review-specs`");
+		expect(text).toContain("`review-design`");
+		expect(text).toContain("`review-tasks`");
+		expect(text).toContain("Do not write application code");
 	});
 
-	it("review-plan invokes artifact review gates", () => {
-		const text = readFileSync("skills/review-plan/SKILL.md", "utf-8");
-		expect(text).toContain("/skill:review-proposal <change-name>");
-		expect(text).toContain("/skill:review-specs <change-name>");
-		expect(text).toContain("/skill:review-design <change-name>");
-		expect(text).toContain("/skill:review-tasks <change-name>");
-		expect(text).toContain("not a generic planning review");
-	});
-
-	it("review-implementation invokes implementation review gates", () => {
+	it("review-implementation remains an explicit OpenSpec implementation review, not a package-registered generic review", () => {
 		const text = readFileSync("skills/review-implementation/SKILL.md", "utf-8");
-		expect(text).toContain("/skill:review-claims <change-name>");
-		expect(text).toContain("/skill:review-architecture <change-name>");
-		expect(text).toContain("/skill:review-tests <change-name>");
-		expect(text).toContain("/skill:review-performance <change-name>");
-		expect(text).toContain("/skill:review-security <change-name>");
-		expect(text).toContain("not a generic code review");
+		expect(text).toContain("Review implementation work for a named OpenSpec change");
+		expect(text).toContain("Use only when an OpenSpec workflow explicitly requests implementation review");
+		expect(text).toContain("Return concise findings");
+		expect(text).toContain("No issues found");
+		expect(text).toContain("does not include commit, push, PR, archive, or finishing-branch behavior");
 	});
 
 	it("explore agent has codebase-memory and web tools without a generic explore skill", () => {

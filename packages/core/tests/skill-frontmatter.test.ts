@@ -25,11 +25,9 @@ describe("skill frontmatter", () => {
 		expect(descriptionOf(readSkill("plan"))).toContain("OpenSpec");
 		expect(descriptionOf(readSkill("plan"))).toContain("proposal");
 		expect(descriptionOf(readSkill("implement"))).toContain("OpenSpec");
-		expect(descriptionOf(readSkill("implement"))).toContain("explicit archive handoff");
-		expect(descriptionOf(readSkill("review-plan"))).toContain("OpenSpec");
-		expect(descriptionOf(readSkill("review-plan"))).toContain("review gates");
+		expect(descriptionOf(readSkill("implement"))).toContain("explicit archive");
 		expect(descriptionOf(readSkill("review-implementation"))).toContain("OpenSpec");
-		expect(descriptionOf(readSkill("review-implementation"))).toContain("review gates");
+		expect(descriptionOf(readSkill("review-implementation"))).toContain("implementation review");
 	});
 
 	it("rejects broad over-triggering language in skill descriptions", () => {
@@ -48,22 +46,22 @@ describe("skill frontmatter", () => {
 		}
 	});
 
-	it("keeps implementation guidance out of commit, push, and PR workflows", () => {
+	it("keeps implementation guidance out of archive, commit, push, and PR workflows", () => {
 		const implement = readSkill("implement");
-		expect(implement).toContain("never run `git commit`, `git push`, PR creation");
-		expect(implement).toContain("Do not archive, commit, push, or create pull requests");
+		expect(implement).toContain("Stop before explicit archive");
+		expect(implement).toContain("Do not run archive, git commit, git push, PR creation, or finishing-branch behavior");
 	});
 
-	it("keeps review skills scoped to explicit OpenSpec review gates", () => {
-		const gateSkills = readdirSync("skills").filter(
-			(entry) => entry.startsWith("review-") && !["review-plan", "review-implementation"].includes(entry),
-		);
+	it("keeps review skills scoped to explicit OpenSpec review requests with evidence-based findings", () => {
+		const gateSkills = readdirSync("skills").filter((entry) => entry.startsWith("review-"));
 		for (const name of gateSkills) {
 			const text = readSkill(name);
 			const description = descriptionOf(text).toLowerCase();
+			expect(description).toContain("openspec");
+			expect(description).toContain("use only when");
 			expect(description).not.toContain("all code review");
 			expect(description).not.toContain("generic replacement");
-			expect(text).toContain("Delegate to the isolated `reviewer` agent");
+			expect(text).toContain("Return concise findings");
 			expect(text).toContain("<evidence>");
 		}
 	});

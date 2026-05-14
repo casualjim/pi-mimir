@@ -114,7 +114,7 @@ describe("agents", () => {
 			// 3. Re-sync in read-only mode
 			const r2 = syncBundledAgents(cwd, false);
 			expect(r2.pendingUpdate).toContain(testAgentName);
-			expect(r2.updated).toEqual([]); // must NOT overwrite
+			expect(r2.updated).not.toContain(testAgentName); // must NOT overwrite this user-modified file
 
 			// 4. Verify user content is preserved
 			const preserved = readFileSync(destPath, "utf-8");
