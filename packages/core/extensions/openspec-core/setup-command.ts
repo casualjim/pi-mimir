@@ -6,7 +6,7 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { findMissingSiblings } from "./package-checks.js";
+import { findMissingSiblings, hasCodebaseMemoryMcp } from "./package-checks.js";
 import type { SiblingPlugin } from "./siblings.js";
 
 const INSTALL_TIMEOUT_MS = 120_000;
@@ -14,9 +14,16 @@ const STDERR_SNIPPET_CHARS = 300;
 
 const MSG_INTERACTIVE_ONLY = "/openspec-setup requires interactive mode";
 const MSG_NOTHING_TO_DO = "All pi-openspec-workflow sibling dependencies already installed.";
+const MSG_OPENSPEC_OK = "✓ OpenSpec CLI available.";
 const MSG_CANCELLED = "/openspec-setup cancelled";
 const MSG_CONFIRM_TITLE = "Apply pi-openspec-workflow setup changes?";
 const MSG_RESTART = "Restart your Pi session to load the newly-installed extensions.";
+const MSG_OPENSPEC_MISSING = "OpenSpec CLI is missing. Install with: npm i -g @FissionAI/openspec";
+const CODEBASE_MEMORY_PROMPT = [
+	"codebase-memory MCP tools were not detected in ~/.pi/agent/mcp.json.",
+	"Copy this prompt into Pi or another agent:",
+	"Install and configure codebase-memory MCP for this Pi project through pi-mcp-adapter. After setup, verify tools such as codebase_memory_get_architecture, codebase_memory_search_graph, codebase_memory_search_code, codebase_memory_trace_path, and codebase_memory_get_code_snippet are available.",
+].join("\n");
 
 const msgInstalling = (pkg: string) => `Installing ${pkg}…`;
 const msgInstalledLine = (pkgs: string[]) => `✓ Installed: ${pkgs.join(", ")}`;
@@ -37,16 +44,25 @@ function buildConfirmBody(missing: SiblingPlugin[]): string {
 
 export function registerSetupCommand(pi: ExtensionAPI): void {
 	pi.registerCommand("openspec-setup", {
-		description: "Install pi-openspec-workflow's sibling extension plugins",
+		description: "Install pi-openspec-workflow prerequisites: sibling plugins, OpenSpec CLI, and codebase-memory MCP guidance",
 		handler: async (_args, ctx) => {
 			if (!ctx.hasUI) {
 				ctx.ui.notify(MSG_INTERACTIVE_ONLY, "error");
 				return;
 			}
 
+			const notices: Array<{ msg: string; sev: "info" | "warning" }> = [];
+			const openspec = await checkOpenSpecCli(pi);
+			if (openspec) notices.push({ msg: MSG_OPENSPEC_OK, sev: "info" });
+			else notices.push({ msg: MSG_OPENSPEC_MISSING, sev: "warning" });
+			if (!hasCodebaseMemoryMcp()) notices.push({ msg: CODEBASE_MEMORY_PROMPT, sev: "warning" });
+
 			const missing = findMissingSiblings();
 			if (missing.length === 0) {
-				ctx.ui.notify(MSG_NOTHING_TO_DO, "info");
+				ctx.ui.notify(
+					[MSG_NOTHING_TO_DO, ...notices.map((n) => n.msg)].join("\n\n"),
+					notices.some((n) => n.sev === "warning") ? "warning" : "info",
+				);
 				return;
 			}
 
@@ -57,7 +73,8 @@ export function registerSetupCommand(pi: ExtensionAPI): void {
 			}
 
 			const { succeeded, failed } = await installMissing(pi, ctx.ui, missing);
-			ctx.ui.notify(buildReport(succeeded, failed), failed.length > 0 ? "warning" : "info");
+			const report = [buildReport(succeeded, failed), ...notices.map((n) => n.msg)].filter(Boolean).join("\n\n");
+			ctx.ui.notify(report, failed.length > 0 || notices.some((n) => n.sev === "warning") ? "warning" : "info");
 		},
 	});
 }
@@ -86,6 +103,15 @@ async function installMissing(
 		}
 	}
 	return { succeeded, failed };
+}
+
+async function checkOpenSpecCli(pi: ExtensionAPI): Promise<boolean> {
+	try {
+		const result = await piExec(pi, "openspec", ["--version"]);
+		return result.code === 0;
+	} catch {
+		return false;
+	}
 }
 
 function piExec(pi: ExtensionAPI, cmd: string, args: string[]) {

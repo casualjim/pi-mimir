@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { SIBLINGS } from "../extensions/openspec-core/siblings.js";
 
 describe("siblings", () => {
-	it("has exactly 5 sibling entries", () => {
-		expect(SIBLINGS).toHaveLength(5);
+	it("has exactly 7 sibling entries", () => {
+		expect(SIBLINGS).toHaveLength(7);
 	});
 
 	it("each sibling has pkg, matches, and provides", () => {
@@ -42,6 +42,18 @@ describe("siblings", () => {
 		const args = SIBLINGS.find((s) => s.pkg.includes("rpiv-args"));
 		expect(args).toBeDefined();
 		expect(args!.provides).toContain("$ARGUMENTS");
+	});
+
+	it("includes rpiv-btw", () => {
+		const btw = SIBLINGS.find((s) => s.pkg.includes("rpiv-btw"));
+		expect(btw).toBeDefined();
+		expect(btw!.provides).toContain("between-turn");
+	});
+
+	it("includes pi-mcp-adapter", () => {
+		const adapter = SIBLINGS.find((s) => s.pkg.includes("pi-mcp-adapter"));
+		expect(adapter).toBeDefined();
+		expect(adapter!.provides).toContain("MCP adapter");
 	});
 
 	it("matchers match their own package names", () => {

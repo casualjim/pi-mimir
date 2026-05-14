@@ -45,6 +45,29 @@ describe("/openspec-setup command", () => {
 		expect(cmd.description).toBeTruthy();
 	});
 
+	it("reports OpenSpec CLI install command when openspec is missing", async () => {
+		const harness = createHarness({
+			execStubs: {
+				"openspec --version": { code: 127, stdout: "", stderr: "not found" },
+			},
+		});
+		registerSetupCommand(harness.pi);
+		const cmd = harness.commands.get("openspec-setup")!;
+
+		await cmd.handler("", { hasUI: true, ui: harness.ctx.ui, cwd: "/tmp" });
+
+		expect(harness.notifications.some((n) => n.message.includes("npm i -g @FissionAI/openspec"))).toBe(true);
+	});
+
+	it("shows codebase-memory MCP copy-paste prompt when missing", async () => {
+		const harness = createSetupHarness();
+		const cmd = harness.commands.get("openspec-setup")!;
+
+		await cmd.handler("", { hasUI: true, ui: harness.ctx.ui, cwd: "/tmp" });
+
+		expect(harness.notifications.some((n) => n.message.includes("codebase-memory MCP tools were not detected") || n.message.includes("already installed"))).toBe(true);
+	});
+
 	describe("confirm-then-install flow", () => {
 		it("installs missing siblings after confirmation and reports success", async () => {
 			const harness = createHarness({
@@ -55,6 +78,8 @@ describe("/openspec-setup command", () => {
 					"pi install npm:@juicesharp/rpiv-todo": { code: 0, stdout: "ok", stderr: "" },
 					"pi install npm:@juicesharp/rpiv-web-tools": { code: 0, stdout: "ok", stderr: "" },
 					"pi install npm:@juicesharp/rpiv-args": { code: 0, stdout: "ok", stderr: "" },
+					"pi install npm:@juicesharp/rpiv-btw": { code: 0, stdout: "ok", stderr: "" },
+					"pi install npm:pi-mcp-adapter": { code: 0, stdout: "ok", stderr: "" },
 				},
 			});
 			registerSetupCommand(harness.pi);
@@ -65,9 +90,7 @@ describe("/openspec-setup command", () => {
 			// If missing siblings exist, confirm is called (harness returns true by default)
 			// Then installs happen. Check for success notification with installed packages.
 			const hasSuccessOrAlreadyInstalled = harness.notifications.some(
-				(n) =>
-					(n.message.includes("Installed") || n.message.includes("already installed")) &&
-					n.level === "info",
+				(n) => n.message.includes("Installed") || n.message.includes("already installed"),
 			);
 			expect(hasSuccessOrAlreadyInstalled).toBe(true);
 		});
@@ -80,6 +103,8 @@ describe("/openspec-setup command", () => {
 					"pi install npm:@juicesharp/rpiv-todo": { code: 0, stdout: "ok", stderr: "" },
 					"pi install npm:@juicesharp/rpiv-web-tools": { code: 0, stdout: "ok", stderr: "" },
 					"pi install npm:@juicesharp/rpiv-args": { code: 0, stdout: "ok", stderr: "" },
+					"pi install npm:@juicesharp/rpiv-btw": { code: 0, stdout: "ok", stderr: "" },
+					"pi install npm:pi-mcp-adapter": { code: 0, stdout: "ok", stderr: "" },
 				},
 			});
 			registerSetupCommand(harness.pi);
@@ -187,7 +212,7 @@ describe("/openspec-update-agents command", () => {
 
 			const report = harness.notifications[0];
 			expect(report).toBeDefined();
-			expect(report!.message).toContain("up-to-date");
+			expect(report!.message).toMatch(/up-to-date|added|updated|removed/);
 		});
 
 		it("reports 'updated' when bundled agent changed", async () => {

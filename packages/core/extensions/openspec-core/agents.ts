@@ -3,7 +3,7 @@
  *
  * Pure utility. No ExtensionAPI interactions.
  *
- * Manifest-based ownership with sha256 hashing and path-traversal hardening.
+ * Manifest-based ownership with content-addressable sha256 hashing and path-traversal hardening.
  */
 
 import { createHash } from "node:crypto";
@@ -11,25 +11,12 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, unlinkS
 import { dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// ---------------------------------------------------------------------------
-// Package-root resolution
-// ---------------------------------------------------------------------------
-
-/**
- * Resolves the package root from this module's file URL.
- * Walks up from `extensions/openspec-core/agents.ts` to packages/core/.
- */
 export const PACKAGE_ROOT = (() => {
 	const thisFile = fileURLToPath(import.meta.url);
-	// extensions/openspec-core/agents.ts -> packages/core/
 	return dirname(dirname(dirname(thisFile)));
 })();
 
 export const BUNDLED_AGENTS_DIR = join(PACKAGE_ROOT, "agents");
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 export interface SyncError {
 	file?: string;
@@ -48,20 +35,8 @@ export interface SyncResult {
 }
 
 function emptySyncResult(): SyncResult {
-	return {
-		added: [],
-		updated: [],
-		unchanged: [],
-		removed: [],
-		pendingUpdate: [],
-		pendingRemove: [],
-		errors: [],
-	};
+	return { added: [], updated: [], unchanged: [], removed: [], pendingUpdate: [], pendingRemove: [], errors: [] };
 }
-
-// ---------------------------------------------------------------------------
-// Path-traversal allowlist
-// ---------------------------------------------------------------------------
 
 function isManagedAgentName(name: string): boolean {
 	if (typeof name !== "string" || name.length === 0) return false;
@@ -70,23 +45,16 @@ function isManagedAgentName(name: string): boolean {
 	if (name === "." || name === "..") return false;
 	if (name.includes("..")) return false;
 	if (isAbsolute(name)) return false;
-	if (!name.endsWith(".md")) return false;
-	return true;
+	return name.endsWith(".md");
 }
 
 function safeJoin(targetDir: string, name: string): string | null {
 	const resolved = resolve(targetDir, name);
 	const root = resolve(targetDir) + sep;
-	if (!resolved.startsWith(root)) return null;
-	return resolved;
+	return resolved.startsWith(root) ? resolved : null;
 }
 
-// ---------------------------------------------------------------------------
-// Manifest
-// ---------------------------------------------------------------------------
-
 const MANIFEST_FILE = ".openspec-managed.json";
-
 type Manifest = Record<string, string>;
 
 function sha256(buf: Buffer | string): string {
@@ -124,42 +92,22 @@ function writeManifest(targetDir: string, manifest: Manifest, result: SyncResult
 		for (const k of Object.keys(manifest).sort()) ordered[k] = manifest[k] ?? "";
 		writeFileSync(manifestPath, `${JSON.stringify(ordered, null, 2)}\n`, "utf-8");
 	} catch (e) {
-		result.errors.push({
-			op: "manifest-write",
-			message: e instanceof Error ? e.message : String(e),
-		});
+		result.errors.push({ op: "manifest-write", message: e instanceof Error ? e.message : String(e) });
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Agent Sync Engine
-// ---------------------------------------------------------------------------
-
-/**
- * Synchronize bundled agents from <PACKAGE_ROOT>/agents/ into <cwd>/.pi/agents/.
- *
- * apply=false (session_start): read-only — adds new, detects drift, does not overwrite user edits.
- * apply=true (/openspec-update-agents): force adds/updates/removes.
- */
 export function syncBundledAgents(cwd: string, apply: boolean): SyncResult {
 	const result = emptySyncResult();
-
-	if (!existsSync(BUNDLED_AGENTS_DIR)) {
-		return result;
-	}
+	if (!existsSync(BUNDLED_AGENTS_DIR)) return result;
 
 	const targetDir = join(cwd, ".pi", "agents");
 	try {
 		mkdirSync(targetDir, { recursive: true });
 	} catch (e) {
-		result.errors.push({
-			op: "mkdir",
-			message: e instanceof Error ? e.message : "Failed to create target directory",
-		});
+		result.errors.push({ op: "mkdir", message: e instanceof Error ? e.message : "Failed to create target directory" });
 		return result;
 	}
 
-	// 1. Enumerate source files
 	let sourceEntries: string[];
 	try {
 		sourceEntries = readdirSync(BUNDLED_AGENTS_DIR).filter((f) => f.endsWith(".md"));
@@ -172,7 +120,6 @@ export function syncBundledAgents(cwd: string, apply: boolean): SyncResult {
 	const manifest = readManifest(targetDir);
 	const newManifest: Manifest = {};
 
-	// 2. Process each source file
 	for (const entry of sourceEntries) {
 		const src = join(BUNDLED_AGENTS_DIR, entry);
 		const dest = safeJoin(targetDir, entry);
@@ -187,11 +134,7 @@ export function syncBundledAgents(cwd: string, apply: boolean): SyncResult {
 		try {
 			srcContent = readFileSync(src);
 		} catch (e) {
-			result.errors.push({
-				file: entry,
-				op: "read-src",
-				message: e instanceof Error ? e.message : String(e),
-			});
+			result.errors.push({ file: entry, op: "read-src", message: e instanceof Error ? e.message : String(e) });
 			newManifest[entry] = knownHash;
 			continue;
 		}
@@ -203,11 +146,7 @@ export function syncBundledAgents(cwd: string, apply: boolean): SyncResult {
 				result.added.push(entry);
 				newManifest[entry] = srcHash;
 			} catch (e) {
-				result.errors.push({
-					file: entry,
-					op: "copy",
-					message: e instanceof Error ? e.message : String(e),
-				});
+				result.errors.push({ file: entry, op: "copy", message: e instanceof Error ? e.message : String(e) });
 				newManifest[entry] = knownHash;
 			}
 			continue;
@@ -217,11 +156,7 @@ export function syncBundledAgents(cwd: string, apply: boolean): SyncResult {
 		try {
 			destContent = readFileSync(dest);
 		} catch (e) {
-			result.errors.push({
-				file: entry,
-				op: "read-dest",
-				message: e instanceof Error ? e.message : String(e),
-			});
+			result.errors.push({ file: entry, op: "read-dest", message: e instanceof Error ? e.message : String(e) });
 			newManifest[entry] = knownHash;
 			continue;
 		}
@@ -240,11 +175,7 @@ export function syncBundledAgents(cwd: string, apply: boolean): SyncResult {
 				result.updated.push(entry);
 				newManifest[entry] = srcHash;
 			} catch (e) {
-				result.errors.push({
-					file: entry,
-					op: "copy",
-					message: e instanceof Error ? e.message : String(e),
-				});
+				result.errors.push({ file: entry, op: "copy", message: e instanceof Error ? e.message : String(e) });
 				newManifest[entry] = knownHash;
 			}
 		} else {
@@ -253,11 +184,9 @@ export function syncBundledAgents(cwd: string, apply: boolean): SyncResult {
 		}
 	}
 
-	// 3. Stale-removal
 	const toUnlink: { name: string; destPath: string }[] = [];
 	for (const name of Object.keys(manifest)) {
 		if (sourceNames.has(name)) continue;
-
 		const knownHash = manifest[name] ?? "";
 		const destPath = safeJoin(targetDir, name);
 		if (destPath === null) {
@@ -273,45 +202,30 @@ export function syncBundledAgents(cwd: string, apply: boolean): SyncResult {
 		try {
 			destContent = readFileSync(destPath);
 		} catch (e) {
-			result.errors.push({
-				file: name,
-				op: "read-dest",
-				message: e instanceof Error ? e.message : String(e),
-			});
+			result.errors.push({ file: name, op: "read-dest", message: e instanceof Error ? e.message : String(e) });
 			newManifest[name] = knownHash;
 			continue;
 		}
 		const destHash = sha256(destContent);
 		const safeAutoRemove = !apply && knownHash !== "" && destHash === knownHash;
 
-		if (apply || safeAutoRemove) {
-			toUnlink.push({ name, destPath });
-		} else {
+		if (apply || safeAutoRemove) toUnlink.push({ name, destPath });
+		else {
 			result.pendingRemove.push(name);
 			newManifest[name] = knownHash;
 		}
 	}
 
-	// Persist manifest before destructive ops.
 	writeManifest(targetDir, newManifest, result);
-
-	// Commit unlinks after manifest is durable.
 	for (const { name, destPath } of toUnlink) {
 		try {
 			unlinkSync(destPath);
 			result.removed.push(name);
 		} catch (e) {
-			result.errors.push({
-				file: name,
-				op: "remove",
-				message: e instanceof Error ? e.message : String(e),
-			});
+			result.errors.push({ file: name, op: "remove", message: e instanceof Error ? e.message : String(e) });
 			newManifest[name] = manifest[name] ?? "";
 		}
 	}
-	if (result.errors.some((e) => e.op === "remove")) {
-		writeManifest(targetDir, newManifest, result);
-	}
-
+	if (result.errors.some((e) => e.op === "remove")) writeManifest(targetDir, newManifest, result);
 	return result;
 }

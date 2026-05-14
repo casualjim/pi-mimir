@@ -1,0 +1,37 @@
+## 1. Repair Schema Definition
+
+- [ ] 1.1 Rewrite `packages/core/openspec/schemas/review-gated/schema.yaml` to use OpenSpec's supported `name`, `version`, `description`, `artifacts`, and `apply` structure
+- [ ] 1.2 Convert artifact definitions from a map to an array with `id`, `generates`, `description`, `template`, `instruction`, and `requires`
+- [ ] 1.3 Encode the intended dependency graph: `proposal` first, `specs` and `design` after proposal, `tasks` after specs and design
+- [ ] 1.4 Replace unsupported `apply.instructions` with `apply.requires`, `apply.tracks`, and inline `apply.instruction`
+- [ ] 1.5 Remove unsupported top-level `summary`, `archive`, and `rules` schema fields
+
+## 2. Place Guidance in Correct Owners
+
+- [ ] 2.1 Add proposal-specific review-gated guidance to `proposal.instruction`
+- [ ] 2.2 Add specs-specific review-gated guidance to `specs.instruction`
+- [ ] 2.3 Add design-specific review-gated guidance to `design.instruction`
+- [ ] 2.4 Add tasks-specific review-gated guidance to `tasks.instruction`
+- [ ] 2.5 Add apply-phase guidance to `apply.instruction`, including incremental task execution, verification, review gates, archive readiness, and no commits
+
+## 3. Reconcile Templates
+
+- [ ] 3.1 Review `templates/proposal.md`, `templates/spec.md`, `templates/design.md`, and `templates/tasks.md` for skeleton/example quality
+- [ ] 3.2 Keep templates limited to markdown structure and examples, not setup, agent dispatch, archive, or review-skill implementation policy
+- [ ] 3.3 Decide whether useful content from `templates/apply.md` should be folded into `apply.instruction` or retained outside schema wiring
+- [ ] 3.4 Decide whether `templates/archive.md` should move to documentation or a supported archive/sync instruction surface outside `schema.yaml`
+
+## 4. Validate Schema Behavior
+
+- [ ] 4.1 Validate the corrected `review-gated` schema with OpenSpec's schema parser or schema validation command
+- [ ] 4.2 Create or use a temporary change with `schema: review-gated` to verify `openspec status --change <name> --json` reports the expected artifact dependency states
+- [ ] 4.3 Verify `openspec instructions proposal/specs/design/tasks --change <name> --json` each returns template, instruction, output path, and dependency metadata
+- [ ] 4.4 Verify `openspec instructions apply --change <name> --json` returns task tracking and apply guidance once the temporary change is apply-ready
+- [ ] 4.5 Verify no unsupported fields (`summary`, `path`, `instructions`, top-level `archive`, top-level `rules`) remain in `review-gated/schema.yaml`
+- [ ] 4.6 Compare the corrected `review-gated` structure against `~/github/JiangWay/openspec-schemas/superpowers-bridge/schema.yaml` as a valid complex custom-schema precedent
+
+## 5. Confirm Scope Boundaries
+
+- [ ] 5.1 Confirm the implementation diff is limited to `packages/core/openspec/schemas/review-gated/schema.yaml` and necessary files under `packages/core/openspec/schemas/review-gated/templates/`
+- [ ] 5.2 Confirm planner, worker, reviewer, review skills, setup commands, managed manifests, package registration, and unrelated docs were not modified
+- [ ] 5.3 Run `openspec validate openspec-schema --strict`

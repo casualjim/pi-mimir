@@ -5,6 +5,7 @@
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { type SyncResult, syncBundledAgents } from "./agents.js";
+import { writeOpenSpecAssetManifest } from "./managed-assets.js";
 
 const MSG_UP_TO_DATE = "All agents already up-to-date.";
 const MSG_NO_CHANGES = "No changes needed.";
@@ -15,9 +16,10 @@ const msgSyncedWithErrors = (summary: string, errors: string[]) =>
 
 export function registerUpdateAgentsCommand(pi: ExtensionAPI): void {
 	pi.registerCommand("openspec-update-agents", {
-		description: "Sync pi-openspec-workflow bundled agents into .pi/agents/: add new, update changed, remove stale",
+		description: "Sync bundled agents and refresh the OpenSpec asset manifest",
 		handler: async (_args, ctx) => {
 			const result = syncBundledAgents(ctx.cwd, true);
+			writeOpenSpecAssetManifest(ctx.cwd);
 			if (!ctx.hasUI) return;
 			ctx.ui.notify(formatSyncReport(result), result.errors.length > 0 ? "warning" : "info");
 		},

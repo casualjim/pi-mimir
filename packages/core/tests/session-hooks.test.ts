@@ -83,6 +83,17 @@ describe("session-hooks", () => {
 			// Notification may or may not fire depending on actual settings.json state,
 			// but we verify it doesn't crash
 		});
+
+		it("injects workflow guidance for plan/implement, degraded discovery, and no PR implementation", async () => {
+			const harness = createSessionHarness();
+			await harness.emit("session_start", {}, { cwd: projectDir });
+			const guidance = harness.sentMessages.find((m) => m.customType === "openspec-workflow-guidance");
+			expect(guidance).toBeDefined();
+			expect(guidance!.content).toContain("plan");
+			expect(guidance!.content).toContain("implement");
+			expect(guidance!.content).toContain("degraded discovery");
+			expect(guidance!.content).toContain("PR creation");
+		});
 	});
 
 	describe("session_compact", () => {

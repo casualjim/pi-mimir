@@ -1,0 +1,347 @@
+name: review-gated
+version: 1
+description: Review-gated OpenSpec workflow - proposal → review-proposal → specs/design → review-specs/review-design → tasks → review-tasks → apply
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Initial proposal document outlining the change
+    template: proposal.md
+    instruction: |
+      Create the proposal document that establishes WHY this change is needed and WHAT changes at a high level.
+
+      A proposal is a logical, objective approval artifact. It should persuade by clearly defining the problem/opportunity, proposed outcome, scope, and impact. It is not a design document, implementation plan, research log, roadmap, or retrospective.
+
+      Sections:
+      - **Why**: State the problem, opportunity, motivation, and expected benefit. Include only the background needed to understand why this change is worth doing now.
+      - **What Changes**: Describe the high-level WHAT: new, modified, or removed behavior/capabilities; proposal-level goals/outcomes; scope boundaries; explicit non-goals or limitations when they prevent ambiguity. Mark breaking changes with **BREAKING**.
+      - **Capabilities**: Identify which specs will be created or modified:
+        - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<name>/spec.md`. Use kebab-case names (e.g., `user-auth`, `data-export`).
+        - **Modified Capabilities**: List existing capabilities whose REQUIREMENTS are changing. Only include if spec-level behavior changes (not just implementation details). Each needs a delta spec file. Check `openspec/specs/` for existing spec names. Leave empty if no requirement changes.
+      - **Impact**: Affected users, code, APIs, dependencies, systems, compatibility, operations, risks, constraints, caveats, or open questions at proposal level.
+
+      IMPORTANT: The Capabilities section is critical. It creates the contract between
+      proposal and specs phases. Research existing specs before filling this in.
+      Each capability listed here will need a corresponding spec file.
+
+      Keep it concise (1-2 pages). Focus on WHY and high-level WHAT, not HOW.
+      Detailed architecture, API design, task breakdown, tests, CI, and implementation mechanics belong in downstream artifacts.
+
+      The proposal must be void of extra narrative. Do not include research chronology, discovery process, rejected investigation paths, agent reasoning, broad history, unrelated roadmap, or retrospective content just to make the document feel like a cohesive story.
+
+      This is the foundation - specs, design, and tasks all build on this.
+    requires: []
+
+  - id: review-proposal
+    generates: reviews/proposal.md
+    description: Review output for proposal quality before downstream planning
+    template: planning-review.md
+    instruction: |
+      Review proposal.md as a proposal artifact.
+
+      The review output goes to reviews/proposal.md using the planning-review.md template. The template is a prose/bullet review report; do not turn it into a table.
+
+      Inputs:
+      - openspec/changes/<change-name>/proposal.md
+      - the original user intent if available
+      - existing accepted specs only if needed to verify capability names
+
+      Scope:
+      - Review only the proposal as a proposal.
+      - Do not review implementation, design choices, task breakdown, code, tests, CI, or archive readiness.
+
+      Proposal review requirements:
+      - summary/change statement is concise and unambiguous;
+      - problem, opportunity, or motivation is clear, with only the background needed to understand why the change is worth doing;
+      - goals, objectives, and expected benefits or outcomes are stated at proposal level;
+      - scope and non-goals/limitations are explicit enough to focus downstream discussion and prevent scope creep;
+      - proposed change describes WHAT will change at a high level, including new, modified, or removed capabilities clearly enough for specs to follow;
+      - affected users, systems, APIs, dependencies, compatibility, or operational impact are identified when relevant;
+      - risks, constraints, caveats, and open questions are visible at proposal level without turning into design detail;
+      - proposed capabilities trace to user intent and accepted specs where applicable, with no orphan or unrelated changes;
+      - proposal is void of extra narrative: it does not turn research process, discovery chronology, rejected investigation paths, or agent reasoning into a cohesive story;
+      - proposal remains logical, credible, and objective, and avoids unrelated history, roadmap, retrospective, or implementation-planning content;
+      - proposal defers detailed architecture, API design, task breakdown, tests, CI, and implementation mechanics to downstream artifacts.
+
+      Findings:
+      - `blocker`: proposal cannot safely drive specs/design/tasks.
+      - `concern`: proposal can continue only if the user accepts the ambiguity/tradeoff.
+      - `suggestion`: optional clarity improvement.
+
+      Record findings as bullets under the template sections. Include evidence and the smallest concrete fix. If there are no issues, mark Decision as Pass and leave findings sections empty.
+    requires:
+      - proposal
+
+  - id: design
+    generates: design.md
+    description: Technical design document with implementation details
+    template: design.md
+    instruction: |
+      Create the design document that explains the chosen HOW and why it is the right trade-off for this change.
+
+      Include design.md when any apply:
+      - Cross-cutting change (multiple services/modules) or new architectural pattern
+      - New external dependency or significant data model changes
+      - Security, performance, reliability, observability, migration, or operational complexity
+      - Ambiguity that benefits from technical decisions before coding
+
+      Ground the design in completed planning artifacts:
+      - Use proposal.md for motivation, scope, non-goals, and impact.
+      - Use specs/**/*.md for required behavior and acceptance scenarios.
+      - Every major design element should trace to a proposal goal, spec requirement, constraint, or quality goal.
+
+      Sections:
+      - **Context**: Current state, relevant constraints, stakeholders/affected systems, and the narrow background needed to understand the design. Avoid broad historical narrative.
+      - **Goals / Non-Goals**: What this design achieves and explicitly excludes.
+      - **Solution Strategy**: The high-level approach, key abstractions, top-level decomposition, and why this shape fits the goals and constraints.
+      - **Components / Interfaces**: Modules, services, boundaries, APIs, contracts, data/state model, and important integration points where relevant.
+      - **Runtime / Operational View**: Important flows, failure paths, concurrency/state transitions, deployment/operational behavior, observability, and supportability where relevant.
+      - **Migration Plan**: Deployment steps, data/backfill needs, rollout, rollback, compatibility/version-skew, and recovery plan if applicable.
+      - **Decisions**: Key technical choices with rationale, trade-offs, and credible alternatives considered.
+      - **Quality / Cross-Cutting Concerns**: Reliability, security, privacy, performance, observability, maintainability, compatibility, and scalability where relevant.
+      - **Risks / Trade-offs**: Known limitations, assumptions, technical debt, and mitigations.
+      - **Open Questions**: Outstanding decisions or unknowns to resolve before or during implementation.
+
+      Focus on architecture and approach, not line-by-line implementation. Include enough detail for implementers, reviewers, operators, and future maintainers to build, review, test, operate, and understand the design without rediscovering major decisions.
+
+      Good design docs explain the "why" behind technical decisions and preserve decision memory.
+    requires:
+      - proposal
+      - review-proposal
+
+  - id: review-design
+    generates: reviews/design.md
+    description: Review output for design quality before task planning
+    template: planning-review.md
+    instruction: |
+      Review design.md as a design artifact.
+
+      The review output goes to reviews/design.md using the planning-review.md template. The template is a prose/bullet review report; do not turn it into a table.
+
+      Inputs:
+      - openspec/changes/<change-name>/design.md
+      - openspec/changes/<change-name>/proposal.md
+      - openspec/changes/<change-name>/specs/**/*.md, if present and needed to check requirements alignment
+
+      Scope:
+      - Review only whether the design is sufficient to guide implementation.
+      - Do not review proposal quality, task breakdown, implementation, code, tests, CI, or archive readiness.
+
+      Design review requirements:
+      - scope and non-scope are explicit enough to bound the design;
+      - design traces to the proposal goals and specs/requirements, with no orphan design elements or missing required behavior;
+      - design describes the chosen HOW: architecture/solution strategy, components, interfaces/APIs, data or state model, runtime flows, and deployment/operational shape where relevant;
+      - key decisions include rationale, trade-offs, and credible alternatives considered;
+      - the chosen approach is technically feasible and the simplest viable design for the stated goals, constraints, and risks;
+      - relevant quality and cross-cutting concerns are addressed: reliability, security, privacy, performance, observability, maintainability, migration/rollback as applicable;
+      - risks, assumptions, open questions, and known technical debt are visible;
+      - implementers, reviewers, operators, and future maintainers have enough information to build, review, test, operate, and understand the design without rediscovering major decisions.
+
+      Findings:
+      - `blocker`: design cannot safely drive tasks or implementation.
+      - `concern`: design can continue only if the user accepts the ambiguity/tradeoff.
+      - `suggestion`: optional clarity improvement.
+
+      Record findings as bullets under the template sections. Include evidence and the smallest concrete fix. If there are no issues, mark Decision as Pass and leave findings sections empty.
+    requires:
+      - design
+
+  - id: specs
+    generates: "specs/**/*.md"
+    description: Detailed specifications for the change
+    template: spec.md
+    instruction: |
+      Create OpenSpec scenario-based delta specifications that define WHAT observable behavior changes.
+
+      Create one spec file per capability listed in the proposal's Capabilities section.
+      - New capabilities: use the exact kebab-case name from the proposal (specs/<capability>/spec.md).
+      - Modified capabilities: use the existing spec folder name from openspec/specs/<capability>/ when creating the delta spec at specs/<capability>/spec.md.
+      - Do not create orphan spec files for capabilities not named in the proposal unless the proposal is first updated.
+
+      Requirements quality:
+      - Each requirement must be necessary and traceable to the proposal/user intent or an existing accepted spec change.
+      - Each requirement should be singular, unambiguous, complete enough, consistent, feasible, and bounded to this change.
+      - Requirements describe externally observable behavior or constraints, not internal architecture, implementation mechanics, task steps, or test/CI procedure.
+      - Use SHALL/MUST for normative requirements; avoid should/may, vague adjectives, aspiration, or subjective success language.
+      - Unresolved behavior questions are not requirements. Mark them as open questions/blockers instead of encoding ambiguity.
+
+      Scenario quality:
+      - Every requirement MUST have at least one scenario.
+      - Each scenario MUST use exactly 4 hashtags: `#### Scenario: <name>`. Using 3 hashtags or bullets will fail silently.
+      - Scenarios use concrete WHEN/THEN examples: clear trigger/precondition and observable expected outcome.
+      - Scenarios are acceptance-test seeds. A reviewer should be able to derive concrete tests from them.
+      - Cover important success, failure, permission/security, boundary, edge, compatibility, and migration cases where relevant.
+      - Keep the scenario set efficient: avoid duplicate scenarios that prove the same rule.
+
+      Delta operations (use ## headers):
+      - **ADDED Requirements**: New capabilities or new behavior/rules.
+      - **MODIFIED Requirements**: Changed existing behavior - MUST include full updated content.
+      - **REMOVED Requirements**: Deprecated behavior - MUST include **Reason** and **Migration**.
+      - **RENAMED Requirements**: Name changes only - use FROM:/TO: format.
+
+      MODIFIED requirements workflow:
+      1. Locate the existing requirement in openspec/specs/<capability>/spec.md
+      2. Copy the ENTIRE requirement block (from `### Requirement:` through all scenarios)
+      3. Paste under `## MODIFIED Requirements` and edit to reflect new behavior
+      4. Ensure header text matches exactly (whitespace-insensitive)
+
+      Common pitfall: Using MODIFIED with partial content loses detail at archive time.
+      If adding new concerns without changing existing behavior, use ADDED instead.
+
+      Keep specs void of extra narrative. Do not include research chronology, design rationale, roadmap, retrospective, task planning, tests/CI detail, or implementation mechanics.
+
+      Example:
+      ```
+      ## ADDED Requirements
+
+      ### Requirement: User can export data
+      The system SHALL allow users to export their data in CSV format.
+
+      #### Scenario: Successful export
+      - **WHEN** user clicks "Export" button
+      - **THEN** system downloads a CSV file with all user data
+
+      ## REMOVED Requirements
+
+      ### Requirement: Legacy export
+      **Reason**: Replaced by new export system
+      **Migration**: Use new export endpoint at /api/v2/export
+      ```
+
+      Specs should be testable - each scenario is a potential acceptance test case.
+    requires:
+      - proposal
+      - review-proposal
+
+  - id: review-specs
+    generates: reviews/specs.md
+    description: Review output for spec quality before task planning
+    template: planning-review.md
+    instruction: |
+      Review specs/**/*.md as OpenSpec scenario-based delta specs.
+
+      The review output goes to reviews/specs.md using the planning-review.md template. The template is a prose/bullet review report; do not turn it into a table.
+
+      Inputs:
+      - openspec/changes/<change-name>/specs/**/*.md
+      - openspec/changes/<change-name>/proposal.md
+      - existing accepted specs under openspec/specs/<capability>/spec.md when reviewing MODIFIED/REMOVED/RENAMED requirements
+
+      Scope:
+      - Review only whether the specs precisely define WHAT behavior changes.
+      - Do not review design choices, task breakdown, implementation, code, tests, CI, or archive readiness.
+
+      Spec review requirements:
+      - specs are scenario-based delta specifications: they define WHAT observable behavior changes, not HOW implementation will work;
+      - every requirement is necessary and traceable to the proposal/user intent or an existing accepted spec change, with no orphan specs or missing proposed capabilities;
+      - every requirement is singular, unambiguous, complete enough, consistent, feasible, and bounded to this change;
+      - every requirement uses normative language (SHALL/MUST) and avoids vague, aspirational, subjective, or implementation-only wording;
+      - every requirement is verifiable/testable: a reviewer can derive concrete acceptance tests from its scenarios;
+      - every requirement has at least one `#### Scenario:` with a clear WHEN trigger and observable THEN outcome;
+      - scenarios are concrete examples that illustrate the requirement/rule, not story narration, research chronology, or implementation steps;
+      - the scenario set is efficient: it covers important success, failure, permission/security, boundary, edge, compatibility, and migration cases where relevant without duplicating the same proof;
+      - each spec file corresponds to a capability named in the proposal, and capability names/paths match OpenSpec expectations;
+      - ADDED/MODIFIED/REMOVED/RENAMED sections use valid OpenSpec delta headings and semantics;
+      - MODIFIED requirements include the full updated requirement block and preserve the exact existing requirement name when changing existing behavior;
+      - REMOVED requirements include reason and migration guidance;
+      - unresolved behavior questions are explicit blockers/concerns, not silently encoded as ambiguous requirements;
+      - specs avoid extra narrative, design rationale, roadmap, retrospective, task planning, tests/CI detail, and implementation mechanics.
+
+      Findings:
+      - `blocker`: specs cannot safely drive design/tasks/implementation or will fail OpenSpec validation/archive semantics.
+      - `concern`: specs can continue only if the user accepts the ambiguity/tradeoff.
+      - `suggestion`: optional clarity improvement.
+
+      Record findings as bullets under the template sections. Include evidence and the smallest concrete fix. If there are no issues, mark Decision as Pass and leave findings sections empty.
+    requires:
+      - specs
+
+  - id: tasks
+    generates: tasks.md
+    description: Implementation checklist with trackable tasks
+    template: tasks.md
+    instruction: |
+      Create the task list that breaks down the implementation work.
+
+      **IMPORTANT: Follow the template below exactly.** The apply phase parses
+      checkbox format to track progress. Tasks not using `- [ ]` won't be tracked.
+
+      Guidelines:
+      - Group related tasks under ## numbered headings
+      - Each task MUST be a checkbox: `- [ ] X.Y Task description`
+      - Tasks should be small enough to complete in one session
+      - Order tasks by dependency (what must be done first?)
+
+      Example:
+      ```
+      ## 1. Setup
+
+      - [ ] 1.1 Create new module structure
+      - [ ] 1.2 Add dependencies to package.json
+
+      ## 2. Core Implementation
+
+      - [ ] 2.1 Implement data export function
+      - [ ] 2.2 Add CSV formatting utilities
+      ```
+
+      Reference specs for what needs to be built, design for how to build it.
+      Each task should be verifiable - you know when it's done.
+    requires:
+      - specs
+      - design
+      - review-specs
+      - review-design
+
+  - id: review-tasks
+    generates: reviews/tasks.md
+    description: Review output for task quality before implementation
+    template: planning-review.md
+    instruction: |
+      Review tasks.md as the implementation task plan.
+
+      The review output goes to reviews/tasks.md using the planning-review.md template. The template is a prose/bullet review report; do not turn it into a table.
+
+      Inputs:
+      - openspec/changes/<change-name>/tasks.md
+      - openspec/changes/<change-name>/proposal.md
+      - openspec/changes/<change-name>/specs/**/*.md
+      - openspec/changes/<change-name>/design.md
+
+      Scope:
+      - Review only whether tasks.md is ready to drive implementation.
+      - Do not review implementation, code, tests, CI, or archive readiness.
+      - Do not re-review proposal/specs/design except to check task alignment and coverage.
+
+      Task review requirements:
+      - tasks are parseable by OpenSpec apply: every implementation task uses checkbox format `- [ ] X.Y Task description`;
+      - tasks cover every required behavior, constraint, migration, and verification need implied by proposal, specs, and design;
+      - tasks contain no orphan or out-of-scope work unrelated to the accepted planning artifacts;
+      - tasks are ordered by dependency so an implementer can work top-to-bottom without hidden prerequisites;
+      - tasks are small, concrete, and actionable enough to complete incrementally;
+      - each task has a clear completion condition and is independently verifiable;
+      - tasks include required test, documentation, configuration, migration, rollout, or cleanup work where relevant;
+      - tasks do not smuggle unresolved design decisions into implementation. If major decisions remain, record a blocker or concern;
+      - tasks preserve the agreed scope and avoid opportunistic refactors, unrelated cleanup, roadmap work, or retrospective content;
+      - tasks avoid extra narrative, research chronology, design rationale, and implementation-story prose.
+
+      Findings:
+      - `blocker`: tasks cannot safely drive implementation or will not be tracked correctly by apply.
+      - `concern`: tasks can continue only if the user accepts the ambiguity/tradeoff.
+      - `suggestion`: optional clarity improvement.
+
+      Record findings as bullets under the template sections. Include evidence and the smallest concrete fix. If there are no issues, mark Decision as Pass and leave findings sections empty.
+    requires:
+      - tasks
+
+apply:
+  requires: [tasks, review-tasks]
+  tracks: tasks.md
+  instruction: |
+    Use OpenSpec apply instructions and this tracked task file as the source of truth.
+    Read every context file returned by OpenSpec before implementation.
+    Confirm the planning review artifacts (`reviews/proposal.md`, `reviews/specs.md`, `reviews/design.md`, and `reviews/tasks.md`) have passed or were explicitly accepted by the user before implementation starts.
+    Work through pending tasks incrementally and mark each checkbox complete only after the corresponding implementation is done.
+    After tasks are complete, verify implementation against proposal, specs, design, and tasks.
+
+    Stop after implementation verification. Report that generated OpenSpec archive behavior can be run separately only if the planning review gates are resolved. Do not run git commit, git push, PR creation, archive, or Superpowers finishing-branch behavior.
+    Pause if you hit blockers or need clarification.

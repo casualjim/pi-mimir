@@ -45,4 +45,14 @@ export const SIBLINGS: readonly SiblingPlugin[] = [
 		matches: /rpiv-args(?![-\w])/i,
 		provides: "skill-argument resolver — substitutes $N/$ARGUMENTS in skill bodies",
 	},
+	{
+		pkg: "npm:@juicesharp/rpiv-btw",
+		matches: /rpiv-btw/i,
+		provides: "between-turn workflow reminders and gate prompts",
+	},
+	{
+		pkg: "npm:pi-mcp-adapter",
+		matches: /pi-mcp-adapter/i,
+		provides: "MCP adapter for codebase-memory tool wiring",
+	},
 ];

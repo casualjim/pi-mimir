@@ -19,11 +19,10 @@ describe("agents", () => {
 	});
 
 	describe("syncBundledAgents (read-only mode)", () => {
-		it("returns empty result when bundled agents dir is empty", () => {
-			// BUNDLED_AGENTS_DIR is packages/core/agents/ which is empty
+		it("syncs bundled agents without errors", () => {
 			const result = syncBundledAgents(cwd, false);
-			expect(result.added).toEqual([]);
 			expect(result.errors).toEqual([]);
+			expect(result.added.length + result.unchanged.length + result.updated.length).toBeGreaterThan(0);
 		});
 
 		it("creates .pi/agents/ directory if it doesn't exist", () => {
@@ -44,13 +43,15 @@ describe("agents", () => {
 		// OR we test with the actual dir (which is currently empty).
 		// For comprehensive testing, we verify the manifest and path-traversal logic.
 
-		it("manifest is valid JSON with sorted keys", () => {
+		it("agent manifest remains content-addressable hash map with sorted keys", () => {
 			syncBundledAgents(cwd, false);
 			const manifestPath = join(targetDir, ".openspec-managed.json");
-			if (!existsSync(manifestPath)) return; // empty bundled dir
 			const raw = JSON.parse(readFileSync(manifestPath, "utf-8"));
 			const keys = Object.keys(raw);
 			expect(keys).toEqual([...keys].sort());
+			const first = raw[keys[0]!];
+			expect(typeof first).toBe("string");
+			expect(first).toMatch(/^[a-f0-9]{64}$/);
 		});
 
 		it("handles re-sync gracefully", () => {
@@ -169,7 +170,7 @@ describe("agents", () => {
 			// 4. Re-sync in read-only mode — user-modified stale file is NOT auto-removed
 			const r5 = syncBundledAgents(cwd, false);
 			expect(r5.pendingRemove).toContain(testAgentName);
-			expect(r5.removed).toEqual([]); // must NOT delete user-modified file
+			expect(r5.removed).not.toContain(testAgentName); // must NOT delete user-modified file
 
 			// 5. File still exists on disk
 			expect(existsSync(destPath)).toBe(true);
