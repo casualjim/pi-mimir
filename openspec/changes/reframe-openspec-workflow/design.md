@@ -26,7 +26,7 @@ The package will expose two OpenSpec-specific workflow entry points backed by or
 
 ### Package surface
 
-`packages/core/package.json` registers only OpenSpec-specific skills owned by this package:
+`packages/pi-openspec/package.json` registers only OpenSpec-specific skills owned by this package:
 
 ```text
 skills/define
@@ -34,7 +34,7 @@ skills/deliver
 # archive/sync use expanded OpenSpec-generated workflow instructions, not a wrapper skill
 ```
 
-The package also includes orchestrator agents and a generic reviewer persona agent under `packages/core/agents/`. Agent sync remains package-owned and does not require rpiv-pi.
+The package also includes orchestrator agents and a generic reviewer persona agent under `packages/pi-openspec/agents/`. Agent sync remains package-owned and does not require rpiv-pi.
 
 ### Skill-to-agent flow
 
@@ -118,8 +118,8 @@ The orchestrators do not dispatch locator/analyzer/pattern research agents for o
 The package provides OpenSpec assets that can be installed or selected by setup:
 
 ```text
-packages/core/openspec/schemas/review-gated/schema.yaml
-packages/core/openspec/schemas/review-gated/templates/*
+packages/pi-openspec/openspec/schemas/review-gated/schema.yaml
+packages/pi-openspec/openspec/schemas/review-gated/templates/*
 ```
 
 The schema/config adds instructions for:

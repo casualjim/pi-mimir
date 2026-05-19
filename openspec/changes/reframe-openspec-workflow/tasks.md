@@ -1,17 +1,17 @@
 ## 1. Package Registration and Setup
 
-- [x] 1.1 Update `packages/core/package.json` to register `skills/define` and `skills/deliver`
+- [x] 1.1 Update `packages/pi-openspec/package.json` to register `skills/define` and `skills/deliver`
 - [x] 1.2 Reuse OpenSpec archive behavior without adding an `openspec-archive` wrapper skill
-- [x] 1.3 Ensure `packages/core/package.json` does not register commit or generic planning skills
+- [x] 1.3 Ensure `packages/pi-openspec/package.json` does not register commit or generic planning skills
 - [x] 1.4 Ensure package dependencies do not include `@juicesharp/rpiv-pi`
-- [x] 1.5 Add `rpiv-btw` and `npm:pi-mcp-adapter` to `packages/core/extensions/openspec-core/siblings.ts`
+- [x] 1.5 Add `rpiv-btw` and `npm:pi-mcp-adapter` to `packages/pi-openspec/extensions/openspec/siblings.ts`
 - [x] 1.6 Extend `/openspec-setup` to check or install `openspec` via `npm i -g @FissionAI/openspec`
 - [x] 1.7 Extend `/openspec-setup` to check codebase-memory MCP availability and present a copy-paste setup prompt when missing
 
 ## 2. Definition Workflow
 
-- [x] 2.1 Create `packages/core/skills/define/SKILL.md` as the definition entry skill
-- [x] 2.2 Create `packages/core/agents/planner.md`
+- [x] 2.1 Create `packages/pi-openspec/skills/define/SKILL.md` as the definition entry skill
+- [x] 2.2 Create `packages/pi-openspec/agents/planner.md`
 - [x] 2.3 Add OpenSpec status/instructions handling guidance to the planner
 - [x] 2.4 Add codebase-memory-first discovery guidance to the planner
 - [x] 2.5 Add artifact review dispatch and synthesis guidance to the planner
@@ -19,8 +19,8 @@
 
 ## 3. Delivery Workflow
 
-- [x] 3.1 Create `packages/core/skills/deliver/SKILL.md` as the delivery entry skill
-- [x] 3.2 Create `packages/core/agents/worker.md`
+- [x] 3.1 Create `packages/pi-openspec/skills/deliver/SKILL.md` as the delivery entry skill
+- [x] 3.2 Create `packages/pi-openspec/agents/worker.md`
 - [x] 3.3 Add OpenSpec apply-instructions handling guidance to the worker
 - [x] 3.4 Add incremental task execution and checkbox update guidance to the worker
 - [x] 3.5 Add verification, review dispatch, synthesis, and fix-loop guidance to the worker
@@ -28,23 +28,23 @@
 
 ## 4. Review Skills and Reviewer Persona
 
-- [x] 4.1 Create `packages/core/agents/reviewer.md` as the generic adversarial reviewer persona
-- [x] 4.2 Create `packages/core/skills/review-proposal/SKILL.md`
-- [x] 4.3 Create `packages/core/skills/review-specs/SKILL.md`
-- [x] 4.4 Create `packages/core/skills/review-design/SKILL.md`
-- [x] 4.5 Create `packages/core/skills/review-tasks/SKILL.md`
-- [x] 4.6 Create `packages/core/skills/review-claims/SKILL.md`
-- [x] 4.7 Create `packages/core/skills/review-architecture/SKILL.md`
-- [x] 4.8 Create `packages/core/skills/review-tests/SKILL.md`
-- [x] 4.9 Create `packages/core/skills/review-performance/SKILL.md`
-- [x] 4.10 Create `packages/core/skills/review-security/SKILL.md`
+- [x] 4.1 Create `packages/pi-openspec/agents/reviewer.md` as the generic adversarial reviewer persona
+- [x] 4.2 Create `packages/pi-openspec/skills/review-proposal/SKILL.md`
+- [x] 4.3 Create `packages/pi-openspec/skills/review-specs/SKILL.md`
+- [x] 4.4 Create `packages/pi-openspec/skills/review-design/SKILL.md`
+- [x] 4.5 Create `packages/pi-openspec/skills/review-tasks/SKILL.md`
+- [x] 4.6 Create `packages/pi-openspec/skills/review-claims/SKILL.md`
+- [x] 4.7 Create `packages/pi-openspec/skills/review-architecture/SKILL.md`
+- [x] 4.8 Create `packages/pi-openspec/skills/review-tests/SKILL.md`
+- [x] 4.9 Create `packages/pi-openspec/skills/review-performance/SKILL.md`
+- [x] 4.10 Create `packages/pi-openspec/skills/review-security/SKILL.md`
 - [x] 4.11 Define a consistent finding format for artifact and implementation review skills
 
 ## 5. Codebase-Memory and OpenSpec Assets
 
 - [x] 5.1 Update bootstrap guidance to include the codebase-memory discovery ladder
 - [x] 5.2 Add degraded-discovery fallback instructions for codebase-memory failures
-- [x] 5.3 Add review-gated OpenSpec schema/profile/config assets under `packages/core/openspec/`
+- [x] 5.3 Add review-gated OpenSpec schema/profile/config assets under `packages/pi-openspec/openspec/`
 - [x] 5.4 Add no-commit and review-gate instructions to the OpenSpec schema/config assets
 - [x] 5.5 Expand spec sync/archive guidance to include post-landing ADR update handling
 - [x] 5.6 Document canonical ownership for OpenSpec artifacts, codebase-memory ADR, and optional path-scoped guidance

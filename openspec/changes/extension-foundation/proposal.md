@@ -1,11 +1,11 @@
 ## Why
 
-pi-openspec-workflow needs a Pi extension to bootstrap itself into every session. Without it, the agent has no awareness of codebase-memory tools, no git context, no agent syncing, no guidance injection, and no way to install peer packages. The extension is the connective tissue that makes skills and agents usable in practice.
+pi-openspec needs a Pi extension to bootstrap itself into every session. Without it, the agent has no awareness of codebase-memory tools, no git context, no agent syncing, no guidance injection, and no way to install peer packages. The extension is the connective tissue that makes skills and agents usable in practice.
 
 ## What Changes
 
 - **package.json** — npm manifest declaring this as a Pi package within a workspace, with peer dependencies on 5 sibling packages
-- **extensions/openspec-core/** — runtime extension that registers session hooks, slash commands, and prompt injection
+- **extensions/openspec/** — runtime extension that registers session hooks, slash commands, and prompt injection
   - Bootstrap prompt injection (codebase-memory + openspec awareness on every agent turn)
   - Session lifecycle hooks (start/compact/shutdown/tool_call/before_agent_start)
   - Git context caching and injection
@@ -13,7 +13,7 @@ pi-openspec-workflow needs a Pi extension to bootstrap itself into every session
   - Agent profile syncing (bundled → `.pi/agents/`)
   - `/openspec-setup` command to install peer packages
   - `/openspec-update-agents` command to sync agent profiles
-- **Workspace root** — top-level `package.json` with npm workspaces pointing to `packages/core` and `packages/advisor`
+- **Workspace root** — top-level `package.json` with npm workspaces pointing to `packages/pi-openspec` and `packages/advisor`
 
 ## Capabilities
 
@@ -25,7 +25,7 @@ pi-openspec-workflow needs a Pi extension to bootstrap itself into every session
 - `guidance-injection`: Per-depth guidance file resolution (AGENTS.md > CLAUDE.md > architecture.md) on file touch
 - `agent-syncing`: Bundled agent profiles copied to `.pi/agents/` with manifest-based drift detection
 - `setup-commands`: `/openspec-setup` and `/openspec-update-agents` slash commands
-- `workspace-setup`: Top-level workspace `package.json` with npm workspaces for `packages/core` and `packages/advisor`
+- `workspace-setup`: Top-level workspace `package.json` with npm workspaces for `packages/pi-openspec` and `packages/advisor`
 
 ### Modified Capabilities
 

@@ -38,9 +38,9 @@ _(none — no existing accepted specs to modify)_
 
 ## Impact
 
-- **Package manifest**: update `packages/core/package.json` skill and agent registration.
-- **Skills/prompts**: add `packages/core/skills/define/` and `packages/core/skills/deliver/`; archive uses expanded OpenSpec-generated workflow instructions without a package wrapper skill.
-- **Agents**: add orchestrator profiles and a generic reviewer persona under `packages/core/agents/`.
+- **Package manifest**: update `packages/pi-openspec/package.json` skill and agent registration.
+- **Skills/prompts**: add `packages/pi-openspec/skills/define/` and `packages/pi-openspec/skills/deliver/`; archive uses expanded OpenSpec-generated workflow instructions without a package wrapper skill.
+- **Agents**: add orchestrator profiles and a generic reviewer persona under `packages/pi-openspec/agents/`.
 - **Extension**: update bootstrap guidance, setup dependency installation/checks, OpenSpec asset manifest metadata, content-addressable static asset handling, and rpiv-pi/generic-skill overlap detection.
 - **OpenSpec assets**: add schema/profile/config/rules for review-gated workflow behavior.
 - **Docs**: update README usage docs for the shipped workflow.

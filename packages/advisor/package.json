@@ -2,5 +2,5 @@
   "name": "@casualjim/pi-openspec-advisor",
   "version": "0.1.0",
   "private": true,
-  "description": "Subagent-based advisor for pi-openspec-workflow"
+  "description": "Subagent-based advisor for pi-openspec"
 }

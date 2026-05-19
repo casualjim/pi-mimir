@@ -23,7 +23,7 @@ _(none — no accepted specs currently exist in this repository)_
 
 ## Impact
 
-- **OpenSpec schema asset**: `packages/core/openspec/schemas/review-gated/schema.yaml` must be rewritten to use OpenSpec's supported schema fields and artifact array structure.
-- **Schema templates**: `packages/core/openspec/schemas/review-gated/templates/{proposal,spec,design,tasks}.md` may be refined as skeletons/examples, but should not carry orchestration policy.
+- **OpenSpec schema asset**: `packages/pi-openspec/openspec/schemas/review-gated/schema.yaml` must be rewritten to use OpenSpec's supported schema fields and artifact array structure.
+- **Schema templates**: `packages/pi-openspec/openspec/schemas/review-gated/templates/{proposal,spec,design,tasks}.md` may be refined as skeletons/examples, but should not carry orchestration policy.
 - **Apply/archive template files**: `templates/apply.md` and `templates/archive.md` need an ownership decision because the current schema cannot wire them via unsupported `instructions` or `archive` fields.
 - **Out of scope**: planner/worker agents, review skills, setup commands, managed manifests, package registration, and documentation changes unrelated to the schema asset.

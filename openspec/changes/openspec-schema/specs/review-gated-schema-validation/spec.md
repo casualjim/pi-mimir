@@ -27,7 +27,7 @@ The schema correction SHALL be limited to the review-gated schema asset and dire
 
 #### Scenario: Change scope is reviewed
 - **WHEN** the implementation diff for this change is reviewed
-- **THEN** it touches `packages/core/openspec/schemas/review-gated/schema.yaml` and any necessary files under `packages/core/openspec/schemas/review-gated/templates/`
+- **THEN** it touches `packages/pi-openspec/openspec/schemas/review-gated/schema.yaml` and any necessary files under `packages/pi-openspec/openspec/schemas/review-gated/templates/`
 - **AND** it does not modify planner agents, worker agents, review skills, setup commands, manifests, package registration, or unrelated documentation
 
 ### Requirement: No unsupported schema-policy fields

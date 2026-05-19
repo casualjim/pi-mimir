@@ -1,6 +1,6 @@
 ## Context
 
-pi-openspec-workflow is a greenfield Pi package. The codebase is empty — no `package.json`, no source files. This is the first change, establishing the extension that all skills and agents depend on.
+pi-openspec is a greenfield Pi package. The codebase is empty — no `package.json`, no source files. This is the first change, establishing the extension that all skills and agents depend on.
 
 The reference implementation is `@juicesharp/rpiv-pi/extensions/rpiv-core/`, which provides the same capabilities (session hooks, git context, guidance, agent syncing, setup command). We follow its patterns closely but adapt naming and specifics for openspec.
 
@@ -24,7 +24,7 @@ The reference implementation is `@juicesharp/rpiv-pi/extensions/rpiv-core/`, whi
 Same 10-file structure, same separation of concerns:
 
 ```
-extensions/openspec-core/
+extensions/openspec/
 ├── index.ts              # orchestrator
 ├── session-hooks.ts      # lifecycle wiring
 ├── agents.ts             # bundled agent sync
@@ -81,7 +81,7 @@ rpiv-pi has a `pi-installer.ts` module wrapping `pi install`. We'll call `pi.exe
 
 ### D7: Workspace layout
 
-Top-level `package.json` uses npm workspaces with `packages/*`. The core package lives at `packages/core/` with the extension at `packages/core/extensions/openspec-core/`. The advisor package at `packages/advisor/` is a sibling workspace package providing the advisor tool.
+Top-level `package.json` uses npm workspaces with `packages/*`. The core package lives at `packages/pi-openspec/` with the extension at `packages/pi-openspec/extensions/openspec/`. The advisor package at `packages/advisor/` is a sibling workspace package providing the advisor tool.
 
 **Why**: Workspace keeps advisor and core co-located. Advisor needs its own context window (subagent, not completeSimple on executor branch), so it can't be part of core. But they share the same repo because they're tightly coupled — advisor knows about openspec artifacts and review patterns.
 

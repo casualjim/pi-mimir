@@ -4,7 +4,7 @@
 The review-gated schema definition SHALL use OpenSpec's supported schema YAML structure for workflow artifacts.
 
 #### Scenario: Schema fields are inspected
-- **WHEN** `packages/core/openspec/schemas/review-gated/schema.yaml` is inspected
+- **WHEN** `packages/pi-openspec/openspec/schemas/review-gated/schema.yaml` is inspected
 - **THEN** it contains `name`, `version`, optional `description`, an `artifacts` array, and optional `apply` configuration
 - **AND** it does not use unsupported top-level `summary`, `archive`, or `rules` fields
 
@@ -38,7 +38,7 @@ The review-gated schema SHALL place schema-specific artifact guidance in each ar
 Review-gated templates SHALL provide markdown structure and examples without owning orchestration policy.
 
 #### Scenario: Template file is inspected
-- **WHEN** a template under `packages/core/openspec/schemas/review-gated/templates/` is inspected
+- **WHEN** a template under `packages/pi-openspec/openspec/schemas/review-gated/templates/` is inspected
 - **THEN** it provides the artifact's markdown skeleton or examples
 - **AND** it does not contain setup behavior, agent dispatch behavior, archive behavior, or review-skill implementation rules
 
