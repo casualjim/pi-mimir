@@ -24,8 +24,8 @@ _(none — no existing specs to modify)_
 
 ## Impact
 
-- **Files added**: 5 new files (4 SKILL.md + 1 agent .md) under `packages/pi-openspec/`
-- **Package manifest**: `packages/pi-openspec/package.json` may need `pi.skills` and `pi.agents` field adjustments to register the new directories
+- **Files added**: 5 new files (4 SKILL.md + 1 agent .md) under `packages/pi-mimir/`
+- **Package manifest**: `packages/pi-mimir/package.json` may need `pi.skills` and `pi.agents` field adjustments to register the new directories
 - **Extension**: No changes needed — `agents.ts` syncing already supports discovering agents from `agents/` directory
 - **Dependencies**: No new peer dependencies. Uses existing codebase-memory tools (built-in) and Agent tool (from `@tintinweb/pi-subagents`)
 - **No breaking changes**: Purely additive

@@ -1,6 +1,6 @@
 {
-  "name": "pi-openspec",
-  "private": true,
+  "name": "pi-mimir",
+  "license": "MIT",
   "workspaces": [
     "packages/*"
   ]

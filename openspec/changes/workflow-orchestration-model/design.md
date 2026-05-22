@@ -34,8 +34,8 @@ The product should expose at most two primary workflow entrypoints:
 ```text
 plan                  → explore, codebase-memory discovery, OpenSpec artifacts, artifact review
 implement             → task execution, verification, implementation review, archive-ready
-review-plan           → orchestrates proposal/specs/design/tasks review artifact gates only
-review-implementation → orchestrates claim/architecture/tests/performance/security review artifact gates only
+review-plan           → orchestrates proposal/design/specs/tasks review artifact gates only
+review-implementation → orchestrates architecture/tests/performance/security review artifact gates only
 ```
 
 The primary public names are `plan` and `implement`, with explicit independent review workflows `review-plan` and `review-implementation`. They are intentionally narrow OpenSpec-specific entrypoints, not generic rpiv-style stages. The model should still avoid a broad public chain like `discover → research → design → plan → implement → validate`. Internally, planner/worker-style orchestrator agents may exist, but they should not appear as extra generic user-facing workflow skills.

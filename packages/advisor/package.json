@@ -1,6 +1,6 @@
 {
-  "name": "@casualjim/pi-openspec-advisor",
+  "name": "@casualjim/pi-mimir-advisor",
   "version": "0.1.0",
-  "private": true,
-  "description": "Subagent-based advisor for pi-openspec"
+  "license": "MIT",
+  "description": "Subagent-based advisor for pi-mimir"
 }

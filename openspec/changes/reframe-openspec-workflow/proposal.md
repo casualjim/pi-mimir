@@ -8,7 +8,7 @@ Pi needs an OpenSpec-native workflow that can define and deliver changes with re
 - Add an `deliver` user-facing skill/prompt for the delivery phase.
 - Add `planner` and `worker` agent profiles.
 - Add review skills/prompts for proposal, specs, design, and tasks artifact review, backed by a generic reviewer persona agent.
-- Add review skills/prompts for claim verification plus architecture, tests, performance, and security implementation review, backed by the same reviewer persona agent.
+- Add review skills/prompts for architecture, tests, performance, and security implementation review, backed by the same reviewer persona agent.
 - Add codebase-memory-first guidance to the OpenSpec workflow bootstrap/context.
 - Add an overlap check that warns when rpiv-pi or generic planning skills are installed.
 - Expand `/openspec-setup` so it installs required Pi sibling packages, ensures OpenSpec CLI availability, and checks codebase-memory MCP availability.
@@ -38,9 +38,9 @@ _(none — no existing accepted specs to modify)_
 
 ## Impact
 
-- **Package manifest**: update `packages/pi-openspec/package.json` skill and agent registration.
-- **Skills/prompts**: add `packages/pi-openspec/skills/define/` and `packages/pi-openspec/skills/deliver/`; archive uses expanded OpenSpec-generated workflow instructions without a package wrapper skill.
-- **Agents**: add orchestrator profiles and a generic reviewer persona under `packages/pi-openspec/agents/`.
+- **Package manifest**: update `packages/pi-mimir/package.json` skill and agent registration.
+- **Skills/prompts**: add `packages/pi-mimir/skills/define/` and `packages/pi-mimir/skills/deliver/`; archive uses expanded OpenSpec-generated workflow instructions without a package wrapper skill.
+- **Agents**: add orchestrator profiles and a generic reviewer persona under `packages/pi-mimir/agents/`.
 - **Extension**: update bootstrap guidance, setup dependency installation/checks, OpenSpec asset manifest metadata, content-addressable static asset handling, and rpiv-pi/generic-skill overlap detection.
 - **OpenSpec assets**: add schema/profile/config/rules for review-gated workflow behavior.
 - **Docs**: update README usage docs for the shipped workflow.

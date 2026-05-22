@@ -22,7 +22,7 @@ Orchestrators SHALL NOT dispatch locator, analyzer, pattern, or research subagen
 - **THEN** the orchestrator does not dispatch a research subagent
 
 ### Requirement: Review subagents are allowed
-Orchestrators SHALL dispatch subagents only for planning/plan verification, artifact review, claim verification, and specialist implementation review. Planning and plan-verification subagents inherit active context.
+Orchestrators SHALL dispatch subagents only for planning/plan verification, artifact review, and specialist implementation review. Planning and plan-verification subagents inherit active context.
 
 #### Scenario: Review gate is reached
 - **WHEN** a configured review gate is reached

@@ -15,10 +15,10 @@ run = """
 set -euo pipefail
 docker build --progress=plain \
   -f packages/core/tests/integration/docker/Dockerfile \
-  -t pi-openspec-workflow-e2e \
+  -t pi-mimir-workflow-e2e \
   .
 docker run --rm \
   -e ZAI_API_KEY \
   -e E2E_MODEL \
-  pi-openspec-workflow-e2e
+  pi-mimir-workflow-e2e
 """

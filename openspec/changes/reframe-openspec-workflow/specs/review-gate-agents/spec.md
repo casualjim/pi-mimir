@@ -27,11 +27,7 @@ The package SHALL provide review skills or prompts for proposal, specs, design, 
 - **THEN** it instructs the reviewer persona to check task order, granularity, dependency mapping, and implementability
 
 ### Requirement: Implementation review skills
-The package SHALL provide review skills or prompts for claim, architecture, tests, performance, and security review.
-
-#### Scenario: Claim review runs
-- **WHEN** the claim review skill runs
-- **THEN** it instructs the reviewer persona to tag claims as Verified, Weakened, or Falsified with evidence
+The package SHALL provide review skills or prompts for architecture, tests, performance, and security review.
 
 #### Scenario: Specialist implementation review runs
 - **WHEN** architecture, tests, performance, or security review skills run

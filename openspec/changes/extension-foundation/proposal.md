@@ -1,6 +1,6 @@
 ## Why
 
-pi-openspec needs a Pi extension to bootstrap itself into every session. Without it, the agent has no awareness of codebase-memory tools, no git context, no agent syncing, no guidance injection, and no way to install peer packages. The extension is the connective tissue that makes skills and agents usable in practice.
+pi-mimir needs a Pi extension to bootstrap itself into every session. Without it, the agent has no awareness of codebase-memory tools, no git context, no agent syncing, no guidance injection, and no way to install peer packages. The extension is the connective tissue that makes skills and agents usable in practice.
 
 ## What Changes
 
@@ -13,7 +13,7 @@ pi-openspec needs a Pi extension to bootstrap itself into every session. Without
   - Agent profile syncing (bundled → `.pi/agents/`)
   - `/openspec-setup` command to install peer packages
   - `/openspec-update-agents` command to sync agent profiles
-- **Workspace root** — top-level `package.json` with npm workspaces pointing to `packages/pi-openspec` and `packages/advisor`
+- **Workspace root** — top-level `package.json` with npm workspaces pointing to `packages/pi-mimir` and `packages/advisor`
 
 ## Capabilities
 
@@ -25,7 +25,7 @@ pi-openspec needs a Pi extension to bootstrap itself into every session. Without
 - `guidance-injection`: Per-depth guidance file resolution (AGENTS.md > CLAUDE.md > architecture.md) on file touch
 - `agent-syncing`: Bundled agent profiles copied to `.pi/agents/` with manifest-based drift detection
 - `setup-commands`: `/openspec-setup` and `/openspec-update-agents` slash commands
-- `workspace-setup`: Top-level workspace `package.json` with npm workspaces for `packages/pi-openspec` and `packages/advisor`
+- `workspace-setup`: Top-level workspace `package.json` with npm workspaces for `packages/pi-mimir` and `packages/advisor`
 
 ### Modified Capabilities
 

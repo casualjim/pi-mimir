@@ -1,0 +1,46 @@
+{
+  "name": "pi-mimir",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "OpenSpec-driven development workflow for Pi Agent",
+  "keywords": [
+    "pi-package"
+  ],
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "extensions/",
+    "skillseeds/",
+    "agents/",
+    "openspec/",
+    "rules/",
+    "templates/",
+    "README.md"
+  ],
+  "pi": {
+    "extensions": [
+      "extensions/openspec"
+    ],
+    "skills": []
+  },
+  "dependencies": {
+    "@earendil-works/pi-tui": "*"
+  },
+  "peerDependencies": {
+    "pi-mcp-adapter": ">=0.1.0"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:e2e": "node --experimental-strip-types tests/integration/run-e2e.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependenciesMeta": {
+    "pi-mcp-adapter": { "optional": true }
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^3.1.0"
+  }
+}

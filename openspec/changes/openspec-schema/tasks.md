@@ -1,6 +1,6 @@
 ## 1. Repair Schema Definition
 
-- [ ] 1.1 Rewrite `packages/pi-openspec/openspec/schemas/review-gated/schema.yaml` to use OpenSpec's supported `name`, `version`, `description`, `artifacts`, and `apply` structure
+- [ ] 1.1 Rewrite `packages/pi-mimir/openspec/schemas/review-gated/schema.yaml` to use OpenSpec's supported `name`, `version`, `description`, `artifacts`, and `apply` structure
 - [ ] 1.2 Convert artifact definitions from a map to an array with `id`, `generates`, `description`, `template`, `instruction`, and `requires`
 - [ ] 1.3 Encode the intended dependency graph: `proposal` first, `specs` and `design` after proposal, `tasks` after specs and design
 - [ ] 1.4 Replace unsupported `apply.instructions` with `apply.requires`, `apply.tracks`, and inline `apply.instruction`
@@ -32,6 +32,6 @@
 
 ## 5. Confirm Scope Boundaries
 
-- [ ] 5.1 Confirm the implementation diff is limited to `packages/pi-openspec/openspec/schemas/review-gated/schema.yaml` and necessary files under `packages/pi-openspec/openspec/schemas/review-gated/templates/`
+- [ ] 5.1 Confirm the implementation diff is limited to `packages/pi-mimir/openspec/schemas/review-gated/schema.yaml` and necessary files under `packages/pi-mimir/openspec/schemas/review-gated/templates/`
 - [ ] 5.2 Confirm planner, worker, reviewer, review skills, setup commands, managed manifests, package registration, and unrelated docs were not modified
 - [ ] 5.3 Run `openspec validate openspec-schema --strict`

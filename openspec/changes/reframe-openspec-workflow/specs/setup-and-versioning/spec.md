@@ -11,7 +11,7 @@ The setup command SHALL install all Pi package dependencies required by the Open
 The sibling registry SHALL include subagents, ask-user-question, todo, web tools, args, `rpiv-btw`, and `pi-mcp-adapter`.
 
 #### Scenario: Sibling registry is inspected
-- **WHEN** `packages/pi-openspec/extensions/openspec/siblings.ts` is loaded
+- **WHEN** `packages/pi-mimir/extensions/openspec/siblings.ts` is loaded
 - **THEN** it contains install and detection entries for every required Pi package
 
 ### Requirement: Setup ensures OpenSpec CLI availability

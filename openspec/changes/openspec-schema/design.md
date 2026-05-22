@@ -1,13 +1,13 @@
 ## Context
 
-The broader `reframe-openspec-workflow` plan defines a full OpenSpec-native Pi workflow: definition and delivery skills, planner/worker agents, review gates, setup checks, managed assets, codebase-memory-first discovery, and archive/ADR guidance. The current schema asset under `packages/pi-openspec/openspec/schemas/review-gated/` was intended to encode the OpenSpec portion of that workflow, but its `schema.yaml` uses unsupported fields and does not match OpenSpec's actual schema model.
+The broader `reframe-openspec-workflow` plan defines a full OpenSpec-native Pi workflow: definition and delivery skills, planner/worker agents, review gates, setup checks, managed assets, codebase-memory-first discovery, and archive/ADR guidance. The current schema asset under `packages/pi-mimir/openspec/schemas/review-gated/` was intended to encode the OpenSpec portion of that workflow, but its `schema.yaml` uses unsupported fields and does not match OpenSpec's actual schema model.
 
 This change isolates only the schema asset correction. It should make `review-gated` a valid OpenSpec schema without implementing or refactoring the rest of the package workflow.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Rewrite `packages/pi-openspec/openspec/schemas/review-gated/schema.yaml` using OpenSpec's supported schema structure.
+- Rewrite `packages/pi-mimir/openspec/schemas/review-gated/schema.yaml` using OpenSpec's supported schema structure.
 - Preserve the intended review-gated artifact flow: proposal, specs, design, tasks, then apply.
 - Put review-gated artifact/apply guidance in supported inline `instruction` fields.
 - Keep templates as markdown skeletons/examples rather than workflow-policy containers.

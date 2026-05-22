@@ -1,7 +1,7 @@
 ## 1. Package Manifest
 
 - [x] 1.1 Create workspace root `package.json` with npm workspaces pointing to `packages/*`
-- [x] 1.2 Create `packages/pi-openspec/package.json` with Pi package fields (`pi.extensions`, `pi.skills`), 5 peer dependencies, and `files` array
+- [x] 1.2 Create `packages/pi-mimir/package.json` with Pi package fields (`pi.extensions`, `pi.skills`), 5 peer dependencies, and `files` array
 
 ## 2. Extension Entry Point & Constants
 

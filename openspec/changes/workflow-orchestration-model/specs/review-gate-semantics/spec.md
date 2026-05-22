@@ -9,11 +9,11 @@ The plan flow SHALL review generated OpenSpec artifacts before declaring a chang
 - **AND** it synthesizes findings before proceeding
 
 ### Requirement: Implementation review gates
-The implement flow SHALL run implementation review gates only after task execution and verification, and the package SHALL provide a separate `review-implementation` workflow that orchestrates schema-owned per-gate outputs (`reviews/claims.md`, `reviews/architecture.md`, `reviews/tests.md`, `reviews/performance.md`, and `reviews/security.md`) when implementation evidence exists.
+The implement flow SHALL run implementation review gates only after task execution and verification, and the package SHALL provide a separate `review-implementation` workflow that orchestrates schema-owned per-gate outputs (`reviews/architecture.md`, `reviews/tests.md`, `reviews/performance.md`, and `reviews/security.md`) when implementation evidence exists.
 
 #### Scenario: Implementation verification passes
 - **WHEN** tracked tasks are complete and implementation has been verified against OpenSpec artifacts
-- **THEN** the implement or `review-implementation` orchestrator runs configured claim, architecture, tests, performance, and security review gates and records each gate in its own review artifact
+- **THEN** the implement or `review-implementation` orchestrator runs configured architecture, tests, performance, and security review gates and records each gate in its own review artifact
 
 ### Requirement: Severity semantics
 Review findings SHALL use consistent severity semantics that determine orchestration behavior.

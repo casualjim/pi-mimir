@@ -26,7 +26,7 @@ The package will expose two OpenSpec-specific workflow entry points backed by or
 
 ### Package surface
 
-`packages/pi-openspec/package.json` registers only OpenSpec-specific skills owned by this package:
+`packages/pi-mimir/package.json` registers only OpenSpec-specific skills owned by this package:
 
 ```text
 skills/define
@@ -34,7 +34,7 @@ skills/deliver
 # archive/sync use expanded OpenSpec-generated workflow instructions, not a wrapper skill
 ```
 
-The package also includes orchestrator agents and a generic reviewer persona agent under `packages/pi-openspec/agents/`. Agent sync remains package-owned and does not require rpiv-pi.
+The package also includes orchestrator agents and a generic reviewer persona agent under `packages/pi-mimir/agents/`. Agent sync remains package-owned and does not require rpiv-pi.
 
 ### Skill-to-agent flow
 
@@ -69,7 +69,7 @@ The wrappers do not contain large planning workflows. The detailed behavior live
 - implements tracked tasks incrementally;
 - marks task checkboxes complete only after implementation is done;
 - verifies implementation against OpenSpec artifacts;
-- runs claim verification and specialist review skills after verification;
+- runs specialist review skills after verification;
 - synthesizes findings and loops through fixes when needed;
 - stops at archive readiness;
 - never commits.
@@ -91,7 +91,6 @@ Implementation review skills run after delivery verification:
 
 | Skill/prompt | Primary output |
 |---|---|
-| `review-claims` | Verified / Weakened / Falsified claims grounded in code |
 | `review-architecture` | Structural and integration findings |
 | `review-tests` | Coverage and regression findings |
 | `review-performance` | Hot-path and resource findings |
@@ -118,8 +117,8 @@ The orchestrators do not dispatch locator/analyzer/pattern research agents for o
 The package provides OpenSpec assets that can be installed or selected by setup:
 
 ```text
-packages/pi-openspec/openspec/schemas/review-gated/schema.yaml
-packages/pi-openspec/openspec/schemas/review-gated/templates/*
+packages/pi-mimir/openspec/schemas/review-gated/schema.yaml
+packages/pi-mimir/openspec/schemas/review-gated/templates/*
 ```
 
 The schema/config adds instructions for:

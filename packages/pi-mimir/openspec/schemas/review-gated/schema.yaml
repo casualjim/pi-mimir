@@ -1,0 +1,510 @@
+name: review-gated
+version: 1
+description: Review-gated OpenSpec workflow - proposal → review-proposal → specs/design → review-specs/review-design → tasks → review-tasks → apply → review-tests/review-architecture/review-data-flow
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Initial proposal document outlining the change
+    template: proposal.md
+    instruction: |
+      Create the proposal document that establishes WHY this change is needed and WHAT changes at a high level.
+
+      A proposal is a logical, objective approval artifact. It should persuade by clearly defining the problem/opportunity, proposed outcome, scope, and impact. It is not a design document, implementation plan, research log, roadmap, or retrospective.
+
+      Sections:
+      - **Why**: State the problem, opportunity, motivation, and expected benefit. Include only the background needed to understand why this change is worth doing now.
+      - **What Changes**: Describe the high-level WHAT: new, modified, or removed behavior/capabilities; proposal-level goals/outcomes; scope boundaries; explicit non-goals or limitations when they prevent ambiguity. Mark breaking changes with **BREAKING**.
+      - **Capabilities**: Identify which existing specs will be modified or which genuinely new capability specs are needed:
+        - Check `openspec/specs/` for existing capability names before creating new ones. Reuse an existing capability when the behavior belongs to an existing concept; do not create overlapping specs for the same behavior.
+        - **New Capabilities**: List only capabilities that introduce a distinct new product/domain concept not covered by an existing spec. Each becomes a new `specs/<capability>/spec.md`. Use kebab-case capability names (e.g., `user-auth`, `data-export`), not the change name.
+        - **Modified Capabilities**: List existing capabilities whose REQUIREMENTS are changing. Only include if spec-level behavior changes (not just implementation details). Each needs a delta spec file. Leave empty if no requirement changes.
+      - **Impact**: Affected users, code, APIs, dependencies, systems, compatibility, operations, risks, constraints, caveats, or open questions at proposal level.
+
+      IMPORTANT: The Capabilities section is critical. It creates the contract between
+      proposal and specs phases. Research existing specs before filling this in.
+      Each capability listed here will need a corresponding spec file.
+
+      Keep it concise (1-2 pages). Focus on WHY and high-level WHAT, not HOW.
+      Detailed architecture, API design, task breakdown, tests, CI, and implementation mechanics belong in downstream artifacts.
+
+      The proposal must be void of extra narrative. Do not include research chronology, discovery process, rejected investigation paths, agent reasoning, broad history, unrelated roadmap, or retrospective content just to make the document feel like a cohesive story.
+
+      This is the foundation - specs, design, and tasks all build on this.
+    requires: []
+
+  - id: review-proposal
+    generates: reviews/proposal.md
+    description: Review output for proposal quality before downstream planning
+    template: planning-review.md
+    instruction: |
+      Review proposal.md as a proposal artifact.
+
+      The review output goes to reviews/proposal.md using the planning-review.md template. The template is a prose/bullet review report; do not turn it into a table.
+
+      Inputs:
+      - openspec/changes/<change-name>/proposal.md
+      - the original user intent if available
+      - existing accepted specs only if needed to verify capability names
+
+      Scope:
+      - Review only the proposal as a proposal.
+      - Do not review implementation, design choices, task breakdown, code, tests, CI, or archive readiness.
+
+      Proposal review requirements:
+      - summary/change statement is concise and unambiguous;
+      - problem, opportunity, or motivation is clear, with only the background needed to understand why the change is worth doing;
+      - goals, objectives, and expected benefits or outcomes are stated at proposal level;
+      - scope and non-goals/limitations are explicit enough to focus downstream discussion and prevent scope creep;
+      - proposed change describes WHAT will change at a high level, including new, modified, or removed capabilities clearly enough for specs to follow;
+      - affected users, systems, APIs, dependencies, compatibility, or operational impact are identified when relevant;
+      - risks, constraints, caveats, and open questions are visible at proposal level without turning into design detail;
+      - proposed capabilities trace to user intent and accepted specs where applicable, with no orphan or unrelated changes;
+      - proposal is void of extra narrative: it does not turn research process, discovery chronology, rejected investigation paths, or agent reasoning into a cohesive story;
+      - proposal remains logical, credible, and objective, and avoids unrelated history, roadmap, retrospective, or implementation-planning content;
+      - proposal defers detailed architecture, API design, task breakdown, tests, CI, and implementation mechanics to downstream artifacts.
+
+      Findings:
+      - `blocker`: proposal cannot safely drive specs/design/tasks.
+      - `concern`: proposal can continue only if the user accepts the ambiguity/tradeoff.
+      - `suggestion`: optional clarity improvement.
+
+      Record findings as bullets under the template sections. Include evidence and the smallest concrete fix. If there are no issues, mark Decision as Pass and leave findings sections empty.
+    requires:
+      - proposal
+
+  - id: design
+    generates: design.md
+    description: Technical design document with implementation details
+    template: design.md
+    instruction: |
+      Create the design document that explains the chosen HOW and why it is the right trade-off for this change.
+
+      Include design.md when any apply:
+      - Cross-cutting change (multiple services/modules) or new architectural pattern
+      - New external dependency or significant data model changes
+      - Security, performance, reliability, observability, migration, or operational complexity
+      - Ambiguity that benefits from technical decisions before coding
+
+      Ground the design in completed planning artifacts:
+      - Use proposal.md for motivation, scope, non-goals, and impact.
+      - Use specs/**/*.md for required behavior and acceptance scenarios.
+      - Every major design element should trace to a proposal goal, spec requirement, constraint, or quality goal.
+
+      Sections:
+      - **Context**: Current state, relevant constraints, stakeholders/affected systems, and the narrow background needed to understand the design. Avoid broad historical narrative.
+      - **Goals / Non-Goals**: What this design achieves and explicitly excludes.
+      - **Solution Strategy**: The high-level approach, key abstractions, top-level decomposition, and why this shape fits the goals and constraints.
+      - **Components / Interfaces**: Modules, services, boundaries, APIs, contracts, data/state model, and important integration points where relevant.
+      - **Runtime / Operational View**: Important flows, failure paths, concurrency/state transitions, deployment/operational behavior, observability, and supportability where relevant.
+      - **Migration Plan**: Deployment steps, data/backfill needs, rollout, rollback, compatibility/version-skew, and recovery plan if applicable.
+      - **Decisions**: Key technical choices with rationale, trade-offs, and credible alternatives considered.
+      - **Quality / Cross-Cutting Concerns**: Reliability, security, privacy, performance, observability, maintainability, compatibility, and scalability where relevant.
+      - **Risks / Trade-offs**: Known limitations, assumptions, technical debt, and mitigations.
+      - **Open Questions**: Outstanding decisions or unknowns to resolve before or during implementation.
+
+      Focus on architecture and approach, not line-by-line implementation. Include enough detail for implementers, reviewers, operators, and future maintainers to build, review, test, operate, and understand the design without rediscovering major decisions.
+
+      Good design docs explain the "why" behind technical decisions and preserve decision memory.
+    requires:
+      - proposal
+      - review-proposal
+
+  - id: review-design
+    generates: reviews/design.md
+    description: Review output for design quality before task planning
+    template: planning-review.md
+    instruction: |
+      Review design.md as a design artifact.
+
+      The review output goes to reviews/design.md using the planning-review.md template. The template is a prose/bullet review report; do not turn it into a table.
+
+      Inputs:
+      - openspec/changes/<change-name>/design.md
+      - openspec/changes/<change-name>/proposal.md
+      - openspec/changes/<change-name>/specs/**/*.md, if present and needed to check requirements alignment
+
+      Scope:
+      - Review only whether the design is sufficient to guide implementation.
+      - Do not review proposal quality, task breakdown, implementation, code, tests, CI, or archive readiness.
+
+      Design review requirements:
+      - scope and non-scope are explicit enough to bound the design;
+      - design traces to the proposal goals and specs/requirements, with no orphan design elements or missing required behavior;
+      - design describes the chosen HOW: architecture/solution strategy, components, interfaces/APIs, data or state model, runtime flows, and deployment/operational shape where relevant;
+      - key decisions include rationale, trade-offs, and credible alternatives considered;
+      - the chosen approach is technically feasible and the simplest viable design for the stated goals, constraints, and risks;
+      - relevant quality and cross-cutting concerns are addressed: reliability, security, privacy, performance, observability, maintainability, migration/rollback as applicable;
+      - risks, assumptions, open questions, and known technical debt are visible;
+      - implementers, reviewers, operators, and future maintainers have enough information to build, review, test, operate, and understand the design without rediscovering major decisions.
+
+      Findings:
+      - `blocker`: design cannot safely drive tasks or implementation.
+      - `concern`: design can continue only if the user accepts the ambiguity/tradeoff.
+      - `suggestion`: optional clarity improvement.
+
+      Record findings as bullets under the template sections. Include evidence and the smallest concrete fix. If there are no issues, mark Decision as Pass and leave findings sections empty.
+    requires:
+      - design
+
+  - id: specs
+    generates: "specs/**/*.md"
+    description: Detailed specifications for the change
+    template: spec.md
+    instruction: |
+      Create OpenSpec scenario-based delta specifications that define WHAT observable behavior changes.
+
+      Create one spec file per capability listed in the proposal's Capabilities section.
+      - New capabilities: use the exact kebab-case name from the proposal (specs/<capability>/spec.md).
+      - Modified capabilities: use the existing spec folder name from openspec/specs/<capability>/ when creating the delta spec at specs/<capability>/spec.md.
+      - Do not create orphan spec files for capabilities not named in the proposal unless the proposal is first updated.
+
+      Requirements quality:
+      - Each requirement must be necessary and traceable to the proposal/user intent or an existing accepted spec change.
+      - Each requirement should be singular, unambiguous, complete enough, consistent, feasible, and bounded to this change.
+      - Requirements describe externally observable behavior or constraints, not internal architecture, implementation mechanics, task steps, or test/CI procedure.
+      - Use SHALL/MUST for normative requirements; avoid should/may, vague adjectives, aspiration, or subjective success language.
+      - Unresolved behavior questions are not requirements. Mark them as open questions/blockers instead of encoding ambiguity.
+
+      Scenario quality:
+      - Every requirement MUST have at least one scenario.
+      - Each scenario MUST use exactly 4 hashtags: `#### Scenario: <name>`. Using 3 hashtags or bullets will fail silently.
+      - Scenarios use concrete WHEN/THEN examples: clear trigger/precondition and observable expected outcome.
+      - Scenarios are acceptance-test seeds. A reviewer should be able to derive concrete tests from them.
+      - Cover important success, failure, permission/security, boundary, edge, compatibility, and migration cases where relevant.
+      - Keep the scenario set efficient: avoid duplicate scenarios that prove the same rule.
+
+      Delta operations (use ## headers):
+      - **ADDED Requirements**: New capabilities or new behavior/rules.
+      - **MODIFIED Requirements**: Changed existing behavior - MUST include full updated content.
+      - **REMOVED Requirements**: Deprecated behavior - MUST include **Reason** and **Migration**.
+      - **RENAMED Requirements**: Name changes only - use FROM:/TO: format.
+
+      MODIFIED requirements workflow:
+      1. Locate the existing requirement in openspec/specs/<capability>/spec.md
+      2. Copy the ENTIRE requirement block (from `### Requirement:` through all scenarios)
+      3. Paste under `## MODIFIED Requirements` and edit to reflect new behavior
+      4. Ensure header text matches exactly (whitespace-insensitive)
+
+      Common pitfall: Using MODIFIED with partial content loses detail at archive time.
+      If adding new concerns without changing existing behavior, use ADDED instead.
+
+      Keep specs void of extra narrative. Do not include research chronology, design rationale, roadmap, retrospective, task planning, tests/CI detail, or implementation mechanics.
+
+      Example:
+      ```
+      ## ADDED Requirements
+
+      ### Requirement: User can export data
+      The system SHALL allow users to export their data in CSV format.
+
+      #### Scenario: Successful export
+      - **WHEN** user clicks "Export" button
+      - **THEN** system downloads a CSV file with all user data
+
+      ## REMOVED Requirements
+
+      ### Requirement: Legacy export
+      **Reason**: Replaced by new export system
+      **Migration**: Use new export endpoint at /api/v2/export
+      ```
+
+      Specs should be testable - each scenario is a potential acceptance test case.
+    requires:
+      - proposal
+      - review-proposal
+
+  - id: review-specs
+    generates: reviews/specs.md
+    description: Review output for spec quality before task planning
+    template: planning-review.md
+    instruction: |
+      Review specs/**/*.md as OpenSpec scenario-based delta specs.
+
+      The review output goes to reviews/specs.md using the planning-review.md template. The template is a prose/bullet review report; do not turn it into a table.
+
+      Inputs:
+      - openspec/changes/<change-name>/specs/**/*.md
+      - openspec/changes/<change-name>/proposal.md
+      - existing accepted specs under openspec/specs/<capability>/spec.md when reviewing MODIFIED/REMOVED/RENAMED requirements
+
+      Scope:
+      - Review only whether the specs precisely define WHAT behavior changes.
+      - Do not review design choices, task breakdown, implementation, code, tests, CI, or archive readiness.
+
+      Spec review requirements:
+      - specs are scenario-based delta specifications: they define WHAT observable behavior changes, not HOW implementation will work;
+      - every requirement is necessary and traceable to the proposal/user intent or an existing accepted spec change, with no orphan specs or missing proposed capabilities;
+      - every requirement is singular, unambiguous, complete enough, consistent, feasible, and bounded to this change;
+      - every requirement uses normative language (SHALL/MUST) and avoids vague, aspirational, subjective, or implementation-only wording;
+      - every requirement is verifiable/testable: a reviewer can derive concrete acceptance tests from its scenarios;
+      - every requirement has at least one `#### Scenario:` with a clear WHEN trigger and observable THEN outcome;
+      - scenarios are concrete examples that illustrate the requirement/rule, not story narration, research chronology, or implementation steps;
+      - the scenario set is efficient: it covers important success, failure, permission/security, boundary, edge, compatibility, and migration cases where relevant without duplicating the same proof;
+      - each spec file corresponds to a capability named in the proposal, and capability names/paths match OpenSpec expectations;
+      - ADDED/MODIFIED/REMOVED/RENAMED sections use valid OpenSpec delta headings and semantics;
+      - MODIFIED requirements include the full updated requirement block and preserve the exact existing requirement name when changing existing behavior;
+      - REMOVED requirements include reason and migration guidance;
+      - unresolved behavior questions are explicit blockers/concerns, not silently encoded as ambiguous requirements;
+      - specs avoid extra narrative, design rationale, roadmap, retrospective, task planning, tests/CI detail, and implementation mechanics.
+
+      Findings:
+      - `blocker`: specs cannot safely drive design/tasks/implementation or will fail OpenSpec validation/archive semantics.
+      - `concern`: specs can continue only if the user accepts the ambiguity/tradeoff.
+      - `suggestion`: optional clarity improvement.
+
+      Record findings as bullets under the template sections. Include evidence and the smallest concrete fix. If there are no issues, mark Decision as Pass and leave findings sections empty.
+    requires:
+      - specs
+
+  - id: tasks
+    generates: tasks.md
+    description: Implementation checklist with trackable tasks
+    template: tasks.md
+    instruction: |
+      Create the task list that breaks down the implementation work.
+
+      **IMPORTANT: Follow the template below exactly.** The apply phase parses
+      checkbox format to track progress. Tasks not using `- [ ]` won't be tracked.
+
+      Guidelines:
+      - Group related tasks under ## numbered headings
+      - Each task MUST be a checkbox: `- [ ] X.Y Task description`
+      - Tasks should be small enough to complete in one session
+      - Order tasks by dependency (what must be done first?)
+
+      Example:
+      ```
+      ## 1. Setup
+
+      - [ ] 1.1 Create new module structure
+      - [ ] 1.2 Add dependencies to package.json
+
+      ## 2. Core Implementation
+
+      - [ ] 2.1 Implement data export function
+      - [ ] 2.2 Add CSV formatting utilities
+      ```
+
+      Reference specs for what needs to be built, design for how to build it.
+      Each task should be verifiable - you know when it's done.
+    requires:
+      - specs
+      - design
+      - review-specs
+      - review-design
+
+  - id: review-tasks
+    generates: reviews/tasks.md
+    description: Review output for task quality before implementation
+    template: planning-review.md
+    instruction: |
+      Review tasks.md as the implementation task plan.
+
+      The review output goes to reviews/tasks.md using the planning-review.md template. The template is a prose/bullet review report; do not turn it into a table.
+
+      Inputs:
+      - openspec/changes/<change-name>/tasks.md
+      - openspec/changes/<change-name>/proposal.md
+      - openspec/changes/<change-name>/specs/**/*.md
+      - openspec/changes/<change-name>/design.md
+
+      Scope:
+      - Review only whether tasks.md is ready to drive implementation.
+      - Do not review implementation, code, tests, CI, or archive readiness.
+      - Do not re-review proposal/specs/design except to check task alignment and coverage.
+
+      Task review requirements:
+      - tasks are parseable by OpenSpec apply: every implementation task uses checkbox format `- [ ] X.Y Task description`;
+      - tasks cover every required behavior, constraint, migration, and verification need implied by proposal, specs, and design;
+      - tasks contain no orphan or out-of-scope work unrelated to the accepted planning artifacts;
+      - tasks are ordered by dependency so an implementer can work top-to-bottom without hidden prerequisites;
+      - tasks are small, concrete, and actionable enough to complete incrementally;
+      - each task has a clear completion condition and is independently verifiable;
+      - tasks include required test, documentation, configuration, migration, rollout, or cleanup work where relevant;
+      - tasks do not smuggle unresolved design decisions into implementation. If major decisions remain, record a blocker or concern;
+      - tasks preserve the agreed scope and avoid opportunistic refactors, unrelated cleanup, roadmap work, or retrospective content;
+      - tasks avoid extra narrative, research chronology, design rationale, and implementation-story prose.
+
+      Findings:
+      - `blocker`: tasks cannot safely drive implementation or will not be tracked correctly by apply.
+      - `concern`: tasks can continue only if the user accepts the ambiguity/tradeoff.
+      - `suggestion`: optional clarity improvement.
+
+      Record findings as bullets under the template sections. Include evidence and the smallest concrete fix. If there are no issues, mark Decision as Pass and leave findings sections empty.
+    requires:
+      - tasks
+
+  - id: review-tests
+    generates: reviews/tests.md
+    description: Review output for implemented test coverage against specs
+    template: planning-review.md
+    instruction: |
+      Review the implemented tests as a Test Reviewer.
+
+      The review output goes to reviews/tests.md using the planning-review.md template. The template is a prose/bullet review report; do not turn it into a table.
+
+      Inputs:
+      - openspec/changes/<change-name>/specs/**/*.md
+      - openspec/changes/<change-name>/proposal.md, if needed for scope context
+      - openspec/changes/<change-name>/tasks.md, if needed for implementation scope context
+      - implementation test files relevant to the change
+      - implementation code only as needed to understand whether tests exercise real behavior
+
+      Scope:
+      - Review only whether every spec requirement has meaningful implemented test coverage.
+      - If implementation test files are not present yet, mark Decision as Fail with a blocker stating that test coverage cannot be reviewed before tests exist.
+      - Do not perform a general code review, task review, CI review, archive review, or implementation architecture review.
+      - Do not accept tests as sufficient merely because test files, test names, snapshots, mocks, or assertions exist.
+
+      Test coverage mapping:
+      - Enumerate every changed spec requirement and scenario from specs/**/*.md.
+      - For each requirement/scenario, identify the corresponding test file, test case name, and concrete assertion or observable behavior being checked.
+      - Mark each requirement/scenario as covered, partially covered, weakly covered, or uncovered.
+      - If a requirement has multiple important success, failure, permission/security, boundary, edge, compatibility, or migration cases, verify that the tests cover the relevant cases instead of only the happy path.
+
+      Weak, tautological, or superficial tests:
+      - tests that only assert the implementation was called, a mock returned its own configured value, or the code mirrors the test setup;
+      - tests that check only object existence, snapshots, wiring, types, or unchanged constants while missing the required observable behavior;
+      - tests whose name mentions the requirement but whose assertions would still pass if the required behavior were broken;
+      - tests that duplicate implementation logic instead of checking externally meaningful outcomes;
+      - tests that cover only happy paths while ignoring specified failure, boundary, authorization, compatibility, or migration behavior;
+      - tests that are skipped, flaky, non-deterministic, or dependent on unrelated external state without a controlled fixture.
+
+      Confidence-building test expectations:
+      - tests should fail for a plausible regression of the requirement they claim to cover;
+      - tests should exercise behavior through the narrowest realistic public/API boundary, not only internal implementation details, unless the requirement is explicitly internal;
+      - tests should include adversarial cases for invalid input, missing permission, conflict/race, boundary values, error handling, rollback/migration, and compatibility where relevant to the specs;
+      - tests should use meaningful fixtures and assertions that demonstrate user-visible or system-observable outcomes;
+      - tests should avoid over-mocking the behavior under test so the asserted outcome builds confidence in the real implementation.
+
+      Findings:
+      - `blocker`: a requirement/scenario is uncovered, only tautologically covered, or lacks a meaningful assertion for required behavior.
+      - `concern`: coverage exists but is partial, brittle, over-mocked, too happy-path-only, or not adversarial enough for an important risk.
+      - `suggestion`: optional improvement that would increase confidence without blocking acceptance.
+
+      Record findings as bullets under the template sections. Include a requirement-to-test coverage map in Evidence, with file paths/test names and the smallest concrete remediation for each blocker or concern. If all requirements have meaningful coverage, mark Decision as Pass and leave findings sections empty.
+    requires:
+      - tasks
+      - review-tasks
+
+  - id: review-architecture
+    generates: reviews/architecture.md
+    description: Review output for architecture fit and system cohesion
+    template: planning-review.md
+    instruction: |
+      Review the implemented change as an Architecture Reviewer.
+
+      The review output goes to reviews/architecture.md using the planning-review.md template. The template is a prose/bullet review report; do not turn it into a table.
+
+      Role:
+      - Verify that the implementation fits the repository's existing architecture and preserves conceptual integrity.
+      - Enforce repository-local rules first, then the actual established code shape.
+      - Do not apply branded architecture doctrines or generic clean-code patterns.
+      - Do not review implementation correctness against specs; OpenSpec verify owns implementation correctness verification.
+      - Do not review test adequacy; the Test Reviewer owns spec-to-test coverage quality.
+
+      Inputs:
+      - repository-local rules such as AGENTS.md, CLAUDE.md, or project instructions, when present
+      - existing package/module/feature structure needed to understand architecture fit
+      - changed implementation files relevant to the change
+      - nearby code needed to judge ownership, dependencies, boundaries, public surfaces, and data flow
+      - proposal.md, specs/**/*.md, design.md, and tasks.md only as needed to understand intended scope
+
+      Scope:
+      - Review architecture fit, ownership, boundaries, dependency direction, public surfaces, and data-flow shape.
+      - If implementation files are not present yet, mark Decision as Fail with a blocker stating that architecture fit cannot be reviewed before implementation exists.
+      - Do not perform a general code review, style review, test review, CI review, archive review, or broad refactor proposal.
+      - Do not recommend abstractions, layers, interfaces, events, packages, or shared modules unless they solve a concrete present problem in this repository.
+
+      Architecture review criteria:
+      - **Cohesion**: changed behavior belongs with the feature/module/package that owns the concept. Related behavior stays together; unrelated concerns are not mixed.
+      - **Dependency direction**: imports, calls, and package/module dependencies follow the repository's established direction. Lower-level code does not depend upward on facades, interfaces, transports, or concrete adapters unless that is already the accepted architecture.
+      - **Ownership**: types, validation, persistence, orchestration, state transitions, and business rules live at the layer or feature that owns them. Behavior is not dumped into a convenient but conceptually wrong location.
+      - **Public surface**: cross-boundary calls use the intended public API. Internal files, private helpers, concrete adapters, and unstable implementation details are not exposed or imported unnecessarily.
+      - **Boundary validation**: untrusted input is validated at trust boundaries and converted to typed or domain-safe values. Interior code does not repeatedly revalidate trusted data, silently normalize after the boundary, or weaken required errors into optional behavior.
+      - **Concrete seams**: abstractions, interfaces, wrappers, events, dependency injection, or indirection exist only when they solve a concrete present problem. Prefer direct, explicit dependencies where the repository architecture expects them.
+      - **Extraction pressure**: shared code is extracted only when the concept is stable, clearly owned, and improves clarity. Do not extract just to reduce duplication, hide uncertainty, or prepare for hypothetical reuse.
+      - **Redundant helpers**: flag helpers, utility functions, wrapper functions, or indirection that only rename, forward, fragment, or obscure behavior without improving ownership, readability, testability, or reuse.
+      - **Owned behavior shape**: flag free-standing functions that mostly operate on one existing struct, class, object, module-owned type, or domain value and should instead be an owned member/method/constructor/associated function where that is the repository's established style. Treat clusters of free-standing functions with the same primary first argument or concept owner, especially with similar extra arguments, as evidence of an anemic owner and scattered behavior.
+      - **Misowned behavior**: flag behavior placed in the wrong feature, layer, package, interface, shared module, adapter, utility area, facade, or standalone helper.
+      - **Speculative abstraction**: flag interfaces with one implementation, generic wrappers, event indirection, abstract base types, broad extension points, or extra layers justified only by future flexibility.
+      - **Hidden fallbacks**: flag defaults, optional paths, swallowed errors, early success returns, feature gates, ignored work, or degraded behavior that weakens required behavior.
+      - **Buffering/data-flow violations**: flag unbounded buffering, premature collection, broken streaming boundaries, post-pagination filtering, or data-flow shapes that contradict repository rules.
+
+      Findings:
+      - `blocker`: architecture rule violation, wrong dependency direction, misowned behavior, hidden fallback, or data-flow violation that damages system integrity.
+      - `concern`: architecture fit is questionable, ownership is ambiguous, helper/member shape is weak, or an abstraction/extraction is weakly justified.
+      - `suggestion`: local simplification, naming, placement, or public-surface improvement that improves cohesion without changing behavior.
+
+      Record findings as bullets under the template sections. Include the violated construct, location, evidence, why it does not fit this repository, and the smallest concrete remediation. If there are no issues, mark Decision as Pass and leave findings sections empty.
+    requires:
+      - tasks
+      - review-tasks
+
+  - id: review-data-flow
+    generates: reviews/data-flow.md
+    description: Review output for data movement, materialization, and allocation pressure
+    template: planning-review.md
+    instruction: |
+      Review the implemented change as a Data-Flow Reviewer.
+
+      The review output goes to reviews/data-flow.md using the planning-review.md template. The template is a prose/bullet review report; do not turn it into a table.
+
+      Role:
+      - Verify that data moves through the system in the intended shape: filtered, bounded, streamed, borrowed/shared, lazily transformed, or intentionally materialized only at a real owner or sink.
+      - Review language-agnostic data movement invariants, not generic performance preferences or micro-optimizations.
+      - Treat allocation, copying, cloning, string conversion, buffering, and per-item external work as reviewable when they occur on large, user-controlled, external, or otherwise unbounded paths.
+      - Do not review implementation correctness against specs; OpenSpec verify owns implementation correctness verification.
+      - Do not review test adequacy; the Test Reviewer owns spec-to-test coverage quality.
+      - Do not review broad architecture fit except where ownership or boundaries cause data-flow harm.
+
+      Inputs:
+      - repository-local rules about streaming, pagination, search/database predicates, batching, allocation, or data ownership, when present
+      - changed implementation files relevant to data movement
+      - nearby code needed to understand sources, reductions, transformations, boundaries, and sinks
+      - proposal.md, specs/**/*.md, design.md, and tasks.md only as needed to understand expected data scale and behavior
+
+      Scope:
+      - Review data movement, cardinality, materialization, streaming/backpressure, predicate ordering, batching, duplication, and allocation pressure.
+      - If implementation files are not present yet, mark Decision as Fail with a blocker stating that data flow cannot be reviewed before implementation exists.
+      - Do not ask for optimization without a concrete data-flow reason tied to scale, cardinality, ownership, or repeated work.
+      - Do not flag materialization after a real sink or owner boundary when that owner intentionally needs the complete data set.
+
+      Data-flow review vocabulary:
+      - **Source**: database, search backend, filesystem, network, queue, API, user-controlled collection, generated stream, or external service.
+      - **Reduction**: filter, predicate, projection, aggregation, sort, limit, offset, cursor, or deduplication.
+      - **Transformation**: map, parse, encode, decode, format, enrich, normalize, or convert representation.
+      - **Materialization**: collect into array/vector/list/map/string/buffer/object graph, load all rows, build full response, or otherwise own the whole data set.
+      - **Boundary**: API, module, feature, service, transport, storage adapter, worker, process, thread, or async task boundary.
+      - **Sink/owner**: response stream, file write, database write, queue publish, explicit bounded page, cache, or in-memory model whose job is to own the complete data set.
+      - **Cardinality**: known bounded, caller-bounded, user-controlled, external, unknown, or unbounded.
+      - **Work shape**: set-oriented/batched/streaming work versus per-item sequential work or N+1 external calls.
+
+      Data-flow review criteria:
+      - **Reduction before pagination**: filtering, authorization, relationship checks, search predicates, file/path/label filters, and other selection logic happen before limit/offset/skip/cursor pagination whenever the backend can express them. If a required predicate cannot be pushed down, prefer a structured error or explicit bounded candidate strategy over silent partial-looking results.
+      - **No post-pagination filtering surprises**: flag code that fetches a limited or offset candidate set and then filters it in application code, making result counts, pagination, or ordering misleading.
+      - **Streaming until sink**: external, user-controlled, or unknown-size data remains streaming/lazy until a real sink or owner boundary. Flag premature collection, buffering, or full response assembly before that boundary.
+      - **Bounded materialization**: materialization must have a clear bound or owner. Flag unbounded arrays/vectors/lists/maps/buffers and APIs that force callers to own a whole data set when a stream, cursor, iterator, page, or sink would preserve flow.
+      - **Allocation and duplication pressure**: flag avoidable copying, cloning, string conversion, serialization/deserialization loops, intermediate collection builds, wrapper allocations, or representation churn on large, repeated, hot, external, or user-controlled paths.
+      - **Batching and N+1 work**: flag per-item database/search/network/filesystem calls or predicate checks when the work should be expressed as a set-oriented query, batch request, join, prefetch, or streaming pipeline.
+      - **Transformation placement**: transformations should happen at the boundary that owns the representation change. Flag repeated parse/format/normalize/encode/decode work across layers when one clear boundary should perform it once.
+      - **Backpressure and response flow**: flag buffering a stream before sending, writing, publishing, or handing it to the intended sink when streaming/backpressure should be preserved.
+      - **Sequential async or concurrent work shape**: flag one-at-a-time async loops or unbounded concurrency when batching, bounded concurrency, streaming, or backpressure would better match the source and sink.
+      - **Intentional owners**: do not report complete materialization when the changed code is itself the explicit owner/sink, such as an in-memory analytical model, bounded page object, cache fill, export object, or required aggregate result.
+
+      Findings:
+      - `blocker`: data-flow shape can produce incorrect or misleading results, unbounded memory use, broken pagination, lost backpressure, or forbidden predicate/materialization behavior.
+      - `concern`: data-flow shape is probably safe but has avoidable duplication, allocation pressure, N+1 work, weak bounds, or unclear sink ownership.
+      - `suggestion`: local simplification that reduces copying, buffering, repeated conversion, or per-item work without changing behavior.
+
+      Record findings as bullets under the template sections. Include the source, cardinality, reduction/transformation/materialization point, sink/owner boundary, evidence, and smallest concrete remediation. If there are no issues, mark Decision as Pass and leave findings sections empty.
+    requires:
+      - tasks
+      - review-tasks
+
+apply:
+  requires: [tasks, review-tasks]
+  tracks: tasks.md
+  instruction: |
+    Read context files, work through pending tasks, mark complete as you go.
+    Pause if you hit blockers or need clarification.
