@@ -1,6 +1,6 @@
 ---
 name: review-architecture
-description: Reviews implementation architecture with firm, evidence-based judgment: separation of concerns, maintainability, ownership, dependency direction, stability/change boundaries, validation, persistence/state ownership, runtime coordination, Conway fit, evolution strategy, and refactoring discipline. Use when asked for architecture review of module/package boundaries, cross-capability dependencies, shared code, abstraction drift, validation placement, service boundaries, strangler work, branch-by-abstraction changes, or refactoring claims.
+description: "Reviews implementation architecture with firm, evidence-based judgment: separation of concerns, maintainability, ownership, dependency direction, stability/change boundaries, validation, persistence/state ownership, runtime coordination, Conway fit, evolution strategy, and refactoring discipline. Use when asked for architecture review of module/package boundaries, cross-capability dependencies, shared code, abstraction drift, validation placement, service boundaries, strangler work, branch-by-abstraction changes, or refactoring claims."
 ---
 
 # review-architecture

@@ -32,4 +32,4 @@
 ## 8. Slash Commands
 
 - [x] 8.1 Create `extensions/openspec/setup-command.ts` — `/openspec-setup` with confirmation dialog, serial `pi install`, success/failure reporting
-- [x] 8.2 Create `extensions/openspec/update-agents.ts` — `/openspec-update-agents` with apply-mode sync and count reporting
+- [x] 8.2 Create `extensions/openspec/update-agents.ts` — `/openspec:update` with `openspec update --tools pi`, schema/skill/agent sync, manifest refresh, and count reporting

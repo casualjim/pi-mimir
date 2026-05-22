@@ -4,14 +4,14 @@ OpenSpec workflow package for Pi. `pi-mimir` adds a review-gated OpenSpec workfl
 
 ## What it provides
 
-- `plan` — create or refine an OpenSpec change through proposal, specs, design, tasks, and planning review gates.
-- `implement` — apply an implementation-ready OpenSpec change, verify it, run implementation review gates, and stop before archive.
+- `plan` — run the full OpenSpec planning workflow, composing generated proposal/spec/design/task behavior with planning review subagents.
+- `implement` — run generated OpenSpec apply behavior, verify it, run implementation review gates, and stop before archive.
 - `review-plan` — run proposal, design, specs, and tasks review gates for existing planning artifacts.
 - `review-implementation` — run architecture, tests, performance, and security review gates for existing implementation evidence.
 - A `review-gated` OpenSpec schema and supporting templates.
 - Session guidance for codebase-memory-first discovery.
 
-`pi-mimir` does not commit, push, create pull requests, archive changes, or run branch-finishing workflows. Use generated OpenSpec sync/archive behavior explicitly when you want those actions.
+`pi-mimir` does not commit, push, create pull requests, archive changes, or run branch-finishing workflows. Generated OpenSpec skills are allowed to coexist and may be called by the full workflow where appropriate.
 
 ## Install
 
@@ -26,21 +26,23 @@ The init command:
 1. runs `openspec init --tools pi`,
 2. configures `openspec/config.yaml` to use the `review-gated` schema,
 3. syncs bundled schemas, skills, and agents,
-4. checks the `pi-mcp-adapter` bridge, and
-5. checks for codebase-memory MCP configuration.
+4. configures the bundled `codebase-memory-mcp` server when no existing codebase-memory MCP server is present, and
+5. keeps existing codebase-memory MCP configuration unchanged when already present.
 
-If bundled agents or OpenSpec assets drift later, run:
+To refresh OpenSpec Pi tooling later, run:
 
 ```text
-/openspec-update-agents
+/openspec:update
 ```
+
+The update command runs `openspec update --tools pi`, keeps `openspec/config.yaml` on the `review-gated` schema, syncs bundled schemas, skills, agents, and refreshes `.pi/mimir-managed.json`.
 
 ## Requirements
 
 - Pi with package support.
 - OpenSpec CLI available as `openspec`.
-- [codebase-memory MCP](https://github.com/DeusData/codebase-memory-mcp) for full architecture-aware discovery.
-- `pi-mcp-adapter` when exposing MCP tools directly to Pi.
+- Bundled [codebase-memory MCP](https://github.com/DeusData/codebase-memory-mcp) for full architecture-aware discovery.
+- `pi-mcp-adapter` compatibility is retained; existing codebase-memory MCP server definitions are preserved.
 
 Without codebase-memory, workflows can still use exact file reads and shell inspection, but should report discovery as degraded and avoid claiming architecture-aware analysis.
 

@@ -29,7 +29,7 @@ extensions/openspec/
 ├── session-hooks.ts      # lifecycle wiring
 ├── agents.ts             # bundled agent sync
 ├── setup-command.ts      # /openspec-setup
-├── update-agents.ts      # /openspec-update-agents
+├── update-agents.ts      # /openspec:update (OpenSpec update + bundled asset sync)
 ├── git-context.ts        # cached branch/commit/user
 ├── guidance.ts           # per-depth guidance resolution
 ├── constants.ts          # flag names, message types

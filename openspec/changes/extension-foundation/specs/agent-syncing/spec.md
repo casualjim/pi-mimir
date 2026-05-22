@@ -25,6 +25,6 @@ The extension SHALL use a `.openspec-managed.json` manifest in `.pi/agents/` to 
 ### Requirement: Apply-mode sync via command
 The extension SHALL provide an apply-mode sync that adds new files, overwrites changed managed files, and removes stale managed files.
 
-#### Scenario: User runs /openspec-update-agents
-- **WHEN** the user invokes `/openspec-update-agents`
-- **THEN** new agents are added, changed managed agents are overwritten, and stale managed agents are removed
+#### Scenario: User runs /openspec:update
+- **WHEN** the user invokes `/openspec:update`
+- **THEN** `openspec update --tools pi` runs, bundled schemas/skills/agents are synced, and stale managed agents are removed

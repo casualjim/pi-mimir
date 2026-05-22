@@ -1,25 +1,17 @@
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { PACKAGE_ROOT } from "./agents.js";
+import {
+	LEGACY_ROOT_ASSET_MANIFEST,
+	readLegacyJson,
+	readMimirManagedManifest,
+	removeLegacyManagedManifests,
+	writeMimirManagedManifest,
+} from "./managed-manifest.js";
 
-export type OpenSpecAssetKind = "schema" | "config" | "generated OpenSpec asset";
-
-export interface OpenSpecAssetEntry {
-	targetPath: string;
-	sourceAssetKind: OpenSpecAssetKind;
-	sourceAssetId: string;
-	openspecVersion: string;
-	sourceAssetVersion: string;
-	contentHash: string;
-	lastGeneratedAt: string;
-}
-
-const MANIFEST = ".openspec-assets-managed.json";
-// OpenSpec assets can be generated from schema/template/config versions in addition to source bytes.
-// Static agents/skills/prompts remain content-addressable in their own manifests and are not tracked here.
-const OPENSPEC_VERSION = "not-captured-static-package-asset";
-const SOURCE_ASSET_VERSION = "1";
+const MANIFEST_SECTION = "openSpecAssets";
+type HashManifest = Record<string, string>;
 
 function sha256(content: string | Buffer): string {
 	return createHash("sha256").update(content).digest("hex");
@@ -36,66 +28,63 @@ function walk(dir: string): string[] {
 	return out.sort();
 }
 
-function entry(kind: OpenSpecAssetKind, source: string, targetPath: string): OpenSpecAssetEntry | null {
-	try {
-		return {
-			targetPath,
-			sourceAssetKind: kind,
-			sourceAssetId: relative(PACKAGE_ROOT, source).split("/").join("/"),
-			openspecVersion: OPENSPEC_VERSION,
-			sourceAssetVersion: SOURCE_ASSET_VERSION,
-			contentHash: sha256(readFileSync(source)),
-			lastGeneratedAt: new Date().toISOString(),
-		};
-	} catch {
-		return null;
-	}
+function addAssetEntry(entries: HashManifest, root: string, prefix: string, file: string): void {
+	const target = `${prefix}/${relative(root, file).split("\\").join("/")}`;
+	entries[target] = sha256(readFileSync(file));
 }
 
-export function collectOpenSpecAssetEntries(): Record<string, OpenSpecAssetEntry> {
-	const entries: Record<string, OpenSpecAssetEntry> = {};
-	for (const file of walk(join(PACKAGE_ROOT, "openspec", "schemas"))) {
-		const target = `openspec/schemas/${relative(join(PACKAGE_ROOT, "openspec", "schemas"), file)}`;
-		const e = entry("schema", file, target);
-		if (e) entries[target] = e;
-	}
-	for (const file of walk(join(PACKAGE_ROOT, "openspec", "config"))) {
-		const target = `openspec/config/${relative(join(PACKAGE_ROOT, "openspec", "config"), file)}`;
-		const e = entry("config", file, target);
-		if (e) entries[target] = e;
-	}
-	return entries;
+export function collectOpenSpecAssetEntries(): HashManifest {
+	const entries: HashManifest = {};
+	const schemasRoot = join(PACKAGE_ROOT, "openspec", "schemas");
+	for (const file of walk(schemasRoot)) addAssetEntry(entries, schemasRoot, "openspec/schemas", file);
+	const configRoot = join(PACKAGE_ROOT, "openspec", "config");
+	for (const file of walk(configRoot)) addAssetEntry(entries, configRoot, "openspec/config", file);
+	return orderHashManifest(entries);
 }
 
-function readManifest(cwd: string): Record<string, Partial<OpenSpecAssetEntry>> {
-	const path = join(cwd, MANIFEST);
-	if (!existsSync(path)) return {};
-	try {
-		const parsed = JSON.parse(readFileSync(path, "utf-8"));
-		return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-	} catch {
-		return {};
+function coerceAssetManifest(value: unknown): HashManifest {
+	const out: HashManifest = {};
+	if (!value || typeof value !== "object" || Array.isArray(value)) return out;
+	for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+		if (typeof entry === "string") out[key] = entry;
+		else if (entry && typeof entry === "object") {
+			const legacyHash = (entry as { contentHash?: unknown }).contentHash;
+			if (typeof legacyHash === "string") out[key] = legacyHash;
+		}
 	}
+	return out;
+}
+
+function readManifest(cwd: string): HashManifest {
+	const manifest = readMimirManagedManifest(cwd);
+	const section = coerceAssetManifest(manifest[MANIFEST_SECTION]);
+	if (Object.keys(section).length > 0) {
+		removeLegacyManagedManifests(cwd);
+		return section;
+	}
+	return coerceAssetManifest(readLegacyJson(cwd, LEGACY_ROOT_ASSET_MANIFEST));
 }
 
 export function writeOpenSpecAssetManifest(cwd: string): void {
-	const entries = collectOpenSpecAssetEntries();
-	writeFileSync(join(cwd, MANIFEST), `${JSON.stringify(entries, null, 2)}\n`, "utf-8");
+	const manifest = readMimirManagedManifest(cwd);
+	manifest[MANIFEST_SECTION] = collectOpenSpecAssetEntries();
+	writeMimirManagedManifest(cwd, manifest);
 }
 
 export function findStaleOpenSpecAssets(cwd: string): string[] {
 	const current = collectOpenSpecAssetEntries();
 	const installed = readManifest(cwd);
 	const stale: string[] = [];
-	for (const [target, entry] of Object.entries(current)) {
-		const old = installed[target];
-		if (!old) continue;
-		if (
-			old.openspecVersion !== entry.openspecVersion ||
-			old.sourceAssetVersion !== entry.sourceAssetVersion ||
-			old.contentHash !== entry.contentHash ||
-			old.sourceAssetKind !== entry.sourceAssetKind
-		) stale.push(target);
+	for (const [target, hash] of Object.entries(current)) {
+		const oldHash = installed[target];
+		if (!oldHash) continue;
+		if (oldHash !== hash) stale.push(target);
 	}
 	return stale.sort();
+}
+
+function orderHashManifest(manifest: HashManifest): HashManifest {
+	const ordered: HashManifest = {};
+	for (const key of Object.keys(manifest).sort()) ordered[key] = manifest[key] ?? "";
+	return ordered;
 }

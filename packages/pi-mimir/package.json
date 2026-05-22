@@ -24,7 +24,8 @@
     "skills": []
   },
   "dependencies": {
-    "@earendil-works/pi-tui": "*"
+    "@earendil-works/pi-tui": "*",
+    "codebase-memory-mcp": "^0.6.1"
   },
   "peerDependencies": {
     "pi-mcp-adapter": ">=0.1.0"

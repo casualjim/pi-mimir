@@ -27,16 +27,16 @@ const OPENSPEC_DIRS = [
 
 const msgAgentsAdded = (n: number) => `Copied ${n} openspec agent(s) to .pi/agents/`;
 const msgAgentsHealed = (parts: string[]) => `Synced bundled agent(s): ${parts.join(", ")}.`;
-const msgAgentsDrift = (parts: string[]) => `${parts.join(", ")} agent(s). Run /openspec-update-agents to sync.`;
-const msgAgentsErrors = (n: number) => `Agent sync reported ${n} error(s). Run /openspec-update-agents for details.`;
+const msgAgentsDrift = (parts: string[]) => `${parts.join(", ")} agent(s). Run /openspec:update to sync.`;
+const msgAgentsErrors = (n: number) => `Agent sync reported ${n} error(s). Run /openspec:update for details.`;
 const msgMissingCodebaseMemory = () =>
-	`codebase-memory MCP is required for the full pi-mimir architecture-memory-first workflow. Run /openspec:init to install/check pi-mcp-adapter, then configure codebase-memory MCP and verify tools: ${EXPECTED_CODEBASE_MEMORY_TOOLS.join(", ")}. Exact file reads are degraded fallback only.`;
+	`codebase-memory MCP is required for the full pi-mimir architecture-memory-first workflow. Run /openspec:init or /openspec:update to configure the bundled codebase-memory-mcp server when one is not already present, then verify tools: ${EXPECTED_CODEBASE_MEMORY_TOOLS.join(", ")}. Exact file reads are degraded fallback only.`;
 const msgMissingDirectTools = () =>
 	"codebase-memory MCP is configured without directTools: true. It can still work through MCP, but direct codebase_memory_* tools may not be exposed.";
 const msgWorkflowOverlap = (list: string) =>
-	`OpenSpec workflow overlap detected (${list}). These packages/skills may over-trigger or steer a conflicting workflow; prefer plan/implement for this package and keep generated OpenSpec skills for explicit sync/archive actions.`;
+	`Known workflow plugin overlap detected (${list}). pi-mimir complements OpenSpec and offers optional composed plan/implement workflows; it does not treat workflow skill names or generated OpenSpec skills as conflicts.`;
 const msgStaleOpenSpecAssets = (n: number) =>
-	`${n} OpenSpec schema/config asset(s) have stale OpenSpec/source/hash markers. Run /openspec-update-agents to refresh manifests.`;
+	`${n} OpenSpec schema/config asset(s) have stale OpenSpec/source/hash markers. Run /openspec:update to refresh manifests.`;
 const CODEBASE_MEMORY_GUIDANCE = [
 	"# codebase-memory Discovery Guidance",
 	"",
@@ -55,7 +55,7 @@ const CODEBASE_MEMORY_GUIDANCE = [
 const WORKFLOW_GUIDANCE = [
 	"# OpenSpec Workflow Guidance",
 	"",
-	"Preferred package entrypoints: `plan` for OpenSpec proposal/spec/design/task planning, `implement` for apply execution, verification, and review, `review-plan` for standalone artifact review gates, and `review-implementation` for standalone implementation review gates. Generated `/opsx:*` or `openspec-*` skills may coexist; reuse generated sync/archive behavior explicitly. Do not add commit, push, PR creation, or finishing-branch behavior as workflow steps.",
+	"Package entrypoints: `plan` runs the full planning workflow by composing OpenSpec proposal/spec/design/task behavior with review subagents; `implement` runs apply execution, verification, and implementation review; `review-plan` and `review-implementation` run standalone review gates. Generated `/opsx:*` or `openspec-*` skills may coexist and may be called internally by these workflows. Do not add commit, push, PR creation, or finishing-branch behavior as workflow steps.",
 	"",
 	"Define intent first: if the requested outcome is ambiguous, ask a targeted clarification before codebase probing. Discovery ladder: codebase_memory_get_architecture → codebase_memory_search_graph/search_code → codebase_memory_trace_path → codebase_memory_get_code_snippet → exact file reads → direct synthesis. Stop when affected capabilities, impact areas, existing specs, and major implementation constraints are known.",
 	"",

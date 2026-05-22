@@ -29,7 +29,7 @@ describe("package registration", () => {
 		}
 	});
 
-	it("removes rpiv-era optional peers and keeps pi-mcp-adapter", () => {
+	it("removes rpiv-era optional peers, keeps pi-mcp-adapter, and bundles codebase-memory-mcp", () => {
 		const peers = (pkg as any).peerDependencies ?? {};
 		const peerMeta = (pkg as any).peerDependenciesMeta ?? {};
 		for (const name of [
@@ -46,5 +46,6 @@ describe("package registration", () => {
 		}
 		expect(peers).toHaveProperty("pi-mcp-adapter");
 		expect(peerMeta["pi-mcp-adapter"]?.optional).toBe(true);
+		expect((pkg as any).dependencies).toHaveProperty("codebase-memory-mcp");
 	});
 });

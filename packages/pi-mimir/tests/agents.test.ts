@@ -30,9 +30,10 @@ describe("agents", () => {
 			expect(existsSync(targetDir)).toBe(true);
 		});
 
-		it("creates manifest on first sync", () => {
+		it("creates canonical manifest on first sync", () => {
 			syncBundledAgents(cwd, false);
-			expect(existsSync(join(targetDir, ".openspec-managed.json"))).toBe(true);
+			expect(existsSync(join(cwd, ".pi", "mimir-managed.json"))).toBe(true);
+			expect(existsSync(join(targetDir, ".openspec-managed.json"))).toBe(false);
 		});
 
 	});
@@ -45,11 +46,11 @@ describe("agents", () => {
 
 		it("agent manifest remains content-addressable hash map with sorted keys", () => {
 			syncBundledAgents(cwd, false);
-			const manifestPath = join(targetDir, ".openspec-managed.json");
+			const manifestPath = join(cwd, ".pi", "mimir-managed.json");
 			const raw = JSON.parse(readFileSync(manifestPath, "utf-8"));
-			const keys = Object.keys(raw);
+			const keys = Object.keys(raw.agents);
 			expect(keys).toEqual([...keys].sort());
-			const first = raw[keys[0]!];
+			const first = raw.agents[keys[0]!];
 			expect(typeof first).toBe("string");
 			expect(first).toMatch(/^[a-f0-9]{64}$/);
 		});
@@ -59,6 +60,14 @@ describe("agents", () => {
 			const result2 = syncBundledAgents(cwd, false);
 			// Second sync should not error
 			expect(result2.errors).toEqual([]);
+		});
+
+		it("removes legacy agent manifest when canonical manifest is written", () => {
+			mkdirSync(targetDir, { recursive: true });
+			writeFileSync(join(targetDir, ".openspec-managed.json"), "{}\n", "utf-8");
+			syncBundledAgents(cwd, false);
+			expect(existsSync(join(targetDir, ".openspec-managed.json"))).toBe(false);
+			expect(existsSync(join(cwd, ".pi", "mimir-managed.json"))).toBe(true);
 		});
 	});
 

@@ -1,6 +1,6 @@
 ---
 name: review-performance
-description: Reviews implementation performance by hunting structural costs: premature stream materialization, needless copying/cloning, avoidable allocation, repeated serialization/parsing, N+1 I/O, lock contention, unbounded concurrency, and APIs that force callers to pay unnecessary costs. Use when asked for performance review of data-heavy paths, persistence/search/streaming APIs, parsers, async workflows, hot paths, batch jobs, CLI pipelines, or hidden memory/throughput risks.
+description: "Reviews implementation performance by hunting structural costs: premature stream materialization, needless copying/cloning, avoidable allocation, repeated serialization/parsing, N+1 I/O, lock contention, unbounded concurrency, and APIs that force callers to pay unnecessary costs. Use when asked for performance review of data-heavy paths, persistence/search/streaming APIs, parsers, async workflows, hot paths, batch jobs, CLI pipelines, or hidden memory/throughput risks."
 ---
 
 # review-performance

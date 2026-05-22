@@ -12,7 +12,7 @@ pi-mimir needs a Pi extension to bootstrap itself into every session. Without it
   - Guidance file resolution and auto-injection
   - Agent profile syncing (bundled → `.pi/agents/`)
   - `/openspec-setup` command to install peer packages
-  - `/openspec-update-agents` command to sync agent profiles
+  - `/openspec:update` command to update OpenSpec Pi tooling and sync bundled schemas, skills, and agents
 - **Workspace root** — top-level `package.json` with npm workspaces pointing to `packages/pi-mimir` and `packages/advisor`
 
 ## Capabilities
@@ -24,7 +24,7 @@ pi-mimir needs a Pi extension to bootstrap itself into every session. Without it
 - `git-context`: Cached branch/commit/user resolution injected as hidden messages, invalidated on mutating git commands
 - `guidance-injection`: Per-depth guidance file resolution (AGENTS.md > CLAUDE.md > architecture.md) on file touch
 - `agent-syncing`: Bundled agent profiles copied to `.pi/agents/` with manifest-based drift detection
-- `setup-commands`: `/openspec-setup` and `/openspec-update-agents` slash commands
+- `setup-commands`: `/openspec-setup` and `/openspec:update` slash commands
 - `workspace-setup`: Top-level workspace `package.json` with npm workspaces for `packages/pi-mimir` and `packages/advisor`
 
 ### Modified Capabilities

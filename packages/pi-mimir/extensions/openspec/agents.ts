@@ -7,9 +7,16 @@
  */
 
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+	LEGACY_AGENT_MANIFEST,
+	readLegacyJson,
+	readMimirManagedManifest,
+	removeLegacyManagedManifests,
+	writeMimirManagedManifest,
+} from "./managed-manifest.js";
 
 export const PACKAGE_ROOT = (() => {
 	const thisFile = fileURLToPath(import.meta.url);
@@ -54,43 +61,44 @@ function safeJoin(targetDir: string, name: string): string | null {
 	return resolved.startsWith(root) ? resolved : null;
 }
 
-const MANIFEST_FILE = ".openspec-managed.json";
+const MANIFEST_SECTION = "agents";
 type Manifest = Record<string, string>;
 
 function sha256(buf: Buffer | string): string {
 	return createHash("sha256").update(buf).digest("hex");
 }
 
-function readManifest(targetDir: string): Manifest {
-	const manifestPath = join(targetDir, MANIFEST_FILE);
-	if (!existsSync(manifestPath)) return {};
-	try {
-		const raw = readFileSync(manifestPath, "utf-8");
-		const parsed = JSON.parse(raw);
-		if (Array.isArray(parsed)) {
-			const out: Manifest = {};
-			for (const e of parsed) if (typeof e === "string" && isManagedAgentName(e)) out[e] = "";
-			return out;
-		}
-		if (parsed && typeof parsed === "object") {
-			const out: Manifest = {};
-			for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
-				if (typeof k === "string" && typeof v === "string" && isManagedAgentName(k)) out[k] = v;
-			}
-			return out;
-		}
-		return {};
-	} catch {
-		return {};
+function coerceManifest(value: unknown): Manifest {
+	const out: Manifest = {};
+	if (Array.isArray(value)) {
+		for (const e of value) if (typeof e === "string" && isManagedAgentName(e)) out[e] = "";
+		return out;
 	}
+	if (value && typeof value === "object") {
+		for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+			if (typeof k === "string" && typeof v === "string" && isManagedAgentName(k)) out[k] = v;
+		}
+	}
+	return out;
 }
 
-function writeManifest(targetDir: string, manifest: Manifest, result: SyncResult): void {
-	const manifestPath = join(targetDir, MANIFEST_FILE);
+function readManifest(cwd: string): Manifest {
+	const manifest = readMimirManagedManifest(cwd);
+	const section = coerceManifest(manifest[MANIFEST_SECTION]);
+	if (Object.keys(section).length > 0) {
+		removeLegacyManagedManifests(cwd);
+		return section;
+	}
+	return coerceManifest(readLegacyJson(cwd, LEGACY_AGENT_MANIFEST));
+}
+
+function writeManifest(cwd: string, manifest: Manifest, result: SyncResult): void {
 	try {
+		const root = readMimirManagedManifest(cwd);
 		const ordered: Manifest = {};
 		for (const k of Object.keys(manifest).sort()) ordered[k] = manifest[k] ?? "";
-		writeFileSync(manifestPath, `${JSON.stringify(ordered, null, 2)}\n`, "utf-8");
+		root[MANIFEST_SECTION] = ordered;
+		writeMimirManagedManifest(cwd, root);
 	} catch (e) {
 		result.errors.push({ op: "manifest-write", message: e instanceof Error ? e.message : String(e) });
 	}
@@ -117,7 +125,7 @@ export function syncBundledAgents(cwd: string, apply: boolean): SyncResult {
 	}
 
 	const sourceNames = new Set(sourceEntries);
-	const manifest = readManifest(targetDir);
+	const manifest = readManifest(cwd);
 	const newManifest: Manifest = {};
 
 	for (const entry of sourceEntries) {
@@ -216,7 +224,7 @@ export function syncBundledAgents(cwd: string, apply: boolean): SyncResult {
 		}
 	}
 
-	writeManifest(targetDir, newManifest, result);
+	writeManifest(cwd, newManifest, result);
 	for (const { name, destPath } of toUnlink) {
 		try {
 			unlinkSync(destPath);
@@ -226,6 +234,6 @@ export function syncBundledAgents(cwd: string, apply: boolean): SyncResult {
 			newManifest[name] = manifest[name] ?? "";
 		}
 	}
-	if (result.errors.some((e) => e.op === "remove")) writeManifest(targetDir, newManifest, result);
+	if (result.errors.some((e) => e.op === "remove")) writeManifest(cwd, newManifest, result);
 	return result;
 }

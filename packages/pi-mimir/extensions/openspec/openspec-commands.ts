@@ -1,14 +1,14 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { PACKAGE_ROOT, syncBundledAgents } from "./agents.js";
 import { writeOpenSpecAssetManifest } from "./managed-assets.js";
+import { readMimirManagedManifest, writeMimirManagedManifest } from "./managed-manifest.js";
 import {
 	CODEBASE_MEMORY_BRIDGE_PACKAGE,
 	EXPECTED_CODEBASE_MEMORY_TOOLS,
-	codebaseMemoryMcpNeedsDirectTools,
-	hasCodebaseMemoryMcp,
-	hasPiMcpAdapterInstalled,
+	ensureCodebaseMemoryMcpConfig,
 } from "./package-checks.js";
 import { registerOpenSpecCliOutputRenderer, sendOpenSpecCliOutput } from "./openspec-output-renderer.js";
 import { syncBundledSchemas } from "./schema-sync.js";
@@ -41,6 +41,10 @@ export interface CodebaseMemoryBridgeResult {
 	adapterInstallSucceeded: boolean;
 	adapterInstallError?: string;
 	codebaseMemoryMcpConfigured: boolean;
+	codebaseMemoryMcpConfiguredAlready: boolean;
+	codebaseMemoryMcpConfigCreated: boolean;
+	codebaseMemoryMcpConfigPath: string;
+	codebaseMemoryMcpConfigError?: string;
 	codebaseMemoryMcpNeedsDirectTools: boolean;
 }
 
@@ -77,15 +81,53 @@ export function syncBundledSkills(cwd: string): SyncBundledSkillsResult {
 	if (!existsSync(sourceDir)) return result;
 
 	mkdirSync(targetDir, { recursive: true });
+	const manifest: SkillManifest = {};
 	for (const name of ["plan", "implement", "review-architecture", "review-design", "review-implementation", "review-performance", "review-security", "review-plan", "review-proposal", "review-specs", "review-tasks", "review-tests"]) {
 		const src = join(sourceDir, name);
 		if (!existsSync(src)) continue;
 		const dest = join(targetDir, name);
 		const existed = existsSync(dest);
 		cpSync(src, dest, { recursive: true, force: true });
+		manifest[name] = merkleHashDirectory(src);
 		(existed ? result.updated : result.added).push(name);
 	}
+	writeSkillManifest(cwd, manifest);
 	return result;
+}
+
+function sha256(parts: Array<Buffer | string>): string {
+	const hash = createHash("sha256");
+	for (const part of parts) hash.update(part);
+	return hash.digest("hex");
+}
+
+type SkillManifest = Record<string, string>;
+
+function merkleHashDirectory(dir: string): string {
+	return merkleHashNode(dir);
+}
+
+function merkleHashNode(path: string): string {
+	const entries = readdirSync(path, { withFileTypes: true })
+		.filter((entry) => entry.isDirectory() || entry.isFile())
+		.sort((a, b) => a.name.localeCompare(b.name));
+	const parts: Array<Buffer | string> = ["dir\0"];
+	for (const entry of entries) {
+		const childPath = join(path, entry.name);
+		const childHash = entry.isDirectory()
+			? merkleHashNode(childPath)
+			: sha256(["file\0", readFileSync(childPath)]);
+		parts.push(entry.name, "\0", childHash, "\0");
+	}
+	return sha256(parts);
+}
+
+function writeSkillManifest(cwd: string, manifest: SkillManifest): void {
+	const root = readMimirManagedManifest(cwd);
+	const ordered: SkillManifest = {};
+	for (const skill of Object.keys(manifest).sort()) ordered[skill] = manifest[skill] ?? "";
+	root.skills = ordered;
+	writeMimirManagedManifest(cwd, root);
 }
 
 export function registerOpenSpecCommands(pi: ExtensionAPI): void {
@@ -126,31 +168,18 @@ export function registerOpenSpecCommands(pi: ExtensionAPI): void {
 	});
 }
 
-export async function ensureCodebaseMemoryBridge(pi: ExtensionAPI): Promise<CodebaseMemoryBridgeResult> {
-	const adapterAlreadyInstalled = hasPiMcpAdapterInstalled();
-	let adapterInstallAttempted = false;
-	let adapterInstallSucceeded = true;
-	let adapterInstallError: string | undefined;
-
-	if (!adapterAlreadyInstalled) {
-		adapterInstallAttempted = true;
-		try {
-			const install = await pi.exec("pi", ["install", CODEBASE_MEMORY_BRIDGE_PACKAGE], { timeout: OPENSPEC_TIMEOUT_MS });
-			adapterInstallSucceeded = install.code === 0;
-			if (!adapterInstallSucceeded) adapterInstallError = formatExecFailure(`pi install ${CODEBASE_MEMORY_BRIDGE_PACKAGE}`, install);
-		} catch (error) {
-			adapterInstallSucceeded = false;
-			adapterInstallError = `pi install ${CODEBASE_MEMORY_BRIDGE_PACKAGE} failed: ${error instanceof Error ? error.message : String(error)}`;
-		}
-	}
-
+export async function ensureCodebaseMemoryBridge(_pi: ExtensionAPI): Promise<CodebaseMemoryBridgeResult> {
+	const mcpConfig = ensureCodebaseMemoryMcpConfig();
 	return {
-		adapterAlreadyInstalled,
-		adapterInstallAttempted,
-		adapterInstallSucceeded,
-		adapterInstallError,
-		codebaseMemoryMcpConfigured: hasCodebaseMemoryMcp(),
-		codebaseMemoryMcpNeedsDirectTools: codebaseMemoryMcpNeedsDirectTools(),
+		adapterAlreadyInstalled: true,
+		adapterInstallAttempted: false,
+		adapterInstallSucceeded: true,
+		codebaseMemoryMcpConfigured: mcpConfig.configuredAlready || mcpConfig.created,
+		codebaseMemoryMcpConfiguredAlready: mcpConfig.configuredAlready,
+		codebaseMemoryMcpConfigCreated: mcpConfig.created,
+		codebaseMemoryMcpConfigPath: mcpConfig.path,
+		codebaseMemoryMcpConfigError: mcpConfig.error,
+		codebaseMemoryMcpNeedsDirectTools: false,
 	};
 }
 
@@ -184,13 +213,14 @@ function buildInitReport(
 	if (agents.errors.length > 0) lines.push(`Agent sync errors: ${agents.errors.map((e) => e.message).join("; ")}`);
 	lines.push(`pi-mcp-adapter bridge: ${codebaseMemoryBridgeSummary(codebaseMemory)}.`);
 	if (codebaseMemory.codebaseMemoryMcpConfigured) {
-		lines.push(`codebase-memory MCP configured. Expected tools: ${EXPECTED_CODEBASE_MEMORY_TOOLS.join(", ")}.`);
+		lines.push(codebaseMemory.codebaseMemoryMcpConfigCreated
+			? `codebase-memory MCP configured in ${codebaseMemory.codebaseMemoryMcpConfigPath}. Restart/reload Pi if the new MCP server is not active yet.`
+			: `Existing codebase-memory MCP configuration preserved. Expected tools: ${EXPECTED_CODEBASE_MEMORY_TOOLS.join(", ")}.`);
 		if (codebaseMemory.codebaseMemoryMcpNeedsDirectTools) lines.push("NOTE: codebase-memory MCP is configured without directTools: true; it can still work through MCP, but direct codebase_memory_* tools may not be exposed.");
 	} else {
 		lines.push(
-			`WARNING: codebase-memory MCP is required for full pi-mimir architecture-memory-first discovery. Configure through pi-mcp-adapter and verify the codebase_memory_* tools are available: ${EXPECTED_CODEBASE_MEMORY_TOOLS.join(", ")}. Exact file reads are degraded fallback only.`,
+			`WARNING: codebase-memory MCP is required for full pi-mimir architecture-memory-first discovery but could not be configured automatically${codebaseMemory.codebaseMemoryMcpConfigError ? `: ${codebaseMemory.codebaseMemoryMcpConfigError}` : ""}. Verify MCP config at ${codebaseMemory.codebaseMemoryMcpConfigPath}. Exact file reads are degraded fallback only.`,
 		);
-		if (codebaseMemory.adapterInstallAttempted && codebaseMemory.adapterInstallSucceeded) lines.push("Restart/reload Pi if the newly installed pi-mcp-adapter extension is not active yet.");
 	}
 	return lines.join("\n");
 }
@@ -203,11 +233,8 @@ function initReportLevel(
 	return schemas.errors.length > 0 || agents.errors.length > 0 || !codebaseMemory.adapterInstallSucceeded || !codebaseMemory.codebaseMemoryMcpConfigured ? "warning" : "info";
 }
 
-function codebaseMemoryBridgeSummary(result: CodebaseMemoryBridgeResult): string {
-	if (result.adapterAlreadyInstalled) return "already installed";
-	if (!result.adapterInstallAttempted) return "not checked";
-	if (result.adapterInstallSucceeded) return `installed ${CODEBASE_MEMORY_BRIDGE_PACKAGE}`;
-	return result.adapterInstallError ?? `failed to install ${CODEBASE_MEMORY_BRIDGE_PACKAGE}`;
+function codebaseMemoryBridgeSummary(_result: CodebaseMemoryBridgeResult): string {
+	return `${CODEBASE_MEMORY_BRIDGE_PACKAGE} compatibility retained; codebase-memory-mcp configured directly when missing`;
 }
 
 function summary(result: ReturnType<typeof syncBundledSchemas>): string {

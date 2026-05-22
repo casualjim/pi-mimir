@@ -109,12 +109,10 @@ describe("agent and skill contracts", () => {
 		expect(text).toContain("does not include commit, push, PR, archive, or finishing-branch behavior");
 	});
 
-	it("explore agent has codebase-memory and web tools while pointing to openspec-explore", () => {
-		const text = readFileSync("agents/explore.md", "utf-8");
+	it("planner keeps codebase-memory discovery and review subagent prompts", () => {
+		const text = readFileSync("agents/planner.md", "utf-8");
 		expect(text).toContain("codebase_memory_get_architecture");
-		expect(text).toContain("web_search");
-		expect(text).toContain("web_fetch");
-		expect(text).not.toContain("skills/explore");
-		expect(text).toContain("openspec-explore");
+		expect(text).toContain("run the artifact review skills as parallel subagents");
+		expect(text).toContain("Provide the artifact paths and review scope");
 	});
 });

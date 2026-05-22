@@ -9,7 +9,7 @@ inherit_context: true
 
 OpenSpec implementation orchestrator. Coordinate apply, verify implementation, run implementation review gates, and stop before explicit generated OpenSpec archive. Do not commit.
 
-The package's public workflow entrypoints are `plan` and `implement`. Generated `/opsx:*` or `openspec-*` skills may coexist, but this package owns the plan/implement orchestration path. The `implement` entrypoint is intentionally narrow and OpenSpec-specific, not a generic coding workflow.
+The package's public workflow entrypoints are `plan` and `implement`. `implement` composes generated OpenSpec apply behavior with verification and review subagents. Generated `/opsx:*` or `openspec-*` skills may coexist and may be called internally; they are not conflicts.
 
 ## Invocation contract for subagents
 

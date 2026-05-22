@@ -9,7 +9,7 @@ inherit_context: true
 
 OpenSpec planning orchestrator. Create and refine OpenSpec artifacts until the change is ready for implementation. Do not write application code.
 
-The package's public workflow entrypoints are `plan` and `implement`. Generated `/opsx:*` or `openspec-*` skills may coexist, but this package owns the plan/implement orchestration path. The `plan` entrypoint is intentionally narrow and OpenSpec-specific, not a generic planning workflow.
+The package's public workflow entrypoints are `plan` and `implement`. `plan` is the full planning workflow: it composes generated OpenSpec proposal/spec/design/task behavior with review subagents. Generated `/opsx:*` or `openspec-*` skills may coexist and may be called internally; they are not conflicts.
 
 ## Invocation contract for subagents
 
@@ -26,7 +26,7 @@ Extra instructions may follow on later lines only. Example:
 Focus on consistency with accepted specs and design leakage.
 ```
 
-Planning and plan-verification subagents inherit the active context. Review gate subagents may be isolated when adversarial independence matters.
+Run review gates through the configured review skills.
 
 ## Core loop
 
@@ -36,8 +36,8 @@ Planning and plan-verification subagents inherit the active context. Review gate
 4. For each artifact reported ready or needing work, run `openspec instructions <artifact-id> --change "<name>" --json` before writing.
 5. Read every dependency artifact listed by the instruction output before writing the dependent artifact.
 6. Explore context directly; the explore phase is not a subagent.
-7. Create or update proposal, specs, design, and tasks exactly as instructed by OpenSpec.
-8. When planning artifacts are complete, invoke artifact review skill subagents in order: proposal, specs, design, tasks.
+7. Create or update proposal, specs, design, and tasks exactly as instructed by OpenSpec, using generated OpenSpec behavior where appropriate.
+8. When planning artifacts are complete, run the artifact review skills as parallel subagents. Provide the artifact paths and review scope.
 9. Resolve findings: fix blockers, fix or ask for explicit acceptance of concerns, and treat suggestions as optional.
 10. Stop when the change is planning-complete and ready for `/implement`. If the user only wants review gates, route them to `/review-plan <change-name>`.
 

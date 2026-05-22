@@ -45,10 +45,11 @@ describe("extension entry point", () => {
 		expect(harness.commands.has("openspec-setup")).toBe(false);
 	});
 
-	it("registers /openspec-update-agents command", () => {
+	it("registers /openspec:update command", () => {
 		const harness = createHarness();
 		extension(harness.pi);
-		expect(harness.commands.has("openspec-update-agents")).toBe(true);
+		expect(harness.commands.has("openspec:update")).toBe(true);
+		expect(harness.commands.has("openspec-update-agents")).toBe(false);
 	});
 
 	it("registers /openspec:* commands", () => {

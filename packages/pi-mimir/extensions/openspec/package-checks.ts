@@ -5,11 +5,15 @@
  * retired rpiv sibling setup registry.
  */
 
-import { existsSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+
+const require = createRequire(import.meta.url);
 
 export const CODEBASE_MEMORY_BRIDGE_PACKAGE = "npm:pi-mcp-adapter";
+export const CODEBASE_MEMORY_MCP_SERVER_NAME = "codebase-memory-mcp";
 export const EXPECTED_CODEBASE_MEMORY_TOOLS = [
 	"codebase_memory_get_architecture",
 	"codebase_memory_search_graph",
@@ -56,6 +60,7 @@ export function hasPiMcpAdapterInstalled(): boolean {
 
 interface McpServerConfig {
 	command?: unknown;
+	args?: unknown;
 	directTools?: unknown;
 }
 
@@ -98,25 +103,53 @@ export function codebaseMemoryMcpNeedsDirectTools(): boolean {
 	return codebaseMemoryMcpNeedsDirectToolsConfig(readText(piAgentMcpPath()));
 }
 
-const GENERIC_OVERLAP_SKILLS = ["research", "design", "blueprint", "validate", "review", "commit"] as const;
-const COMPETING_GENERATED_OPENSPEC_SKILLS = ["openspec-propose"] as const;
+export interface EnsureCodebaseMemoryMcpConfigResult {
+	configuredAlready: boolean;
+	created: boolean;
+	path: string;
+	serverName?: string;
+	error?: string;
+}
 
-export function findWorkflowOverlaps(cwd?: string): string[] {
+export function resolveBundledCodebaseMemoryMcpBin(): string | undefined {
+	try {
+		return require.resolve("codebase-memory-mcp/bin.js");
+	} catch {
+		return undefined;
+	}
+}
+
+export function ensureCodebaseMemoryMcpConfig(): EnsureCodebaseMemoryMcpConfigResult {
+	const path = piAgentMcpPath();
+	const raw = readText(path);
+	if (hasCodebaseMemoryMcpConfig(raw)) return { configuredAlready: true, created: false, path };
+
+	const bin = resolveBundledCodebaseMemoryMcpBin();
+	if (!bin) return { configuredAlready: false, created: false, path, error: "Bundled codebase-memory-mcp binary could not be resolved" };
+
+	try {
+		const parsed = raw.trim() ? JSON.parse(raw) as McpConfig : {};
+		const mcpServers = parsed.mcpServers && typeof parsed.mcpServers === "object" ? parsed.mcpServers : {};
+		mcpServers[CODEBASE_MEMORY_MCP_SERVER_NAME] = {
+			command: process.execPath,
+			args: [bin],
+			directTools: true,
+		};
+		const next: McpConfig = { ...parsed, mcpServers };
+		mkdirSync(dirname(path), { recursive: true });
+		writeFileSync(path, `${JSON.stringify(next, null, 2)}\n`, "utf-8");
+		return { configuredAlready: false, created: true, path, serverName: CODEBASE_MEMORY_MCP_SERVER_NAME };
+	} catch (error) {
+		return { configuredAlready: false, created: false, path, error: error instanceof Error ? error.message : String(error) };
+	}
+}
+
+export function findWorkflowOverlaps(_cwd?: string): string[] {
 	const installed = readInstalledPackages();
 	const findings = new Set<string>();
 	for (const entry of installed) {
 		if (/@juicesharp\/rpiv-pi|rpiv-pi/i.test(entry)) findings.add("package:@juicesharp/rpiv-pi");
 		if (/pi-superpowers|superpowers/i.test(entry)) findings.add("package:pi-superpowers");
-	}
-	if (cwd) {
-		for (const name of GENERIC_OVERLAP_SKILLS) {
-			if (existsSync(join(cwd, ".pi", "skills", name, "SKILL.md"))) findings.add(`skill:${name}`);
-			if (existsSync(join(cwd, ".pi", "prompts", `${name}.md`))) findings.add(`prompt:${name}`);
-		}
-		for (const name of COMPETING_GENERATED_OPENSPEC_SKILLS) {
-			if (existsSync(join(cwd, ".pi", "skills", name, "SKILL.md"))) findings.add(`generated:${name}`);
-		}
-		if (existsSync(join(cwd, ".pi", "skills", "opsx", "SKILL.md"))) findings.add("generated:/opsx");
 	}
 	return [...findings].sort();
 }

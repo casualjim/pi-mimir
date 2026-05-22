@@ -1,0 +1,8 @@
+{
+  "agents": {
+    "explore.md": "737a471fdca8e30f723beec24996795c050605871728bde6d605c4daf72d372c",
+    "planner.md": "d5f8e340d15e4398b0c6cd8cc4018f424f7d25b8ec1d81430ec07e06a3f06671",
+    "reviewer.md": "26854bf07330bb6ab7d312b08edb6a51f6c5577b5767164acf8fc56fbceadb3b",
+    "worker.md": "a757bcf1d0ed2a8e31bf817f007ab52914713fc42fb26b0a43f8453fd151777a"
+  }
+}

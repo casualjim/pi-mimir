@@ -19,13 +19,13 @@ The extension SHALL register a `/openspec-setup` command that detects missing si
 - **WHEN** `/openspec-setup` runs without UI (print/RPC mode)
 - **THEN** an error notification is shown that the command requires interactive mode
 
-### Requirement: /openspec-update-agents command
-The extension SHALL register a `/openspec-update-agents` command that triggers apply-mode agent sync and reports added/updated/removed counts.
+### Requirement: /openspec:update command
+The extension SHALL register a `/openspec:update` command that runs `openspec update --tools pi`, keeps the review-gated config in place, syncs bundled schemas/skills/agents, refreshes the managed manifest, and reports update counts.
 
 #### Scenario: No changes needed
-- **WHEN** all managed agents match the bundled versions
-- **THEN** a notification says agents are already up-to-date
+- **WHEN** OpenSpec tools and all bundled assets already match current versions
+- **THEN** a notification says the workflow is updated and reports up-to-date assets
 
-#### Scenario: Agents updated
-- **WHEN** 2 agents are outdated and 1 new agent was added
-- **THEN** the notification reports "2 updated, 1 added"
+#### Scenario: Assets updated
+- **WHEN** OpenSpec tools are updated, 2 agents are outdated, and 1 skill was added
+- **THEN** the notification reports the OpenSpec update and asset sync counts
