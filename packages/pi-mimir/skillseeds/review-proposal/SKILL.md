@@ -22,7 +22,8 @@ Check that the proposal:
 - describes WHY and a bit of WHAT;
 - does not describe HOW;
 - names new/modified capabilities consistently with expected spec paths;
-- lists impact and non-goals/out-of-scope areas clearly enough to constrain later artifacts.
+- lists impact and non-goals/out-of-scope areas clearly enough to constrain later artifacts;
+- answers "what did we miss?" for scope, affected users, stakeholder impact, non-goals, assumptions, dependencies, rollout constraints, and follow-up artifacts.
 
 ## Output
 

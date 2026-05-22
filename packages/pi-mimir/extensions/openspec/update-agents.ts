@@ -1,6 +1,6 @@
 /**
  * /openspec:update — refreshes OpenSpec Pi tooling and bundled workflow assets.
- * Runs openspec update --tools pi, then syncs schemas, skills, agents, and manifests.
+ * Runs openspec update, then syncs schemas, skills, agents, and manifests.
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";

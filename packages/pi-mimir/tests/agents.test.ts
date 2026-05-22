@@ -62,6 +62,13 @@ describe("agents", () => {
 			expect(result2.errors).toEqual([]);
 		});
 
+		it("does not sync the removed explore agent", () => {
+			syncBundledAgents(cwd, false);
+			expect(existsSync(join(targetDir, "explore.md"))).toBe(false);
+			const manifest = JSON.parse(readFileSync(join(cwd, ".pi", "mimir-managed.json"), "utf-8"));
+			expect(manifest.agents).not.toHaveProperty("explore.md");
+		});
+
 		it("removes legacy agent manifest when canonical manifest is written", () => {
 			mkdirSync(targetDir, { recursive: true });
 			writeFileSync(join(targetDir, ".openspec-managed.json"), "{}\n", "utf-8");

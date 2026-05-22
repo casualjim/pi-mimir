@@ -25,7 +25,8 @@ Check that specs:
 - include at least one `#### Scenario:` per requirement;
 - use testable WHEN/THEN scenarios with important success, failure, and edge cases;
 - copy full existing requirement blocks for MODIFIED requirements;
-- avoid contradictions or duplicate requirements across capabilities.
+- avoid contradictions or duplicate requirements across capabilities;
+- answers "what did we miss?" for missing behaviors, failure cases, edge cases, actors, permissions, state transitions, compatibility concerns, and acceptance scenarios.
 
 ## Output
 

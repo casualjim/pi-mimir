@@ -26,12 +26,13 @@ describe("OpenSpec managed assets", () => {
 		expect(Object.values(entries).every((hash) => /^[a-f0-9]{64}$/.test(hash))).toBe(true);
 	});
 
-	it("writes OpenSpec assets as file-to-hash mappings", () => {
+	it("writes canonical manifest sections as hash mappings", () => {
 		writeOpenSpecAssetManifest(cwd);
 		const raw = JSON.parse(readFileSync(join(cwd, ".pi", "mimir-managed.json"), "utf-8"));
 		const first = Object.values(raw.openSpecAssets)[0] as any;
 		expect(first).toMatch(/^[a-f0-9]{64}$/);
 		expect(first).not.toHaveProperty("contentHash");
+		expect(raw.openSpecAssets).not.toHaveProperty("lastGeneratedAt");
 	});
 
 	it("reports stale OpenSpec manifest entries by hash", () => {

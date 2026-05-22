@@ -123,6 +123,25 @@ describe("package-checks", () => {
 			expect(hasCodebaseMemoryMcpConfig("not json codebase-memory-mcp")).toBe(false);
 		});
 
+		it("does not overwrite malformed MCP config", () => {
+			const home = join(tmpdir(), `openspec-mcp-malformed-test-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+			const oldHome = process.env.PI_OPENSPEC_TEST_HOME;
+			process.env.PI_OPENSPEC_TEST_HOME = home;
+			const mcpPath = join(home, ".pi", "agent", "mcp.json");
+			mkdirSync(join(home, ".pi", "agent"), { recursive: true });
+			writeFileSync(mcpPath, "{ not json", "utf-8");
+			try {
+				const result = ensureCodebaseMemoryMcpConfig();
+				expect(result.created).toBe(false);
+				expect(result.error).toBeTruthy();
+				expect(readFileSync(mcpPath, "utf-8")).toBe("{ not json");
+			} finally {
+				if (oldHome === undefined) delete process.env.PI_OPENSPEC_TEST_HOME;
+				else process.env.PI_OPENSPEC_TEST_HOME = oldHome;
+				rmSync(home, { recursive: true, force: true });
+			}
+		});
+
 		it("creates a default codebase-memory-mcp server when missing", () => {
 			const home = join(tmpdir(), `openspec-mcp-test-${Date.now()}-${Math.random().toString(16).slice(2)}`);
 			const oldHome = process.env.PI_OPENSPEC_TEST_HOME;

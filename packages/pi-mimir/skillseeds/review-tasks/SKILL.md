@@ -23,7 +23,8 @@ Check that tasks:
 - map back to proposal/spec/design requirements;
 - include test/update/documentation work where needed;
 - avoid hidden commit, push, PR, archive, or finishing-branch work;
-- are implementable without requiring unstated decisions.
+- are implementable without requiring unstated decisions;
+- answers "what did we miss?" for setup, migration, tests, docs, cleanup, observability, error handling, sequencing, verification, and rollback tasks.
 
 ## Output
 

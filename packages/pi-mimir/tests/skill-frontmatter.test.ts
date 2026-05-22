@@ -48,8 +48,9 @@ describe("skill frontmatter", () => {
 
 	it("keeps implementation guidance out of archive, commit, push, and PR workflows", () => {
 		const implement = readSkillSeed("implement");
-		expect(implement).toContain("Stop before explicit archive");
-		expect(implement).toContain("Do not run archive, git commit, git push, PR creation, or finishing-branch behavior");
+		expect(implement).toContain("whether the change is ready for explicit archive");
+		expect(implement).toContain("Do not archive");
+		expect(implement).toContain("Do not commit, push, create PRs, deploy, or run release steps");
 	});
 
 	it("keeps review skills scoped to explicit review requests with evidence-based findings", () => {

@@ -35,7 +35,7 @@ To refresh OpenSpec Pi tooling later, run:
 /openspec:update
 ```
 
-The update command runs `openspec update --tools pi`, keeps `openspec/config.yaml` on the `review-gated` schema, syncs bundled schemas, skills, agents, and refreshes `.pi/mimir-managed.json`.
+The update command runs `openspec update`, keeps `openspec/config.yaml` on the `review-gated` schema, syncs bundled schemas, skills, agents, and refreshes `.pi/mimir-managed.json`.
 
 ## Requirements
 
@@ -54,7 +54,7 @@ Without codebase-memory, workflows can still use exact file reads and shell insp
 /skill:plan <change-name>
 ```
 
-Use this for proposal/spec/design/task planning. The planner uses OpenSpec status and instructions as source of truth, asks clarifying questions when intent is ambiguous, performs codebase-memory-first discovery when code context is needed, and runs planning review gates before implementation readiness.
+Use this for the composed planning workflow: propose planning artifacts, run proposal/spec/design/task review gates, and iterate until blockers and concerns are resolved.
 
 ### Implement a change
 
@@ -62,7 +62,7 @@ Use this for proposal/spec/design/task planning. The planner uses OpenSpec statu
 /skill:implement <change-name>
 ```
 
-Use this only after the change is apply-ready. The worker reads OpenSpec apply instructions and tracked tasks, invokes the generated apply behavior, verifies the implementation against planning artifacts, runs implementation review gates, and stops before archive.
+Use this only after the change is apply-ready. The workflow applies implementation work, verifies it against planning artifacts, runs implementation review gates, and stops before archive.
 
 ### Run review gates directly
 

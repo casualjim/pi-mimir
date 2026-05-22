@@ -203,6 +203,7 @@ describe("/openspec:* commands", () => {
 		expect(existsSync(join(cwd, ".pi", "skills", "plan", "SKILL.md"))).toBe(true);
 		expect(existsSync(join(cwd, ".pi", "agents"))).toBe(true);
 		expect(existsSync(join(cwd, ".pi", "mimir-managed.json"))).toBe(true);
+		expect(harness.execCalls.some((call) => call.cmd === "openspec" && call.args.join(" ") === "update --tools pi")).toBe(false);
 		expect(harness.notifications.at(-1)?.message).toContain("OpenSpec Pi workflow updated");
 		expect(harness.notifications.at(-1)?.message).toContain("Updated skills:");
 	});

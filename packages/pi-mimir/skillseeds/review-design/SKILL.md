@@ -25,6 +25,7 @@ Check that the design:
 - contains everything an engineer needs to implement the work;
 - contains concrete decisions, rationale, alternatives considered, risks, and trade-offs;
 - explains integration points, migration/rollout concerns, and failure modes when relevant;
+- answers "what did we miss?" for constraints, alternatives, assumptions, data flow, ownership, operational concerns, rollback, migration, security, performance, and failure modes;
 - stays coherent with proposal and specs;
 - avoids drifting into task checklist detail that belongs in `tasks.md`.
 

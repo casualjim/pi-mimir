@@ -2,22 +2,25 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 
 describe("agent and skill contracts", () => {
-	it("implement skill uses OpenSpec apply instructions and stops before archive/git workflows", () => {
+	it("implement skill orchestrates worker, verification, and parallel review gates", () => {
 		const text = readFileSync("skillseeds/implement/SKILL.md", "utf-8");
 		expect(text).toContain("openspec instructions apply --change <name> --json");
-		expect(text).toContain("Verify implementation against proposal, specs, design, and tasks");
-		expect(text).toContain("Run implementation review by invoking `review-implementation`");
-		expect(text).toContain("Do not run archive, git commit, git push, PR creation, or finishing-branch behavior");
+		expect(text).toContain("Invoke the worker subagent");
+		expect(text).toContain("Run implementation review gates in parallel as reviewer subagents");
+		expect(text).toContain("/skill:review-architecture <change-name>");
+		expect(text).toContain("Stop after at most 5 review/fix iterations");
+		expect(text).toContain("Do not archive");
 	});
 
-	it("plan skill uses OpenSpec status/instructions and invokes planning review gates", () => {
+	it("plan skill invokes propose and parallel planning review gates", () => {
 		const text = readFileSync("skillseeds/plan/SKILL.md", "utf-8");
-		expect(text).toContain("openspec status --change <name> --json");
-		expect(text).toContain("openspec instructions <artifact-id> --change <name> --json");
-		expect(text).toContain("`review-proposal`");
-		expect(text).toContain("`review-specs`");
-		expect(text).toContain("`review-design`");
-		expect(text).toContain("`review-tasks`");
+		expect(text).toContain("/skill:openspec-propose <change-name>");
+		expect(text).toContain("run review gates in parallel as reviewer subagents");
+		expect(text).toContain("/skill:review-proposal <change-name>");
+		expect(text).toContain("/skill:review-specs <change-name>");
+		expect(text).toContain("/skill:review-design <change-name>");
+		expect(text).toContain("/skill:review-tasks <change-name>");
+		expect(text).toContain("Stop after at most 5 review/propose iterations");
 		expect(text).toContain("Do not write application code");
 	});
 
@@ -109,10 +112,20 @@ describe("agent and skill contracts", () => {
 		expect(text).toContain("does not include commit, push, PR, archive, or finishing-branch behavior");
 	});
 
-	it("planner keeps codebase-memory discovery and review subagent prompts", () => {
+	it("planner agent focuses on artifact quality from supplied context", () => {
 		const text = readFileSync("agents/planner.md", "utf-8");
-		expect(text).toContain("codebase_memory_get_architecture");
-		expect(text).toContain("run the artifact review skills as parallel subagents");
-		expect(text).toContain("Provide the artifact paths and review scope");
+		expect(text).toContain("Write clear, review-ready OpenSpec planning artifacts");
+		expect(text).toContain("Separate requirements from design");
+		expect(text).toContain("Use only supplied context");
+		expect(text).toContain("Do not perform broad discovery");
+	});
+
+	it("reviewer asks what was missed", () => {
+		const reviewer = readFileSync("agents/reviewer.md", "utf-8");
+		expect(reviewer).toContain("Always ask: what did we miss?");
+		for (const name of ["review-proposal", "review-specs", "review-design", "review-tasks"]) {
+			const text = readFileSync(`skillseeds/${name}/SKILL.md`, "utf-8");
+			expect(text).toContain("what did we miss?");
+		}
 	});
 });
