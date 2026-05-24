@@ -26,7 +26,7 @@ Implement an apply-ready OpenSpec change. Run implementation, verify it, review 
 ```text
 /skill:review-architecture <change-name>
 /skill:review-tests <change-name>
-/skill:review-performance <change-name>
+/skill:review-data-flow <change-name>
 /skill:review-security <change-name>
 ```
 

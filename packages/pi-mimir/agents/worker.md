@@ -1,7 +1,10 @@
 ---
 name: worker
-description: General-purpose execution agent for focused code and documentation changes.
-inherit_context: true
+description: OpenSpec implementation worker for focused code and documentation changes.
+inheritProjectContext: true
+model: openai-codex/gpt-5.5
+thinking: medium
+defaultContext: fork
 ---
 
 # worker

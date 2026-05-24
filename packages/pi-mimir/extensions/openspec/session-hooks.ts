@@ -7,7 +7,6 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { type ExtensionAPI, isToolCallEventType } from "@earendil-works/pi-coding-agent";
-import { type SyncResult, syncBundledAgents } from "./agents.js";
 import { handleCodebaseMemoryDiscoveryGate, resetCodebaseMemoryGate } from "./codebase-memory-gate.js";
 import { FLAG_DEBUG, MSG_TYPE_CODEBASE_MEMORY_GUIDANCE, MSG_TYPE_CODEBASE_MEMORY_TOOL_GUIDANCE, MSG_TYPE_GIT_CONTEXT, MSG_TYPE_WORKFLOW_GUIDANCE } from "./constants.js";
 import {
@@ -25,10 +24,6 @@ const OPENSPEC_DIRS = [
 	"openspec/profiles",
 ] as const;
 
-const msgAgentsAdded = (n: number) => `Copied ${n} openspec agent(s) to .pi/agents/`;
-const msgAgentsHealed = (parts: string[]) => `Synced bundled agent(s): ${parts.join(", ")}.`;
-const msgAgentsDrift = (parts: string[]) => `${parts.join(", ")} agent(s). Run /openspec:update to sync.`;
-const msgAgentsErrors = (n: number) => `Agent sync reported ${n} error(s). Run /openspec:update for details.`;
 const msgMissingCodebaseMemory = () =>
 	`codebase-memory MCP is required for the full pi-mimir architecture-memory-first workflow. Run /openspec:init or /openspec:update to configure the bundled codebase-memory-mcp server when one is not already present, then verify tools: ${EXPECTED_CODEBASE_MEMORY_TOOLS.join(", ")}. Exact file reads are degraded fallback only.`;
 const msgMissingDirectTools = () =>
@@ -75,9 +70,7 @@ export function registerSessionHooks(pi: ExtensionAPI): void {
 		await injectGitContext(pi, (msg) =>
 			pi.sendMessage({ customType: MSG_TYPE_GIT_CONTEXT, content: msg, display: !!pi.getFlag(FLAG_DEBUG) }),
 		);
-		const agents = syncBundledAgents(ctx.cwd, false);
 		if (ctx.hasUI) {
-			notifyAgentSyncDrift(ctx.ui, agents);
 			warnMissingCodebaseMemory(ctx.ui);
 			warnWorkflowOverlaps(ctx.ui, ctx.cwd);
 			warnStaleOpenSpecAssets(ctx.ui, ctx.cwd);
@@ -147,27 +140,6 @@ function scaffoldOpenSpecDirs(cwd: string): void {
 async function injectGitContext(pi: ExtensionAPI, send: (msg: string) => void): Promise<void> {
 	const msg = await takeGitContextIfChanged(pi);
 	if (msg) send(msg);
-}
-
-function notifyAgentSyncDrift(ui: UI, result: SyncResult): void {
-	if (result.added.length > 0) {
-		ui.notify(msgAgentsAdded(result.added.length), "info");
-	}
-	const healed: string[] = [];
-	if (result.updated.length > 0) healed.push(`${result.updated.length} updated`);
-	if (result.removed.length > 0) healed.push(`${result.removed.length} removed`);
-	if (healed.length > 0) {
-		ui.notify(msgAgentsHealed(healed), "info");
-	}
-	const drift: string[] = [];
-	if (result.pendingUpdate.length > 0) drift.push(`${result.pendingUpdate.length} outdated`);
-	if (result.pendingRemove.length > 0) drift.push(`${result.pendingRemove.length} removed from bundle`);
-	if (drift.length > 0) {
-		ui.notify(msgAgentsDrift(drift), "info");
-	}
-	if (result.errors.length > 0) {
-		ui.notify(msgAgentsErrors(result.errors.length), "warning");
-	}
 }
 
 function warnMissingCodebaseMemory(ui: UI): void {

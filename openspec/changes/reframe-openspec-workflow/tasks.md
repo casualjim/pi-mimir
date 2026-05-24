@@ -35,7 +35,7 @@
 - [x] 4.5 Create `packages/pi-mimir/skills/review-tasks/SKILL.md`
 - [x] 4.7 Create `packages/pi-mimir/skills/review-architecture/SKILL.md`
 - [x] 4.8 Create `packages/pi-mimir/skills/review-tests/SKILL.md`
-- [x] 4.9 Create `packages/pi-mimir/skills/review-performance/SKILL.md`
+- [x] 4.9 Create `packages/pi-mimir/skills/review-data-flow/SKILL.md`
 - [x] 4.10 Create `packages/pi-mimir/skills/review-security/SKILL.md`
 - [x] 4.11 Define a consistent finding format for artifact and implementation review skills
 

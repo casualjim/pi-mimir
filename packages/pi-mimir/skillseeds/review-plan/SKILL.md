@@ -16,16 +16,16 @@ Run the planning review workflow for a named OpenSpec change.
 
 ## Workflow
 
-Invoke the `reviewer` agent as a subagent for each lower-level planning reviewer in this order. Each reviewer-agent task prompt must start exactly with the skill invocation shown here:
+Invoke the `reviewer` agent as concurrent subagents for lower-level planning review. Each reviewer-agent task prompt must start exactly with the skill invocation shown here:
 
 1. `/skill:review-proposal <change-name>`
-2. `/skill:review-design <change-name>`
-3. `/skill:review-specs <change-name>`
+2. `/skill:review-specs <change-name>`
+3. `/skill:review-design <change-name>`
 4. `/skill:review-tasks <change-name>`
 
-Pass only the context each reviewer needs: the relevant artifact, dependency artifacts, existing specs when needed, and any command output or repository context required to ground findings.
+Each subagent reviews one primary artifact file for both document structure and content appropriate to that document type. Pass only the context each reviewer needs: the relevant artifact, dependency artifacts, existing specs when needed, and any command output or repository context required to ground findings.
 
-Collect findings, deduplicate them, and report the highest-severity actionable set. Fix blockers by updating planning artifacts or report them as required changes. Fix concerns or ask the user to explicitly accept them. Treat suggestions as optional.
+Collect findings after the concurrent review batch completes, deduplicate them, and report the highest-severity actionable set. Fix blockers by updating only the targeted planning artifact, or report them as required changes. If a finding points to an upstream artifact, route the finding to that artifact. Fix concerns or ask the user to explicitly accept them. Ask the user when a finding requires a product, scope, or design decision that is not already in the artifacts. Treat suggestions as optional.
 
 Do not write application code. Do not run apply, archive, git commit, git push, PR creation, or finishing-branch behavior.
 
@@ -42,10 +42,19 @@ Check that planning artifacts are coherent as a set:
 
 ## Output
 
-Return concise findings. Use severity `blocker`, `concern`, or `suggestion`.
+Return concise findings as prose/bullets. Use severity `blocker`, `concern`, or `suggestion`. Do not use tables or pipe-delimited rows.
 
-```text
-<severity> | <location> | <evidence> | <problem> | <impact> | <recommended fix>
+```md
+### <Severity>: <short finding title>
+
+Target artifact: <artifact path>
+Upstream artifact: <artifact path or none>
+Requires user decision: <yes/no>
+Location: <section, line, or path>
+Evidence: <quoted or summarized evidence>
+Problem: <what is wrong>
+Impact: <why it matters>
+Recommended fix: <smallest concrete fix>
 ```
 
 If no issues are found, return `No issues found`.

@@ -1,6 +1,6 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { PACKAGE_ROOT, syncBundledAgents } from "./agents.js";
 import { writeOpenSpecAssetManifest } from "./managed-assets.js";
@@ -33,6 +33,7 @@ export interface EnsureReviewGatedConfigResult {
 export interface SyncBundledSkillsResult {
 	added: string[];
 	updated: string[];
+	removed: string[];
 }
 
 export interface CodebaseMemoryBridgeResult {
@@ -77,20 +78,61 @@ export function ensureReviewGatedOpenSpecConfig(cwd: string): EnsureReviewGatedC
 export function syncBundledSkills(cwd: string): SyncBundledSkillsResult {
 	const sourceDir = join(PACKAGE_ROOT, "skillseeds");
 	const targetDir = join(cwd, ".pi", "skills");
-	const result: SyncBundledSkillsResult = { added: [], updated: [] };
+	const result: SyncBundledSkillsResult = { added: [], updated: [], removed: [] };
 	if (!existsSync(sourceDir)) return result;
 
 	mkdirSync(targetDir, { recursive: true });
+	const previousManifest = coerceSkillManifest(readMimirManagedManifest(cwd).skills);
 	const manifest: SkillManifest = {};
-	for (const name of ["plan", "implement", "review-architecture", "review-design", "review-implementation", "review-performance", "review-security", "review-plan", "review-proposal", "review-specs", "review-tasks", "review-tests"]) {
+	const bundledSkillNames = ["plan", "implement", "review-architecture", "review-design", "review-implementation", "review-data-flow", "review-security", "review-plan", "review-proposal", "review-specs", "review-tasks", "review-tests"];
+	const bundledSkillSet = new Set(bundledSkillNames);
+
+	for (const name of bundledSkillNames) {
 		const src = join(sourceDir, name);
 		if (!existsSync(src)) continue;
 		const dest = join(targetDir, name);
-		const existed = existsSync(dest);
-		cpSync(src, dest, { recursive: true, force: true });
-		manifest[name] = merkleHashDirectory(src);
-		(existed ? result.updated : result.added).push(name);
+		const srcHash = merkleHashDirectory(src);
+		const knownHash = previousManifest[name] ?? "";
+
+		if (!existsSync(dest)) {
+			cpSync(src, dest, { recursive: true, force: true });
+			manifest[name] = srcHash;
+			result.added.push(name);
+			continue;
+		}
+
+		const currentHash = merkleHashDirectory(dest);
+		if (currentHash === srcHash) {
+			manifest[name] = srcHash;
+			continue;
+		}
+
+		if (knownHash !== "" && currentHash === knownHash) {
+			cpSync(src, dest, { recursive: true, force: true });
+			manifest[name] = srcHash;
+			result.updated.push(name);
+		}
+		// Locally edited bundled skills are left on disk and removed from the manifest;
+		// they are now user-owned rather than managed drift.
 	}
+
+	for (const [name, knownHash] of Object.entries(previousManifest)) {
+		if (bundledSkillSet.has(name)) continue;
+		const dest = join(targetDir, name);
+		if (!isSafeSkillName(name) || !existsSync(dest)) {
+			result.removed.push(name);
+			continue;
+		}
+
+		const currentHash = merkleHashDirectory(dest);
+		if (knownHash !== "" && currentHash === knownHash) {
+			rmSync(dest, { recursive: true, force: true });
+			result.removed.push(name);
+		}
+		// Locally edited stale skills are left on disk and removed from the manifest;
+		// they are now user-owned rather than managed drift.
+	}
+
 	writeSkillManifest(cwd, manifest);
 	return result;
 }
@@ -102,6 +144,20 @@ function sha256(parts: Array<Buffer | string>): string {
 }
 
 type SkillManifest = Record<string, string>;
+
+function isSafeSkillName(name: string): boolean {
+	return name.length > 0 && !name.includes("\0") && !name.includes("/") && !name.includes("\\") && name !== "." && name !== ".." && !name.includes("..");
+}
+
+function coerceSkillManifest(value: unknown): SkillManifest {
+	const manifest: SkillManifest = {};
+	if (value && typeof value === "object" && !Array.isArray(value)) {
+		for (const [name, hash] of Object.entries(value as Record<string, unknown>)) {
+			if (typeof name === "string" && isSafeSkillName(name) && typeof hash === "string") manifest[name] = hash;
+		}
+	}
+	return manifest;
+}
 
 function merkleHashDirectory(dir: string): string {
 	return merkleHashNode(dir);
@@ -143,9 +199,9 @@ export function registerOpenSpecCommands(pi: ExtensionAPI): void {
 			}
 
 			const config = ensureReviewGatedOpenSpecConfig(ctx.cwd);
-			const schemas = syncBundledSchemas(false);
+			const schemas = syncBundledSchemas();
 			const skills = syncBundledSkills(ctx.cwd);
-			const agents = syncBundledAgents(ctx.cwd, true);
+			const agents = syncBundledAgents(ctx.cwd);
 			writeOpenSpecAssetManifest(ctx.cwd);
 			const codebaseMemory = await ensureCodebaseMemoryBridge(pi);
 
@@ -206,9 +262,9 @@ function buildInitReport(
 	const lines = ["OpenSpec initialized for Pi review-gated workflow."];
 	lines.push(config.updated ? `Configured openspec/config.yaml with schema: ${REVIEW_GATED_SCHEMA}.` : "openspec/config.yaml already uses schema: review-gated.");
 	lines.push(`Synced bundled schemas: ${summary(schemas)}.`);
-	lines.push(`Synced skills: ${countSummary(skills.added.length, skills.updated.length)}.`);
+	lines.push(`Synced skills: ${countSummary(skills.added.length, skills.updated.length, skills.removed.length)}.`);
 	lines.push(`Synced agents: ${countSummary(agents.added.length, agents.updated.length, agents.removed.length)}.`);
-	if (schemas.pendingUpdate.length > 0 || schemas.pendingRemove.length > 0) lines.push("Some schema files have local edits and were left untouched.");
+
 	if (schemas.errors.length > 0) lines.push(`Schema sync errors: ${schemas.errors.map((e) => e.message).join("; ")}`);
 	if (agents.errors.length > 0) lines.push(`Agent sync errors: ${agents.errors.map((e) => e.message).join("; ")}`);
 	lines.push(`pi-mcp-adapter bridge: ${codebaseMemoryBridgeSummary(codebaseMemory)}.`);

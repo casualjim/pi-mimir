@@ -16,7 +16,6 @@ describe("schema sync", () => {
 	it("bundled schemas directory contains schema.yaml and templates", () => {
 		expect(existsSync(join(BUNDLED_SCHEMAS_DIR, "review-gated", "schema.yaml"))).toBe(true);
 		expect(existsSync(join(BUNDLED_SCHEMAS_DIR, "review-gated", "templates", "proposal.md"))).toBe(true);
-		expect(existsSync(join(BUNDLED_SCHEMAS_DIR, "review-gated", "templates", "planning-review.md"))).toBe(true);
 	});
 
 	it("global schemas dir resolves to XDG path", () => {
@@ -37,7 +36,6 @@ describe("schema sync", () => {
 			const templates = readdirSync(templatesDir).filter((f) => f.endsWith(".md"));
 			expect(templates.sort()).toEqual([
 				"design.md",
-				"planning-review.md",
 				"proposal.md",
 				"spec.md",
 				"tasks.md",

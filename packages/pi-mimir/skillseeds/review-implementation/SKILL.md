@@ -15,11 +15,11 @@ Review implementation work for a named OpenSpec change.
 
 ## Workflow
 
-Invoke the `reviewer` agent as a subagent for each lower-level implementation reviewer (`review-architecture`, `review-tests`, `review-performance`, `review-security`) in this order. Each reviewer-agent task prompt must start exactly with the skill invocation shown here:
+Invoke the `reviewer` agent as concurrent subagents for lower-level implementation review. Each reviewer-agent task prompt must start exactly with the skill invocation shown here:
 
 1. `/skill:review-architecture <change-name>`
 2. `/skill:review-tests <change-name>`
-3. `/skill:review-performance <change-name>`
+3. `/skill:review-data-flow <change-name>`
 4. `/skill:review-security <change-name>`
 
 Pass only the context each reviewer needs: proposal, specs, design, tasks, relevant implementation evidence, CI/test output, logs, and nearby repository context needed to ground findings.
@@ -40,10 +40,16 @@ Check that the implementation:
 
 ## Output
 
-Return concise findings. Use severity `blocker`, `concern`, or `suggestion`.
+Return concise findings as prose/bullets. Use severity `blocker`, `concern`, or `suggestion`. Do not use tables or pipe-delimited rows.
 
-```text
-<severity> | <location> | <evidence> | <problem> | <impact> | <recommended fix>
+```md
+### <Severity>: <short finding title>
+
+Location: <section, line, or path>
+Evidence: <quoted or summarized evidence>
+Problem: <what is wrong>
+Impact: <why it matters>
+Recommended fix: <smallest concrete fix>
 ```
 
 If no issues are found, return `No issues found`.

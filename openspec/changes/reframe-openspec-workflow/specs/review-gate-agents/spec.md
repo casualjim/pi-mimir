@@ -27,10 +27,10 @@ The package SHALL provide review skills or prompts for proposal, specs, design, 
 - **THEN** it instructs the reviewer persona to check task order, granularity, dependency mapping, and implementability
 
 ### Requirement: Implementation review skills
-The package SHALL provide review skills or prompts for architecture, tests, performance, and security review.
+The package SHALL provide review skills or prompts for architecture, tests, data-flow, and security review.
 
 #### Scenario: Specialist implementation review runs
-- **WHEN** architecture, tests, performance, or security review skills run
+- **WHEN** architecture, tests, data-flow, or security review skills run
 - **THEN** each skill supplies the reviewer persona with that review dimension's rules, evidence requirements, and output format
 
 ### Requirement: Grounded actionable findings

@@ -8,7 +8,7 @@ Pi needs an OpenSpec-native workflow that can define and deliver changes with re
 - Add an `deliver` user-facing skill/prompt for the delivery phase.
 - Add `planner` and `worker` agent profiles.
 - Add review skills/prompts for proposal, specs, design, and tasks artifact review, backed by a generic reviewer persona agent.
-- Add review skills/prompts for architecture, tests, performance, and security implementation review, backed by the same reviewer persona agent.
+- Add review skills/prompts for architecture, tests, data-flow, and security implementation review, backed by the same reviewer persona agent.
 - Add codebase-memory-first guidance to the OpenSpec workflow bootstrap/context.
 - Add an overlap check that warns when rpiv-pi or generic planning skills are installed.
 - Expand `/openspec-setup` so it installs required Pi sibling packages, ensures OpenSpec CLI availability, and checks codebase-memory MCP availability.

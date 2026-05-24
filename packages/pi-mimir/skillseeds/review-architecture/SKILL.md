@@ -17,6 +17,23 @@ Do not report preferences. Report consequences: what becomes harder to understan
 
 Use the review request, codebase areas under review, related source, tests, design notes, issue text, ADRs, requirements, logs, diagrams, and repository conventions supplied by the caller. Inspect enough surrounding context to ground findings in evidence and avoid treating local symptoms as isolated problems.
 
+For spec-driven implementation reviews, include:
+
+- repository-local rules such as AGENTS.md, CLAUDE.md, or project instructions when present
+- existing package/module/feature structure needed to understand architecture fit
+- implementation files relevant to the review request
+- nearby code needed to judge ownership, dependencies, boundaries, public surfaces, and data flow
+- proposal, specs, design, and tasks only as needed to understand intended scope
+
+## Scope
+
+- Review architecture fit, ownership, boundaries, dependency direction, public surfaces, and data-flow shape.
+- If implementation files or equivalent implementation evidence are not present, return a blocker stating that architecture fit cannot be reviewed before implementation exists.
+- Do not perform a general code review, style review, test review, CI review, archive review, or broad refactor proposal.
+- Do not review implementation correctness against specs; implementation verification owns correctness.
+- Do not review test adequacy; test review owns spec-to-test coverage quality.
+- Do not recommend abstractions, layers, interfaces, events, packages, or shared modules unless they solve a concrete present problem in this repository.
+
 ## Review contract
 
 Non-dogmatic does not mean permissive.
@@ -130,6 +147,16 @@ Other code should use the owner through the owner’s intended public surface. T
 
 Apply these as evidence-based standards. They are not optional when the repository shows concrete harm.
 
+- Check cohesion: related behavior should belong with the feature, module, package, or type that owns the concept; unrelated concerns should not be mixed.
+- Check dependency direction: imports, calls, and package/module dependencies should follow the repository's established direction and use stable public surfaces.
+- Check ownership: types, validation, persistence, orchestration, state transitions, and business rules should live at the layer or feature that owns them.
+- Check public surface use: cross-boundary calls should use intended APIs, not internals, private helpers, concrete adapters, or unstable implementation details.
+- Check boundary validation: untrusted input should be validated at trust boundaries and converted to typed or domain-safe values.
+- Check concrete seams: abstractions, interfaces, wrappers, events, dependency injection, or indirection should solve a concrete present problem.
+- Check extraction pressure: shared code should be extracted only when the concept is stable, clearly owned, and improves clarity.
+- Check redundant helpers: flag helpers, wrappers, and indirection that only rename, forward, fragment, or obscure behavior.
+- Check owned behavior shape: behavior that mostly operates on one existing owner should live with that owner when that is the repository's established style.
+- Check misowned behavior, speculative abstraction, hidden fallbacks, and buffering/data-flow violations.
 - Prefer repository-local constraints and established architecture over generic advice.
 - Identify the important stuff for the reviewed system area: decisions expensive to reverse or coordinate later.
 - Check separation of concerns: each part should have a coherent responsibility and a clear reason to change.
@@ -157,8 +184,8 @@ Apply these as evidence-based standards. They are not optional when the reposito
 
 Use severity to express required action, not tone.
 
-- `blocker`: must fix before acceptance. Use for clear repository-constraint violations, serious separation-of-concerns failures, boundary breaks, wrong dependency direction, correctness/security risk, wrong validation placement, cycle camouflage, unjustified service/process boundary, same-process indirection without operational need, hidden behavior-changing refactor, or abstraction that materially harms maintainability.
-- `concern`: should fix or explicitly accept as debt. Use for unclear ownership, abstraction drift, over-exposed internals, weak split/merge decisions, duplicated validation risk, weak modernization seams, missing removal plans, or shared code likely to become ownership debt.
+- `blocker`: must fix before acceptance. Use for clear repository-constraint violations, architecture rule violations, serious separation-of-concerns failures, boundary breaks, wrong dependency direction, misowned behavior, hidden fallback, data-flow violation, correctness/security risk, wrong validation placement, cycle camouflage, unjustified service/process boundary, same-process indirection without operational need, hidden behavior-changing refactor, or abstraction that materially harms maintainability.
+- `concern`: should fix or explicitly accept as debt. Use for questionable architecture fit, ambiguous ownership, weak helper/member shape, abstraction drift, weak extraction, over-exposed internals, weak split/merge decisions, duplicated validation risk, weak modernization seams, missing removal plans, or shared code likely to become ownership debt.
 - `suggestion`: optional local improvement only when the evidence does not show material architecture or maintainability harm.
 
 If the finding affects future change safety, ownership, dependency direction, runtime behavior, or trust boundaries, it is usually not a suggestion.

@@ -36,7 +36,7 @@ The worker SHALL verify implementation against OpenSpec artifacts before special
 - **THEN** the worker verifies completeness, correctness, and coherence against proposal, specs, design, and tasks
 
 ### Requirement: Review skills after verification
-The worker SHALL run architecture, tests, performance, and security review skills after verification passes via subagents whose prompts start with `/skill:<openspec-skill-name> <change-name>`.
+The worker SHALL run architecture, tests, data-flow, and security review skills after verification passes via subagents whose prompts start with `/skill:<openspec-skill-name> <change-name>`.
 
 #### Scenario: Verification passes
 - **WHEN** verification has no unresolved blocking issue

@@ -30,16 +30,9 @@ interface ReviewGatedSchema {
 
 const EXPECTED_ARTIFACTS = new Map<string, { generates: string; template: string; requires: string[] }>([
 	["proposal", { generates: "proposal.md", template: "proposal.md", requires: [] }],
-	["review-proposal", { generates: "reviews/proposal.md", template: "planning-review.md", requires: ["proposal"] }],
-	["design", { generates: "design.md", template: "design.md", requires: ["proposal", "review-proposal"] }],
-	["review-design", { generates: "reviews/design.md", template: "planning-review.md", requires: ["design"] }],
-	["specs", { generates: "specs/**/*.md", template: "spec.md", requires: ["proposal", "review-proposal"] }],
-	["review-specs", { generates: "reviews/specs.md", template: "planning-review.md", requires: ["specs"] }],
-	["tasks", { generates: "tasks.md", template: "tasks.md", requires: ["specs", "design", "review-specs", "review-design"] }],
-	["review-tasks", { generates: "reviews/tasks.md", template: "planning-review.md", requires: ["tasks"] }],
-	["review-tests", { generates: "reviews/tests.md", template: "planning-review.md", requires: ["tasks", "review-tasks"] }],
-	["review-architecture", { generates: "reviews/architecture.md", template: "planning-review.md", requires: ["tasks", "review-tasks"] }],
-	["review-data-flow", { generates: "reviews/data-flow.md", template: "planning-review.md", requires: ["tasks", "review-tasks"] }],
+	["design", { generates: "design.md", template: "design.md", requires: ["proposal"] }],
+	["specs", { generates: "specs/**/*.md", template: "spec.md", requires: ["proposal"] }],
+	["tasks", { generates: "tasks.md", template: "tasks.md", requires: ["specs", "design"] }],
 ]);
 
 function loadSchema(): ReviewGatedSchema {
@@ -143,29 +136,21 @@ describe("review-gated schema assets", () => {
 		}
 	});
 
-	it("keeps apply as the OpenSpec base execution instruction with review-tasks as the planning gate", () => {
+	it("keeps apply as the OpenSpec base execution instruction with no review gate", () => {
 		const schema = loadSchema();
-		expect(schema.apply?.requires).toEqual(["tasks", "review-tasks"]);
+		expect(schema.apply?.requires).toEqual(["tasks"]);
 		expect(schema.apply?.tracks).toBe("tasks.md");
 		expect(schema.apply?.instruction?.trim()).toBe(
 			"Read context files, work through pending tasks, mark complete as you go.\nPause if you hit blockers or need clarification.",
 		);
 	});
 
-	it("defines focused post-implementation specialist reviews without generic security/performance gates", () => {
+	it("does not define review artifacts in schema.yaml", () => {
 		const schema = loadSchema();
 		const artifacts = artifactById(schema);
 
-		expect(artifacts.has("review-performance")).toBe(false);
-		expect(artifacts.has("review-security")).toBe(false);
-
-		expect(artifacts.get("review-tests")?.instruction).toContain("Test Reviewer");
-		expect(artifacts.get("review-tests")?.instruction).toContain("meaningful implemented test coverage");
-		expect(artifacts.get("review-architecture")?.instruction).toContain("Architecture Reviewer");
-		expect(artifacts.get("review-architecture")?.instruction).toContain("Redundant helpers");
-		expect(artifacts.get("review-architecture")?.instruction).toContain("Owned behavior shape");
-		expect(artifacts.get("review-data-flow")?.instruction).toContain("Data-Flow Reviewer");
-		expect(artifacts.get("review-data-flow")?.instruction).toContain("Reduction before pagination");
-		expect(artifacts.get("review-data-flow")?.instruction).toContain("Allocation and duplication pressure");
+		for (const id of artifacts.keys()) {
+			expect(id.startsWith("review-"), `${id} must not be a schema artifact`).toBe(false);
+		}
 	});
 });

@@ -68,7 +68,9 @@ describe("skill frontmatter", () => {
 			expect(textLower).not.toContain("this application");
 			expect(textLower).not.toContain("this conversation");
 			expect(text).toContain("Return concise findings");
-			expect(text).toContain("<evidence>");
+			expect(text).toContain("Evidence:");
+			expect(text).not.toContain("<severity> |");
+			expect(text).not.toContain("pipe-delimited rows.\n\n```text");
 		}
 	});
 });

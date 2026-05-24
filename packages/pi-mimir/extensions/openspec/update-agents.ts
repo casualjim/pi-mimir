@@ -38,9 +38,9 @@ export function registerUpdateAgentsCommand(pi: ExtensionAPI): void {
 			}
 
 			const config = ensureReviewGatedOpenSpecConfig(ctx.cwd);
-			const schemas = syncBundledSchemas(false);
+			const schemas = syncBundledSchemas();
 			const skills = syncBundledSkills(ctx.cwd);
-			const agents = syncBundledAgents(ctx.cwd, true);
+			const agents = syncBundledAgents(ctx.cwd);
 			writeOpenSpecAssetManifest(ctx.cwd);
 			const codebaseMemory = await ensureCodebaseMemoryBridge(pi);
 			if (!ctx.hasUI) return;
@@ -59,9 +59,9 @@ function buildUpdateReport(
 	const lines = ["OpenSpec Pi workflow updated."];
 	lines.push(configUpdated ? "Configured openspec/config.yaml with schema: review-gated." : "openspec/config.yaml already uses schema: review-gated.");
 	lines.push(`Updated schemas: ${countSummary(schemas.added.length, schemas.updated.length, schemas.removed.length)}.`);
-	lines.push(`Updated skills: ${countSummary(skills.added.length, skills.updated.length)}.`);
+	lines.push(`Updated skills: ${countSummary(skills.added.length, skills.updated.length, skills.removed.length)}.`);
 	lines.push(`Updated agents: ${formatSyncReport(agents)}.`);
-	if (schemas.pendingUpdate.length > 0 || schemas.pendingRemove.length > 0) lines.push("Some schema files have local edits and were left untouched.");
+
 	if (schemas.errors.length > 0) lines.push(`Schema sync errors: ${schemas.errors.map((e) => e.message).join("; ")}`);
 	if (agents.errors.length > 0) lines.push(`Agent sync errors: ${agents.errors.map((e) => e.message).join("; ")}`);
 	if (codebaseMemory.codebaseMemoryMcpConfigCreated) lines.push(`Configured codebase-memory MCP in ${codebaseMemory.codebaseMemoryMcpConfigPath}. Restart/reload Pi if the new MCP server is not active yet.`);

@@ -12,15 +12,18 @@ describe("agent and skill contracts", () => {
 		expect(text).toContain("Do not archive");
 	});
 
-	it("plan skill invokes propose and parallel planning review gates", () => {
+	it("plan skill invokes propose and concurrent artifact-specific review gates", () => {
 		const text = readFileSync("skillseeds/plan/SKILL.md", "utf-8");
 		expect(text).toContain("/skill:openspec-propose <change-name>");
-		expect(text).toContain("run review gates in parallel as reviewer subagents");
+		expect(text).toContain("run planning review gates concurrently as reviewer subagents");
+		expect(text).toContain("Each subagent reviews exactly one primary artifact file");
 		expect(text).toContain("/skill:review-proposal <change-name>");
 		expect(text).toContain("/skill:review-specs <change-name>");
 		expect(text).toContain("/skill:review-design <change-name>");
 		expect(text).toContain("/skill:review-tasks <change-name>");
-		expect(text).toContain("Stop after at most 5 review/propose iterations");
+		expect(text).toContain("update only the targeted artifact");
+		expect(text).toContain("ask the user instead of guessing");
+		expect(text).toContain("Stop after at most 5 review/fix iterations");
 		expect(text).toContain("Do not write application code");
 	});
 
@@ -56,9 +59,9 @@ describe("agent and skill contracts", () => {
 		expect(text).toContain("Return concise findings");
 	});
 
-	it("review-performance skill reviews structural performance costs without micro-optimization filler", () => {
-		const text = readFileSync("skillseeds/review-performance/SKILL.md", "utf-8");
-		expect(text).toContain("premature stream materialization");
+	it("review-data-flow skill reviews structural data-flow costs without micro-optimization filler", () => {
+		const text = readFileSync("skillseeds/review-data-flow/SKILL.md", "utf-8");
+		expect(text).toContain("Streaming until sink");
 		expect(text).toContain("Needless copying");
 		expect(text).toContain("N+1");
 		expect(text).toContain("Language lenses");
@@ -91,7 +94,7 @@ describe("agent and skill contracts", () => {
 			"current diff",
 			"current change",
 		];
-		for (const name of ["review-architecture", "review-tests", "review-performance", "review-security"]) {
+		for (const name of ["review-architecture", "review-tests", "review-data-flow", "review-security"]) {
 			const text = readFileSync(`skillseeds/${name}/SKILL.md`, "utf-8");
 			const lower = text.toLowerCase();
 			expect(text).not.toContain("OpenSpec");
@@ -107,7 +110,7 @@ describe("agent and skill contracts", () => {
 		expect(text).toContain("No issues found");
 		expect(text).toContain("`review-architecture`");
 		expect(text).toContain("`review-tests`");
-		expect(text).toContain("`review-performance`");
+		expect(text).toContain("`review-data-flow`");
 		expect(text).toContain("`review-security`");
 		expect(text).toContain("does not include commit, push, PR, archive, or finishing-branch behavior");
 	});
@@ -120,12 +123,17 @@ describe("agent and skill contracts", () => {
 		expect(text).toContain("Do not perform broad discovery");
 	});
 
-	it("reviewer asks what was missed", () => {
+	it("reviewer requires prose findings, artifact routing, and user-decision flags", () => {
 		const reviewer = readFileSync("agents/reviewer.md", "utf-8");
-		expect(reviewer).toContain("Always ask: what did we miss?");
+		expect(reviewer).toContain("requires a product, scope, or design decision");
+		expect(reviewer).toContain("Target artifact:");
+		expect(reviewer).toContain("Do not use tables or pipe-delimited rows");
 		for (const name of ["review-proposal", "review-specs", "review-design", "review-tasks"]) {
 			const text = readFileSync(`skillseeds/${name}/SKILL.md`, "utf-8");
-			expect(text).toContain("what did we miss?");
+			expect(text).toContain("Requires user decision:");
+			expect(text).toContain("Do not use tables or pipe-delimited rows");
+			expect(text).not.toContain("what did we miss?");
+			expect(text).not.toContain(" | ");
 		}
 	});
 });

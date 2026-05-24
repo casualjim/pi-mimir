@@ -129,7 +129,7 @@ const reviewImplementation = piPrompt(
 );
 assertIncludes(reviewImplementation, "review-architecture", "review-implementation");
 assertIncludes(reviewImplementation, "review-tests", "review-implementation");
-assertIncludes(reviewImplementation, "review-performance", "review-implementation");
+assertIncludes(reviewImplementation, "review-data-flow", "review-implementation");
 assertIncludes(reviewImplementation, "review-security", "review-implementation");
 assertNotIncludes(reviewImplementation, "git commit", "review-implementation");
 

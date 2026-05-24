@@ -93,7 +93,7 @@ Implementation review skills run after delivery verification:
 |---|---|
 | `review-architecture` | Structural and integration findings |
 | `review-tests` | Coverage and regression findings |
-| `review-performance` | Hot-path and resource findings |
+| `review-data-flow` | Hot-path and resource findings |
 | `review-security` | Trust-boundary, validation, auth, and secret-handling findings |
 
 The generic reviewer persona does not encode all specialist rules. Reviewer findings use a consistent schema: severity, artifact or file location, problem, impact, and recommended fix. Orchestrators deduplicate and decide whether to continue, fix, or ask the user.

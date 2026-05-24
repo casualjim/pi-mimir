@@ -7,7 +7,7 @@ OpenSpec workflow package for Pi. `pi-mimir` adds a review-gated OpenSpec workfl
 - `plan` — run the full OpenSpec planning workflow, composing generated proposal/spec/design/task behavior with planning review subagents.
 - `implement` — run generated OpenSpec apply behavior, verify it, run implementation review gates, and stop before archive.
 - `review-plan` — run proposal, design, specs, and tasks review gates for existing planning artifacts.
-- `review-implementation` — run architecture, tests, performance, and security review gates for existing implementation evidence.
+- `review-implementation` — run architecture, tests, data-flow, and security review gates for existing implementation evidence.
 - A `review-gated` OpenSpec schema and supporting templates.
 - Session guidance for codebase-memory-first discovery.
 
@@ -54,7 +54,7 @@ Without codebase-memory, workflows can still use exact file reads and shell insp
 /skill:plan <change-name>
 ```
 
-Use this for the composed planning workflow: propose planning artifacts, run proposal/spec/design/task review gates, and iterate until blockers and concerns are resolved.
+Use this for the composed planning workflow: propose planning artifacts, run proposal/spec/design/task review gates in artifact order, and iterate with targeted artifact fixes until blockers and concerns are resolved.
 
 ### Implement a change
 
@@ -99,8 +99,10 @@ Implementation review gates:
 
 - `review-architecture`
 - `review-tests`
-- `review-performance`
+- `review-data-flow`
 - `review-security`
+
+Planning review findings identify the target artifact, any upstream artifact that must be fixed first, and whether a user decision is required instead of guessing.
 
 Review findings use these severities:
 

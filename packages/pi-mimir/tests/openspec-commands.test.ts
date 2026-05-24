@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createHarness } from "./helpers/pi-harness.js";
@@ -41,6 +42,27 @@ describe("review-gated OpenSpec config", () => {
 	});
 });
 
+function sha256(parts: Array<Buffer | string>): string {
+	const hash = createHash("sha256");
+	for (const part of parts) hash.update(part);
+	return hash.digest("hex");
+}
+
+function merkleHashDirectory(dir: string): string {
+	const entries = readdirSync(dir, { withFileTypes: true })
+		.filter((entry) => entry.isDirectory() || entry.isFile())
+		.sort((a, b) => a.name.localeCompare(b.name));
+	const parts: Array<Buffer | string> = ["dir\0"];
+	for (const entry of entries) {
+		const childPath = join(dir, entry.name);
+		const childHash = entry.isDirectory()
+			? merkleHashDirectory(childPath)
+			: sha256(["file\0", readFileSync(childPath)]);
+		parts.push(entry.name, "\0", childHash, "\0");
+	}
+	return sha256(parts);
+}
+
 describe("bundled skill sync", () => {
 	let cwd: string;
 
@@ -58,18 +80,53 @@ describe("bundled skill sync", () => {
 
 		expect(result.added).toContain("plan");
 		expect(result.added).toContain("review-architecture");
-		expect(result.added).toContain("review-performance");
+		expect(result.added).toContain("review-data-flow");
 		expect(result.added).toContain("review-security");
 		expect(result.added).toContain("review-tests");
 		expect(existsSync(join(cwd, ".pi", "skills", "plan", "SKILL.md"))).toBe(true);
 		expect(existsSync(join(cwd, ".pi", "skills", "implement", "SKILL.md"))).toBe(true);
 		expect(existsSync(join(cwd, ".pi", "skills", "review-architecture", "SKILL.md"))).toBe(true);
-		expect(existsSync(join(cwd, ".pi", "skills", "review-performance", "SKILL.md"))).toBe(true);
+		expect(existsSync(join(cwd, ".pi", "skills", "review-data-flow", "SKILL.md"))).toBe(true);
 		expect(existsSync(join(cwd, ".pi", "skills", "review-security", "SKILL.md"))).toBe(true);
 		expect(existsSync(join(cwd, ".pi", "skills", "review-tests", "SKILL.md"))).toBe(true);
 		const manifest = JSON.parse(readFileSync(join(cwd, ".pi", "mimir-managed.json"), "utf-8"));
 		expect(manifest.skills.plan).toMatch(/^[a-f0-9]{64}$/);
 		expect(manifest.skills["review-architecture"]).toMatch(/^[a-f0-9]{64}$/);
+	});
+
+	it("removes stale managed skills that still match the manifest hash", () => {
+		const staleDir = join(cwd, ".pi", "skills", "review-performance");
+		mkdirSync(staleDir, { recursive: true });
+		writeFileSync(join(staleDir, "SKILL.md"), "---\nname: review-performance\n---\n", "utf-8");
+		const staleHash = merkleHashDirectory(staleDir);
+		mkdirSync(join(cwd, ".pi"), { recursive: true });
+		writeFileSync(join(cwd, ".pi", "mimir-managed.json"), JSON.stringify({ skills: { "review-performance": staleHash } }, null, 2), "utf-8");
+
+		const result = syncBundledSkills(cwd);
+
+		expect(result.removed).toContain("review-performance");
+		expect(existsSync(staleDir)).toBe(false);
+		const manifest = JSON.parse(readFileSync(join(cwd, ".pi", "mimir-managed.json"), "utf-8"));
+		expect(manifest.skills["review-performance"]).toBeUndefined();
+		expect(manifest.skills["review-data-flow"]).toMatch(/^[a-f0-9]{64}$/);
+	});
+
+	it("leaves stale managed skills alone and stops tracking them when users edited them", () => {
+		const staleDir = join(cwd, ".pi", "skills", "review-performance");
+		mkdirSync(staleDir, { recursive: true });
+		writeFileSync(join(staleDir, "SKILL.md"), "---\nname: review-performance\n---\n", "utf-8");
+		const staleHash = merkleHashDirectory(staleDir);
+		writeFileSync(join(staleDir, "SKILL.md"), "---\nname: review-performance\n---\n# locally edited\n", "utf-8");
+		mkdirSync(join(cwd, ".pi"), { recursive: true });
+		writeFileSync(join(cwd, ".pi", "mimir-managed.json"), JSON.stringify({ skills: { "review-performance": staleHash } }, null, 2), "utf-8");
+
+		const result = syncBundledSkills(cwd);
+
+		expect(result.removed).not.toContain("review-performance");
+		expect(existsSync(staleDir)).toBe(true);
+		const manifest = JSON.parse(readFileSync(join(cwd, ".pi", "mimir-managed.json"), "utf-8"));
+		expect(manifest.skills["review-performance"]).toBeUndefined();
+		expect(manifest.skills["review-data-flow"]).toMatch(/^[a-f0-9]{64}$/);
 	});
 
 	it("tracks a multi-file skill with one folder merkle hash", () => {

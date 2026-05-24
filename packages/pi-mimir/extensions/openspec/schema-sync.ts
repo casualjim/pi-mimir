@@ -43,8 +43,6 @@ export interface SchemaSyncResult {
 	updated: string[];
 	unchanged: string[];
 	removed: string[];
-	pendingUpdate: string[];
-	pendingRemove: string[];
 	errors: SchemaSyncError[];
 }
 
@@ -57,8 +55,6 @@ function emptySyncResult(): SchemaSyncResult {
 		updated: [],
 		unchanged: [],
 		removed: [],
-		pendingUpdate: [],
-		pendingRemove: [],
 		errors: [],
 	};
 }
@@ -143,7 +139,7 @@ function writeManifest(targetDir: string, manifest: Manifest, result: SchemaSync
  * @param targetDir - the parent directory (e.g. $XDG_DATA_HOME/openspec/schemas/)
  * @param apply - true to overwrite user-edited files, false for read-only drift detection
  */
-function syncSingleSchema(schemaName: string, targetDir: string, apply: boolean): SchemaSyncResult {
+function syncSingleSchema(schemaName: string, targetDir: string): SchemaSyncResult {
 	const result = emptySyncResult();
 	const srcDir = join(BUNDLED_SCHEMAS_DIR, schemaName);
 	const destDir = join(targetDir, schemaName);
@@ -218,8 +214,8 @@ function syncSingleSchema(schemaName: string, targetDir: string, apply: boolean)
 		}
 
 		// Safe auto-update: dest still matches what we recorded (user hasn't edited)
-		const safeAutoUpdate = !apply && knownHash !== "" && destHash === knownHash;
-		if (apply || safeAutoUpdate) {
+		const safeAutoUpdate = knownHash !== "" && destHash === knownHash;
+		if (safeAutoUpdate) {
 			try {
 				copyFileSync(src, dest);
 				result.updated.push(relPath);
@@ -228,10 +224,9 @@ function syncSingleSchema(schemaName: string, targetDir: string, apply: boolean)
 				result.errors.push({ file: relPath, op: "copy", message: e instanceof Error ? e.message : String(e) });
 				newManifest[relPath] = knownHash;
 			}
-		} else {
-			result.pendingUpdate.push(relPath);
-			newManifest[relPath] = knownHash;
 		}
+		// Locally edited managed files are left on disk and removed from the manifest;
+		// they are now user-owned rather than managed drift.
 	}
 
 	// Clean up stale files (present in manifest but no longer in source)
@@ -255,9 +250,9 @@ function syncSingleSchema(schemaName: string, targetDir: string, apply: boolean)
 			continue;
 		}
 		const destHash = sha256(destContent);
-		const safeAutoRemove = !apply && knownHash !== "" && destHash === knownHash;
+		const safeAutoRemove = knownHash !== "" && destHash === knownHash;
 
-		if (apply || safeAutoRemove) {
+		if (safeAutoRemove) {
 			try {
 				unlinkSync(destPath);
 				result.removed.push(name);
@@ -265,10 +260,9 @@ function syncSingleSchema(schemaName: string, targetDir: string, apply: boolean)
 				result.errors.push({ file: name, op: "remove", message: e instanceof Error ? e.message : String(e) });
 				newManifest[name] = knownHash;
 			}
-		} else {
-			result.pendingRemove.push(name);
-			newManifest[name] = knownHash;
 		}
+		// Locally edited stale files are left on disk and removed from the manifest;
+		// they are now user-owned rather than managed drift.
 	}
 
 	writeManifest(destDir, newManifest, result);
@@ -280,7 +274,7 @@ function syncSingleSchema(schemaName: string, targetDir: string, apply: boolean)
  *
  * @param apply - true to overwrite user-edited files, false for read-only drift detection
  */
-export function syncBundledSchemas(apply: boolean): SchemaSyncResult {
+export function syncBundledSchemas(): SchemaSyncResult {
 	const result = emptySyncResult();
 	const globalDir = getGlobalSchemasDir();
 
@@ -292,14 +286,12 @@ export function syncBundledSchemas(apply: boolean): SchemaSyncResult {
 	}
 
 	for (const schemaName of listBundledSchemas()) {
-		const single = syncSingleSchema(schemaName, globalDir, apply);
+		const single = syncSingleSchema(schemaName, globalDir);
 		// Prefix file names with schema name for clarity in reports
 		for (const f of single.added) result.added.push(`${schemaName}/${f}`);
 		for (const f of single.updated) result.updated.push(`${schemaName}/${f}`);
 		for (const f of single.unchanged) result.unchanged.push(`${schemaName}/${f}`);
 		for (const f of single.removed) result.removed.push(`${schemaName}/${f}`);
-		for (const f of single.pendingUpdate) result.pendingUpdate.push(`${schemaName}/${f}`);
-		for (const f of single.pendingRemove) result.pendingRemove.push(`${schemaName}/${f}`);
 		for (const e of single.errors) result.errors.push(e);
 	}
 

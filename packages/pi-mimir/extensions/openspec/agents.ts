@@ -36,13 +36,11 @@ export interface SyncResult {
 	updated: string[];
 	unchanged: string[];
 	removed: string[];
-	pendingUpdate: string[];
-	pendingRemove: string[];
 	errors: SyncError[];
 }
 
 function emptySyncResult(): SyncResult {
-	return { added: [], updated: [], unchanged: [], removed: [], pendingUpdate: [], pendingRemove: [], errors: [] };
+	return { added: [], updated: [], unchanged: [], removed: [], errors: [] };
 }
 
 function isManagedAgentName(name: string): boolean {
@@ -104,7 +102,7 @@ function writeManifest(cwd: string, manifest: Manifest, result: SyncResult): voi
 	}
 }
 
-export function syncBundledAgents(cwd: string, apply: boolean): SyncResult {
+export function syncBundledAgents(cwd: string): SyncResult {
 	const result = emptySyncResult();
 	if (!existsSync(BUNDLED_AGENTS_DIR)) return result;
 
@@ -176,8 +174,8 @@ export function syncBundledAgents(cwd: string, apply: boolean): SyncResult {
 			continue;
 		}
 
-		const safeAutoUpdate = !apply && knownHash !== "" && destHash === knownHash;
-		if (apply || safeAutoUpdate) {
+		const safeAutoUpdate = knownHash !== "" && destHash === knownHash;
+		if (safeAutoUpdate) {
 			try {
 				copyFileSync(src, dest);
 				result.updated.push(entry);
@@ -186,13 +184,11 @@ export function syncBundledAgents(cwd: string, apply: boolean): SyncResult {
 				result.errors.push({ file: entry, op: "copy", message: e instanceof Error ? e.message : String(e) });
 				newManifest[entry] = knownHash;
 			}
-		} else {
-			result.pendingUpdate.push(entry);
-			newManifest[entry] = knownHash;
 		}
+		// Locally edited managed files are left on disk and removed from the manifest;
+		// they are now user-owned rather than managed drift.
 	}
 
-	const toUnlink: { name: string; destPath: string }[] = [];
 	for (const name of Object.keys(manifest)) {
 		if (sourceNames.has(name)) continue;
 		const knownHash = manifest[name] ?? "";
@@ -215,25 +211,21 @@ export function syncBundledAgents(cwd: string, apply: boolean): SyncResult {
 			continue;
 		}
 		const destHash = sha256(destContent);
-		const safeAutoRemove = !apply && knownHash !== "" && destHash === knownHash;
+		const safeAutoRemove = knownHash !== "" && destHash === knownHash;
 
-		if (apply || safeAutoRemove) toUnlink.push({ name, destPath });
-		else {
-			result.pendingRemove.push(name);
-			newManifest[name] = knownHash;
+		if (safeAutoRemove) {
+			try {
+				unlinkSync(destPath);
+				result.removed.push(name);
+			} catch (e) {
+				result.errors.push({ file: name, op: "remove", message: e instanceof Error ? e.message : String(e) });
+				newManifest[name] = manifest[name] ?? "";
+			}
 		}
+		// Locally edited stale files are left on disk and removed from the manifest;
+		// they are now user-owned rather than managed drift.
 	}
 
 	writeManifest(cwd, newManifest, result);
-	for (const { name, destPath } of toUnlink) {
-		try {
-			unlinkSync(destPath);
-			result.removed.push(name);
-		} catch (e) {
-			result.errors.push({ file: name, op: "remove", message: e instanceof Error ? e.message : String(e) });
-			newManifest[name] = manifest[name] ?? "";
-		}
-	}
-	if (result.errors.some((e) => e.op === "remove")) writeManifest(cwd, newManifest, result);
 	return result;
 }

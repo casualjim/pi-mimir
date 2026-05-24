@@ -18,20 +18,20 @@ describe("agents", () => {
 		rmSync(cwd, { recursive: true, force: true });
 	});
 
-	describe("syncBundledAgents (read-only mode)", () => {
+	describe("syncBundledAgents", () => {
 		it("syncs bundled agents without errors", () => {
-			const result = syncBundledAgents(cwd, false);
+			const result = syncBundledAgents(cwd);
 			expect(result.errors).toEqual([]);
 			expect(result.added.length + result.unchanged.length + result.updated.length).toBeGreaterThan(0);
 		});
 
 		it("creates .pi/agents/ directory if it doesn't exist", () => {
-			syncBundledAgents(cwd, false);
+			syncBundledAgents(cwd);
 			expect(existsSync(targetDir)).toBe(true);
 		});
 
 		it("creates canonical manifest on first sync", () => {
-			syncBundledAgents(cwd, false);
+			syncBundledAgents(cwd);
 			expect(existsSync(join(cwd, ".pi", "mimir-managed.json"))).toBe(true);
 			expect(existsSync(join(targetDir, ".openspec-managed.json"))).toBe(false);
 		});
@@ -45,7 +45,7 @@ describe("agents", () => {
 		// For comprehensive testing, we verify the manifest and path-traversal logic.
 
 		it("agent manifest remains content-addressable hash map with sorted keys", () => {
-			syncBundledAgents(cwd, false);
+			syncBundledAgents(cwd);
 			const manifestPath = join(cwd, ".pi", "mimir-managed.json");
 			const raw = JSON.parse(readFileSync(manifestPath, "utf-8"));
 			const keys = Object.keys(raw.agents);
@@ -56,14 +56,14 @@ describe("agents", () => {
 		});
 
 		it("handles re-sync gracefully", () => {
-			syncBundledAgents(cwd, false);
-			const result2 = syncBundledAgents(cwd, false);
+			syncBundledAgents(cwd);
+			const result2 = syncBundledAgents(cwd);
 			// Second sync should not error
 			expect(result2.errors).toEqual([]);
 		});
 
 		it("does not sync the removed explore agent", () => {
-			syncBundledAgents(cwd, false);
+			syncBundledAgents(cwd);
 			expect(existsSync(join(targetDir, "explore.md"))).toBe(false);
 			const manifest = JSON.parse(readFileSync(join(cwd, ".pi", "mimir-managed.json"), "utf-8"));
 			expect(manifest.agents).not.toHaveProperty("explore.md");
@@ -72,21 +72,9 @@ describe("agents", () => {
 		it("removes legacy agent manifest when canonical manifest is written", () => {
 			mkdirSync(targetDir, { recursive: true });
 			writeFileSync(join(targetDir, ".openspec-managed.json"), "{}\n", "utf-8");
-			syncBundledAgents(cwd, false);
+			syncBundledAgents(cwd);
 			expect(existsSync(join(targetDir, ".openspec-managed.json"))).toBe(false);
 			expect(existsSync(join(cwd, ".pi", "mimir-managed.json"))).toBe(true);
-		});
-	});
-
-	describe("apply mode", () => {
-		it("apply mode sync produces valid results", () => {
-			const result = syncBundledAgents(cwd, true);
-			expect(result.errors).toEqual([]);
-		});
-
-		it("apply mode creates target directory", () => {
-			syncBundledAgents(cwd, true);
-			expect(existsSync(targetDir)).toBe(true);
 		});
 	});
 
@@ -102,7 +90,7 @@ describe("agents", () => {
 		});
 	});
 
-	describe("user-modified agent drift (read-only mode)", () => {
+	describe("user-modified agent ownership", () => {
 		const testAgentName = "_test-drift-agent.md";
 		const testAgentContent = "# Test Agent\nOriginal content.\n";
 		const srcPath = join(BUNDLED_AGENTS_DIR, testAgentName);
@@ -117,9 +105,9 @@ describe("agents", () => {
 			if (existsSync(srcPath)) rmSync(srcPath, { force: true });
 		});
 
-		it("detects user-modified file as pendingUpdate in read-only mode", () => {
+		it("leaves user-modified managed files on disk and stops tracking them", () => {
 			// 1. First sync: copies the agent
-			const r1 = syncBundledAgents(cwd, false);
+			const r1 = syncBundledAgents(cwd);
 			expect(r1.added).toContain(testAgentName);
 			expect(r1.errors).toEqual([]);
 
@@ -127,54 +115,56 @@ describe("agents", () => {
 			const destPath = join(targetDir, testAgentName);
 			writeFileSync(destPath, "# Test Agent\nUSER MODIFIED CONTENT!\n", "utf-8");
 
-			// 3. Re-sync in read-only mode
-			const r2 = syncBundledAgents(cwd, false);
-			expect(r2.pendingUpdate).toContain(testAgentName);
+			// 3. Re-sync
+			const r2 = syncBundledAgents(cwd);
 			expect(r2.updated).not.toContain(testAgentName); // must NOT overwrite this user-modified file
 
-			// 4. Verify user content is preserved
+			// 4. Verify user content is preserved and no longer managed
 			const preserved = readFileSync(destPath, "utf-8");
 			expect(preserved).toContain("USER MODIFIED CONTENT!");
+			const manifest = JSON.parse(readFileSync(join(cwd, ".pi", "mimir-managed.json"), "utf-8"));
+			expect(manifest.agents[testAgentName]).toBeUndefined();
 		});
 
-		it("allows apply mode to overwrite user-modified file", () => {
+		it("does not overwrite user-modified files", () => {
 			// 1. First sync
-			syncBundledAgents(cwd, false);
+			syncBundledAgents(cwd);
 
 			// 2. User modifies
 			const destPath = join(targetDir, testAgentName);
 			writeFileSync(destPath, "# Test Agent\nUSER MODIFIED!\n", "utf-8");
 
-			// 3. Apply-mode sync overwrites
-			const r3 = syncBundledAgents(cwd, true);
-			expect(r3.updated).toContain(testAgentName);
+			// 3. Sync still preserves user-owned content
+			const r3 = syncBundledAgents(cwd);
+			expect(r3.updated).not.toContain(testAgentName);
 
-			// 4. Content is now the bundled version
+			// 4. Content is still the user version and no longer managed
 			const restored = readFileSync(destPath, "utf-8");
-			expect(restored).toBe(testAgentContent);
+			expect(restored).toContain("USER MODIFIED!");
+			const manifest = JSON.parse(readFileSync(join(cwd, ".pi", "mimir-managed.json"), "utf-8"));
+			expect(manifest.agents[testAgentName]).toBeUndefined();
 		});
 
-		it("auto-removes unmodified stale file even in read-only mode", () => {
+		it("auto-removes unmodified stale file", () => {
 			// 1. Sync creates the agent
-			syncBundledAgents(cwd, false);
+			syncBundledAgents(cwd);
 
 			// 2. Remove source file (simulates agent removed from bundle)
 			rmSync(srcPath, { force: true });
 
-			// 3. Re-sync in read-only mode — unmodified stale files are auto-removed
+			// 3. Re-sync — unmodified stale files are auto-removed
 			//    (safeAutoRemove: knownHash !== "" && destHash === knownHash)
-			const r4 = syncBundledAgents(cwd, false);
+			const r4 = syncBundledAgents(cwd);
 			expect(r4.removed).toContain(testAgentName);
-			expect(r4.pendingRemove).toEqual([]);
 
 			// 4. File is gone from disk
 			const destPath = join(targetDir, testAgentName);
 			expect(existsSync(destPath)).toBe(false);
 		});
 
-		it("detects user-modified stale file as pendingRemove in read-only mode", () => {
+		it("leaves user-modified stale files on disk and stops tracking them", () => {
 			// 1. Sync creates the agent
-			syncBundledAgents(cwd, false);
+			syncBundledAgents(cwd);
 
 			// 2. User modifies the destination
 			const destPath = join(targetDir, testAgentName);
@@ -183,24 +173,25 @@ describe("agents", () => {
 			// 3. Remove source file (simulates agent removed from bundle)
 			rmSync(srcPath, { force: true });
 
-			// 4. Re-sync in read-only mode — user-modified stale file is NOT auto-removed
-			const r5 = syncBundledAgents(cwd, false);
-			expect(r5.pendingRemove).toContain(testAgentName);
+			// 4. Re-sync — user-modified stale file is NOT auto-removed
+			const r5 = syncBundledAgents(cwd);
 			expect(r5.removed).not.toContain(testAgentName); // must NOT delete user-modified file
 
-			// 5. File still exists on disk
+			// 5. File still exists on disk and is no longer managed
 			expect(existsSync(destPath)).toBe(true);
+			const manifest = JSON.parse(readFileSync(join(cwd, ".pi", "mimir-managed.json"), "utf-8"));
+			expect(manifest.agents[testAgentName]).toBeUndefined();
 		});
 
-		it("removes stale managed file in apply mode", () => {
+		it("removes stale managed file when unchanged", () => {
 			// 1. Sync creates the agent
-			syncBundledAgents(cwd, false);
+			syncBundledAgents(cwd);
 
 			// 2. Remove source file
 			rmSync(srcPath, { force: true });
 
-			// 3. Apply-mode sync removes stale file
-			const r5 = syncBundledAgents(cwd, true);
+			// 3. Sync removes stale file
+			const r5 = syncBundledAgents(cwd);
 			expect(r5.removed).toContain(testAgentName);
 
 			// 4. File gone from disk
@@ -208,19 +199,18 @@ describe("agents", () => {
 			expect(existsSync(destPath)).toBe(false);
 		});
 
-		it("auto-heals unchanged managed file even in read-only mode", () => {
+		it("auto-heals unchanged managed file", () => {
 			// 1. First sync
-			syncBundledAgents(cwd, false);
+			syncBundledAgents(cwd);
 
 			// 2. Update the source content (new version)
 			const newContent = "# Test Agent\nUpdated v2 content.\n";
 			writeFileSync(srcPath, newContent, "utf-8");
 
 			// 3. Destination still matches manifest (not user-modified)
-			const r2 = syncBundledAgents(cwd, false);
+			const r2 = syncBundledAgents(cwd);
 			// safeAutoUpdate: knownHash !== "" && destHash === knownHash → auto-update
 			expect(r2.updated).toContain(testAgentName);
-			expect(r2.pendingUpdate).toEqual([]);
 
 			// 4. Verify content was updated
 			const destPath = join(targetDir, testAgentName);
