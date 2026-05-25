@@ -1,6 +1,7 @@
 ---
 name: plan
 description: Plan an OpenSpec change by generating proposal artifacts, running one holistic planning review, and iterating until blocker and concern findings are resolved.
+disable-model-invocation: true
 ---
 
 # plan

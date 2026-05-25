@@ -30,6 +30,11 @@ describe("skill frontmatter", () => {
 		expect(descriptionOf(readSkillSeed("review-implementation"))).toContain("implementation review");
 	});
 
+	it("marks composed workflow entrypoints as manual-only skills", () => {
+		expect(readSkillSeed("plan")).toContain("disable-model-invocation: true");
+		expect(readSkillSeed("implement")).toContain("disable-model-invocation: true");
+	});
+
 	it("rejects broad over-triggering language in skill descriptions", () => {
 		const broadPhrases = [
 			"use before any creative work",

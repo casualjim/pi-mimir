@@ -1,6 +1,7 @@
 ---
 name: implement
 description: Implement an apply-ready OpenSpec change with verification and optional review handoff before explicit archive.
+disable-model-invocation: true
 ---
 
 # implement
