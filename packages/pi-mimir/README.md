@@ -4,10 +4,10 @@ OpenSpec workflow package for Pi. `pi-mimir` adds a review-gated OpenSpec workfl
 
 ## What it provides
 
-- `plan` — run the full OpenSpec planning workflow, composing generated proposal/spec/design/task behavior with planning review subagents.
-- `implement` — run generated OpenSpec apply behavior, verify it, run implementation review gates, and stop before archive.
-- `review-plan` — run proposal, design, specs, and tasks review gates for existing planning artifacts.
-- `review-implementation` — run architecture, tests, data-flow, and security review gates for existing implementation evidence.
+- `plan` — run the full OpenSpec planning workflow, composing generated proposal/spec/design/task behavior with one holistic planning review.
+- `implement` — run generated OpenSpec apply behavior, verify it, and stop before archive; implementation review remains a separate explicit action.
+- `review-plan` — run a standalone planning review over existing planning artifacts.
+- `review-implementation` — run a standalone implementation review over existing implementation evidence.
 - A `review-gated` OpenSpec schema and supporting templates.
 - Session guidance for codebase-memory-first discovery.
 
@@ -54,7 +54,7 @@ Without codebase-memory, workflows can still use exact file reads and shell insp
 /skill:plan <change-name>
 ```
 
-Use this for the composed planning workflow: propose planning artifacts, run proposal/spec/design/task review gates in artifact order, and iterate with targeted artifact fixes until blockers and concerns are resolved.
+Use this for the composed planning workflow: propose planning artifacts, run one holistic planning review, and iterate with targeted artifact fixes until blockers and concerns are resolved.
 
 ### Implement a change
 
@@ -62,16 +62,16 @@ Use this for the composed planning workflow: propose planning artifacts, run pro
 /skill:implement <change-name>
 ```
 
-Use this only after the change is apply-ready. The workflow applies implementation work, verifies it against planning artifacts, runs implementation review gates, and stops before archive.
+Use this only after the change is apply-ready. The workflow applies implementation work, verifies it against planning artifacts, and stops before archive. Run `review-implementation` only when you explicitly want separate review findings.
 
-### Run review gates directly
+### Run reviews directly
 
 ```text
 /skill:review-plan <change-name>
 /skill:review-implementation <change-name>
 ```
 
-Use these when planning or implementation already exists and you only want the review gate workflow.
+Use these when planning or implementation already exists and you want a separate review pass. Findings are returned inline by default; only persist them when you explicitly ask.
 
 ## Discovery behavior
 
@@ -86,21 +86,20 @@ For code discovery, `pi-mimir` guides agents toward this ladder:
 
 The runtime sends a non-blocking one-shot reminder on broad raw discovery tools such as `grep`, `find`, or `ls`. It does not block those calls and does not gate `read`; agents should always read files before editing them.
 
-## Review gates
+## Review skills
 
-Planning review gates:
+`review-plan` and `review-implementation` are the default standalone review entrypoints. They return inline findings by default; persist them only when explicitly asked.
 
-- `review-proposal`
-- `review-design`
-- `review-specs`
-- `review-tasks`
+`plan` uses a single consolidated planning reviewer. It does not fan out into artifact-specific planning review skills during the default workflow.
 
-Implementation review gates:
+Manual implementation deep dives:
 
 - `review-architecture`
 - `review-tests`
 - `review-data-flow`
 - `review-security`
+
+The narrower `review-*` skills are opt-in deep dives, not automatic workflow steps.
 
 Planning review findings identify the target artifact, any upstream artifact that must be fixed first, and whether a user decision is required instead of guessing.
 

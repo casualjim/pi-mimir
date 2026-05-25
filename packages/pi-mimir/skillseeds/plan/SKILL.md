@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Plan an OpenSpec change by generating proposal artifacts, reviewing them, and iterating until review gates pass.
+description: Plan an OpenSpec change by generating proposal artifacts, running one holistic planning review, and iterating until blocker and concern findings are resolved.
 ---
 
 # plan
@@ -23,21 +23,18 @@ Plan an OpenSpec change. Generate planning artifacts, review them, and iterate u
 /skill:openspec-propose <change-name>
 ```
 
-3. After proposal, specs, design, and tasks exist, run planning review gates concurrently as reviewer subagents. Each subagent reviews exactly one primary artifact file for both document structure and content appropriate to that document type:
+3. After proposal, specs, design, and tasks exist, run one planning review as a `reviewer` subagent. The prompt MUST start with:
 
 ```text
-/skill:review-proposal <change-name>
-/skill:review-specs <change-name>
-/skill:review-design <change-name>
-/skill:review-tasks <change-name>
+/skill:review-plan <change-name>
 ```
 
-4. Collect all review findings after the concurrent review batch completes.
+4. Collect all review findings after the review completes.
 5. If findings contain only suggestions or no issues, stop.
 6. If findings contain blockers or concerns, update only the targeted artifact using its OpenSpec instructions and dependency artifacts; do not rerun full proposal generation over all artifacts.
-7. If a finding identifies an upstream artifact problem, update that upstream artifact and include affected artifacts in the next concurrent review batch.
+7. If a finding identifies an upstream artifact problem, update that upstream artifact and rerun the planning review after the affected artifacts are coherent again.
 8. If a finding requires a product, scope, or design decision that is not in the artifacts, ask the user instead of guessing.
-9. Repeat concurrent review batch → targeted fixes until blockers and concerns are resolved.
+9. Repeat review → targeted fixes until blockers and concerns are resolved.
 10. Stop after at most 5 review/fix iterations.
 11. If unresolved blockers or concerns remain after 5 iterations, report them and ask the user for a decision.
 
@@ -58,8 +55,8 @@ Planning is complete when:
 - specs exist
 - design exists
 - tasks exist
-- review gates report no blockers
-- review gates report no unresolved concerns
+- planning review reports no blockers
+- planning review reports no unresolved concerns
 
 Return:
 

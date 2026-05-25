@@ -120,8 +120,7 @@ for (const name of readdirSync(skillSeedDir)) {
 	if (existsSync(`${source}/SKILL.md`)) cpSync(source, `${projectSkillsDir}/${name}`, { recursive: true, force: true });
 }
 assertIncludes(readdirSync(projectSkillsDir).join(","), "review-implementation", "skill sync");
-assertIncludes(readdirSync(projectSkillsDir).join(","), "review-proposal", "skill sync");
-assertIncludes(readdirSync(projectSkillsDir).join(","), "review-tasks", "skill sync");
+assertIncludes(readdirSync(projectSkillsDir).join(","), "review-plan", "skill sync");
 
 const reviewImplementation = piPrompt(
 	"review-implementation skill invocation",

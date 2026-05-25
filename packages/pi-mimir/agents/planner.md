@@ -5,7 +5,8 @@ skills: openspec-propose
 inheritProjectContext: true
 inheritSkills: true
 model: openai-codex/gpt-5.5
-thinking: high
+thinking: xhigh
+defaultContext: fork
 ---
 
 # planner

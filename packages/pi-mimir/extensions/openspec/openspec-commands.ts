@@ -84,7 +84,7 @@ export function syncBundledSkills(cwd: string): SyncBundledSkillsResult {
 	mkdirSync(targetDir, { recursive: true });
 	const previousManifest = coerceSkillManifest(readMimirManagedManifest(cwd).skills);
 	const manifest: SkillManifest = {};
-	const bundledSkillNames = ["plan", "implement", "review-architecture", "review-design", "review-implementation", "review-data-flow", "review-security", "review-plan", "review-proposal", "review-specs", "review-tasks", "review-tests"];
+	const bundledSkillNames = ["plan", "implement", "review-architecture", "review-implementation", "review-data-flow", "review-security", "review-plan", "review-tests"];
 	const bundledSkillSet = new Set(bundledSkillNames);
 
 	for (const name of bundledSkillNames) {

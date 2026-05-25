@@ -4,7 +4,7 @@ description: OpenSpec implementation worker for focused code and documentation c
 inheritProjectContext: true
 model: openai-codex/gpt-5.5
 thinking: medium
-defaultContext: fork
+defaultContext: fresh
 ---
 
 # worker

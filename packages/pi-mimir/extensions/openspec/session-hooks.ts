@@ -50,11 +50,11 @@ const CODEBASE_MEMORY_GUIDANCE = [
 const WORKFLOW_GUIDANCE = [
 	"# OpenSpec Workflow Guidance",
 	"",
-	"Package entrypoints: `plan` runs the full planning workflow by composing OpenSpec proposal/spec/design/task behavior with review subagents; `implement` runs apply execution, verification, and implementation review; `review-plan` and `review-implementation` run standalone review gates. Generated `/opsx:*` or `openspec-*` skills may coexist and may be called internally by these workflows. Do not add commit, push, PR creation, or finishing-branch behavior as workflow steps.",
+	"Package entrypoints: `plan` runs the full planning workflow by composing OpenSpec proposal/spec/design/task behavior with one planning review; `implement` runs apply execution and verification; `review-plan` and `review-implementation` run standalone review entrypoints. Generated `/opsx:*` or `openspec-*` skills may coexist and may be called internally by these workflows. Implementation review is explicit and separate from `implement`. Do not add commit, push, PR creation, or finishing-branch behavior as workflow steps.",
 	"",
 	"Define intent first: if the requested outcome is ambiguous, ask a targeted clarification before codebase probing. Discovery ladder: codebase_memory_get_architecture → codebase_memory_search_graph/search_code → codebase_memory_trace_path → codebase_memory_get_code_snippet → exact file reads → direct synthesis. Stop when affected capabilities, impact areas, existing specs, and major implementation constraints are known.",
 	"",
-	"codebase-memory MCP is required for the full workflow. If the current project is not indexed yet, run codebase_memory_index_repository on the project root before discovery. If codebase-memory is unavailable or remains stale after indexing, report degraded discovery and use exact reads or shell inspection as degraded mode. Use raw tools freely for configs, non-code files, graph-insufficient cases, and read-before-edit. Use subagents only at artifact review or specialist implementation review gates.",
+	"codebase-memory MCP is required for the full workflow. If the current project is not indexed yet, run codebase_memory_index_repository on the project root before discovery. If codebase-memory is unavailable or remains stale after indexing, report degraded discovery and use exact reads or shell inspection as degraded mode. Use raw tools freely for configs, non-code files, graph-insufficient cases, and read-before-edit. Use subagents only for the single planning review pass or explicit specialist implementation review deep dives.",
 ].join("\n");
 
 type UI = { notify: (msg: string, sev: "info" | "warning" | "error") => void };

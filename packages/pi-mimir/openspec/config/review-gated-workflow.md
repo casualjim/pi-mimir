@@ -6,10 +6,10 @@ This OpenSpec config asset documents package-owned workflow gates for setup/upda
 
 The package-owned public entrypoints are:
 
-- `plan` — OpenSpec proposal/spec/design/task planning with codebase-memory-first discovery and artifact review gates.
-- `implement` — apply-ready implementation, verification against OpenSpec artifacts, implementation review gates, and stop before explicit archive.
-- `review-plan` — separate artifact review workflow that orchestrates `reviews/proposal.md`, `reviews/design.md`, `reviews/specs.md`, and `reviews/tasks.md`.
-- `review-implementation` — separate implementation review workflow that orchestrates `reviews/architecture.md`, `reviews/tests.md`, `reviews/data-flow.md`, and `reviews/security.md`.
+- `plan` — OpenSpec proposal/spec/design/task planning with codebase-memory-first discovery and one holistic planning review.
+- `implement` — apply-ready implementation, verification against OpenSpec artifacts, and stop before explicit archive.
+- `review-plan` — separate planning review workflow for existing planning artifacts.
+- `review-implementation` — separate implementation review workflow for existing implementation evidence.
 
 Generated `/opsx:*` or `openspec-*` skills may coexist. They are not hidden or replaced; this package guidance identifies `plan` and `implement` as the preferred orchestrated path and leaves generated sync/archive actions explicit.
 
@@ -28,15 +28,15 @@ Discovery stops when affected capabilities, impact areas, relevant existing spec
 
 codebase-memory MCP is required for full workflow readiness. If it is unavailable or stale, report degraded discovery, fall back to exact reads or shell inspection only as degraded mode, and do not claim architecture-aware discovery.
 
-Artifact review gates run after planning artifacts are complete, in artifact order: proposal, specs, design, tasks. Findings are routed to the target artifact; upstream artifact problems are fixed upstream before rerunning affected downstream reviews. Findings that require product, scope, or design decisions ask the user instead of guessing. The same gate set can be run independently with `review-plan`.
+A single planning review runs after proposal, specs, design, and tasks are complete. It reviews the artifact set coherently, routes findings to the target artifact, identifies upstream root causes, and asks the user when a product, scope, or design decision is required instead of guessing. The same review can be run independently with `review-plan`. The default workflow does not fan out into artifact-specific planning review skills.
 
 ## Implement orchestration
 
 Implementation uses `openspec instructions apply --change <name> --json` and the tracked task file as the source of truth. Context files returned by OpenSpec are read before implementation. Task checkboxes are marked complete only after the matching implementation work is complete.
 
-After task execution, implementation verifies completeness, correctness, and coherence against proposal, specs, design, and tasks. Only after verification passes does it run architecture, tests, data-flow, and security review gates. The same gate set can be run independently with `review-implementation` when implementation evidence already exists.
+After task execution, implementation verifies completeness, correctness, and coherence against proposal, specs, design, and tasks. Implementation review is a separate explicit action, not a mandatory part of `implement`. When review is requested, `review-implementation` runs as its own standalone review workflow.
 
-Implementation stops after verification and implementation review. It does not run `git commit`, `git push`, PR creation, archive, or Superpowers finishing-branch behavior; generated OpenSpec archive behavior remains a separate explicit action.
+Implementation stops after verification unless a separate review was explicitly requested. It does not run `git commit`, `git push`, PR creation, archive, or Superpowers finishing-branch behavior; generated OpenSpec archive behavior remains a separate explicit action.
 
 ## Review finding semantics
 
