@@ -193,8 +193,11 @@ Report crypto findings only when cryptographic behavior exists. Do not add crypt
 3. Trace hostile input from boundary to validation, authentication, authorization, escaping, limiting, and sink.
 4. Inspect authentication, object authorization, tenant isolation, parser behavior, path/URL/command construction, file/network/subprocess use, logs, errors, snapshots, generated artifacts, and dependency scripts.
 5. Inspect fallbacks, defaults, feature flags, retries, background/admin paths, and degraded modes for fail-open behavior.
-6. Classify suspicious code as real vulnerability, defense-in-depth improvement, or justified keep-as-is.
-7. Return numbered findings only.
+6. Treat the review as single-shot: inspect the full in-scope material now, surface all actionable issues observable from the current evidence, and do not intentionally save findings for later rounds.
+7. After the reported findings are addressed, a follow-up review over unchanged material should ideally report only net new issues introduced by the changes or made newly reviewable by newly supplied evidence.
+8. If a later-round issue comes from previously reviewed material, explicitly state why it was not reliably reviewable earlier.
+9. Classify suspicious code as real vulnerability, defense-in-depth improvement, or justified keep-as-is.
+10. Return the complete actionable issue list discovered in the reviewed scope. Do not stop after the highest-severity class or a representative sample.
 
 ## Severity standard
 
@@ -204,44 +207,84 @@ Report crypto findings only when cryptographic behavior exists. Do not add crypt
 
 ## Required output
 
-Return concise findings. No grids or tables. No praise.
+Generate a complete security review report: summary scorecard, issues grouped by priority, trust boundary audit, false positives / keep-as-is, and final assessment.
+Report the whole issue list; do not limit output to only the highest-priority findings.
+
+Use clear markdown with this structure:
 
 ```md
-## Executive summary
+## Security Review Report: <review scope>
 
-- Highest-risk exploit paths first.
-- No generic checklist filler.
+### Summary
+| Dimension | Status |
+|-----------|--------|
+| Trust boundaries and validation | Pass/Issues |
+| Authentication and authorization | Pass/Issues |
+| Injection, path, URL, and command safety | Pass/Issues |
+| Secrets, logs, and error exposure | Pass/Issues |
+| Resource limits and fail-open behavior | Pass/Issues |
 
-## Severity rubric used
+### Issues by Priority
 
-- blocker: must fix before acceptance.
-- concern: should fix or explicitly accept as debt.
-- suggestion: optional hardening.
+#### BLOCKER (Must fix before acceptance)
+- **<short finding title>**
+  - Target artifact: <artifact path>
+  - Upstream artifact: <artifact path or none>
+  - Requires user decision: <yes/no>
+  - Rule reference: <repository rule or security doctrine>
+  - Location: <file, symbol, route, command, workflow, or boundary>
+  - Asset at risk: <data, capability, identity, secret, filesystem, network, or availability>
+  - Attacker control: <what input or state the attacker can influence>
+  - Evidence: <evidence> quote or exact data-flow description
+  - Problem: <what enforcement fails>
+  - Impact: <concrete exploit outcome or security consequence>
+  - Recommendation: <specific fix direction>
+  - Scope: <local or cross-cutting>
+  - Confidence: <high, medium, or low>
 
-## Findings
+#### CONCERN (Should fix or explicitly accept)
+- **<short finding title>**
+  - Target artifact: <artifact path>
+  - Upstream artifact: <artifact path or none>
+  - Requires user decision: <yes/no>
+  - Rule reference: <repository rule or security doctrine>
+  - Location: <file, symbol, route, command, workflow, or boundary>
+  - Asset at risk: <data, capability, identity, secret, filesystem, network, or availability>
+  - Attacker control: <what input or state the attacker can influence>
+  - Evidence: <evidence> quote or exact data-flow description
+  - Problem: <what enforcement fails>
+  - Impact: <concrete exploit outcome or security consequence>
+  - Recommendation: <specific fix direction>
+  - Scope: <local or cross-cutting>
+  - Confidence: <high, medium, or low>
 
-### 1. Short finding title
+#### SUGGESTION (Optional hardening)
+- **<short finding title>**
+  - Target artifact: <artifact path>
+  - Upstream artifact: <artifact path or none>
+  - Requires user decision: <yes/no>
+  - Rule reference: <repository rule or security doctrine>
+  - Location: <file, symbol, route, command, workflow, or boundary>
+  - Asset at risk: <data, capability, identity, secret, filesystem, network, or availability>
+  - Attacker control: <what input or state the attacker can influence>
+  - Evidence: <evidence> quote or exact data-flow description
+  - Problem: <what enforcement fails>
+  - Impact: <concrete exploit outcome or security consequence>
+  - Recommendation: <specific fix direction>
+  - Scope: <local or cross-cutting>
+  - Confidence: <high, medium, or low>
 
-Severity: blocker
-Category: security
-Rule reference: repository rule or security doctrine
-Location: file, symbol, route, command, workflow, or boundary
-Asset at risk: data, capability, identity, secret, filesystem, network, or availability
-Attacker control: what input or state the attacker can influence
-Evidence: <evidence> quote or exact data-flow description
-Problem: what enforcement fails
-Exploit path: concrete attacker action and outcome
-Recommended remediation: specific fix direction
-Scope: local or cross-cutting
-Confidence: high, medium, or low
-
-## Trust boundary audit
-
+### Trust Boundary Audit
 Summarize assets, actors, inputs, enforcement points, and sinks reviewed.
 
-## False positives / keep as-is
-
+### False Positives / Keep as-is
 List suspicious-looking code that is justified and why.
+
+### Final Assessment
+- If blocker issues exist: "X blocker issue(s) found. Fix before accepting the reviewed implementation."
+- If only concern issues exist: "No blocker issues. Y concern(s) require fixes or explicit acceptance before accepting the reviewed implementation."
+- If only suggestion issues exist: "No blocker or concern issues. Z suggestion(s) to consider."
+- If no issues exist: "No issues found. Security posture is acceptable for the reviewed scope."
 ```
 
-If no issues are found, return `No issues found` after the audit and keep-as-is sections.
+If a priority section has no issues, write `None` under that heading. Keep the audit and keep-as-is sections even when no issues are found.

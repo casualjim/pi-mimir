@@ -71,7 +71,7 @@ Use this only after the change is apply-ready. The workflow applies implementati
 /skill:review-implementation <change-name>
 ```
 
-Use these when planning or implementation already exists and you want a separate review pass. Findings are returned inline by default; only persist them when you explicitly ask.
+Use these when planning or implementation already exists and you want a separate review pass. Findings are returned inline by default as structured reports with a summary, issues grouped by priority, and a final assessment; the review is intended to be single-shot, so after reported findings are addressed a follow-up review over unchanged material should ideally report only net new issues introduced by the changes or made newly reviewable by newly supplied evidence. Only persist findings when you explicitly ask.
 
 ## Discovery behavior
 
@@ -88,7 +88,7 @@ The runtime sends a non-blocking one-shot reminder on broad raw discovery tools 
 
 ## Review skills
 
-`review-plan` and `review-implementation` are the default standalone review entrypoints. They return inline findings by default; persist them only when explicitly asked.
+`review-plan` and `review-implementation` are the default standalone review entrypoints. They return the whole actionable issue list inline by default and are intended to be single-shot rather than staged across repeated rounds; persist findings only when explicitly asked.
 
 `plan` uses a single consolidated planning reviewer. It does not fan out into artifact-specific planning review skills during the default workflow.
 

@@ -72,10 +72,12 @@ describe("skill frontmatter", () => {
 			expect(textLower).not.toContain("pi-mimir");
 			expect(textLower).not.toContain("this application");
 			expect(textLower).not.toContain("this conversation");
-			expect(text).toContain("Return concise findings");
+			expect(text).toContain("### Issues by Priority");
 			expect(text).toContain("Evidence:");
+			expect(text).toContain("single-shot");
+			expect(text).toContain("net new issues");
+			expect(text).toMatch(/whole (actionable )?issue list/i);
 			expect(text).not.toContain("<severity> |");
-			expect(text).not.toContain("pipe-delimited rows.\n\n```text");
 		}
 	});
 });

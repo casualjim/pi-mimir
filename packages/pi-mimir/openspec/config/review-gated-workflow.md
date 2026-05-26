@@ -28,13 +28,13 @@ Discovery stops when affected capabilities, impact areas, relevant existing spec
 
 codebase-memory MCP is required for full workflow readiness. If it is unavailable or stale, report degraded discovery, fall back to exact reads or shell inspection only as degraded mode, and do not claim architecture-aware discovery.
 
-A single planning review runs after proposal, specs, design, and tasks are complete. It reviews the artifact set coherently, routes findings to the target artifact, identifies upstream root causes, and asks the user when a product, scope, or design decision is required instead of guessing. The same review can be run independently with `review-plan`. The default workflow does not fan out into artifact-specific planning review skills.
+A single planning review runs after proposal, specs, design, and tasks are complete. It reviews the artifact set coherently, routes findings to the target artifact, identifies upstream root causes, and asks the user when a product, scope, or design decision is required instead of guessing. Planning review is intended to be single-shot: it should surface all actionable issues observable from the current evidence rather than staging findings across rounds. After findings are addressed, a follow-up review over unchanged material should ideally report only net new issues introduced by the edits or made newly reviewable by newly supplied evidence. The same review can be run independently with `review-plan`. The default workflow does not fan out into artifact-specific planning review skills.
 
 ## Implement orchestration
 
 Implementation uses `openspec instructions apply --change <name> --json` and the tracked task file as the source of truth. Context files returned by OpenSpec are read before implementation. Task checkboxes are marked complete only after the matching implementation work is complete.
 
-After task execution, implementation verifies completeness, correctness, and coherence against proposal, specs, design, and tasks. Implementation review is a separate explicit action, not a mandatory part of `implement`. When review is requested, `review-implementation` runs as its own standalone review workflow.
+After task execution, implementation verifies completeness, correctness, and coherence against proposal, specs, design, and tasks. Implementation review is a separate explicit action, not a mandatory part of `implement`. When review is requested, `review-implementation` runs as its own standalone review workflow. Like planning review, it is intended to be single-shot: the review should surface all actionable issues observable from the current evidence, and follow-up review over unchanged material should ideally report only net new issues introduced by the changes or made newly reviewable by newly supplied evidence.
 
 Implementation stops after verification unless a separate review was explicitly requested. It does not run `git commit`, `git push`, PR creation, archive, or Superpowers finishing-branch behavior; generated OpenSpec archive behavior remains a separate explicit action.
 
@@ -46,7 +46,7 @@ Review findings use these severities:
 - `concern`: fix or ask the user to accept explicitly.
 - `suggestion`: optional improvement.
 
-Findings must include severity, target artifact, upstream artifact when relevant, whether a user decision is required, location, evidence, problem, impact, and the smallest concrete fix. Orchestrators deduplicate findings and act on the highest-severity actionable set.
+Review reports return the full actionable issue list, grouped by priority, with a summary scorecard and final assessment. Reviews are expected to be single-shot rather than staged; after reported findings are addressed, a re-review over unchanged material should ideally report only net new issues introduced by the changes or made newly reviewable by newly supplied evidence. Findings must include severity, target artifact, upstream artifact when relevant, whether a user decision is required, location, evidence, problem, impact, and the smallest concrete fix. Orchestrators may resolve higher-severity findings first, but they should not discard lower-priority findings from the report.
 
 ## Managed manifests
 

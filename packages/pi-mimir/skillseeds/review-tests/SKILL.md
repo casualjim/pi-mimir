@@ -9,7 +9,7 @@ Tests are evidence: judge what failures they rule out and what realistic bugs co
 
 Do not praise test count, coverage percentage, or framework choice. Those are signals, not proof. A small test suite with strong behavioral evidence can be better than a large suite of tautologies.
 
-Do not rewrite tests or implement fixes. Return concise findings grounded in the tests, production code, behavior contract, or command output you inspected.
+Do not rewrite tests or implement fixes. Return a structured, evidence-based review grounded in the tests, production code, behavior contract, or command output you inspected.
 
 ## Inputs
 
@@ -103,8 +103,11 @@ For spec-driven changes, also map coverage explicitly:
 5. Inspect assertions, mocks, fixtures, snapshots, generated data, and CI output for real evidence.
 6. Decide whether property tests, fuzzing, snapshots, integration tests, or contract tests are missing or misused.
 7. Identify architecture damage caused by testing choices.
-8. Classify each suspicious item as blocker, concern, suggestion, acceptable tradeoff, or keep-as-is.
-9. Return concise findings only.
+8. Treat the review as single-shot: inspect the full in-scope material now, surface all actionable issues observable from the current evidence, and do not intentionally save findings for later rounds.
+9. After the reported findings are addressed, a follow-up review over unchanged material should ideally report only net new issues introduced by the changes or made newly reviewable by newly supplied evidence.
+10. If a later-round issue comes from previously reviewed material, explicitly state why it was not reliably reviewable earlier.
+11. Classify each suspicious item as blocker, concern, suggestion, acceptable tradeoff, or keep-as-is.
+12. Return the complete actionable issue list discovered in the reviewed scope. Do not stop after the highest-severity class or a representative sample.
 
 ## Severity standard
 
@@ -114,43 +117,78 @@ For spec-driven changes, also map coverage explicitly:
 
 ## Required output
 
-No grids or tables. Return concise findings using this structure:
+Generate a complete test review report: summary scorecard, issues grouped by priority, coverage and gap map, false positives / keep-as-is, and final assessment.
+Report the whole issue list; do not limit output to only the highest-priority findings.
+
+Use clear markdown with this structure:
 
 ```md
-## Executive summary
+## Test Review Report: <review scope>
 
-- Highest-risk test gaps first.
-- No praise for test existence.
-- No filler.
+### Summary
+| Dimension | Status |
+|-----------|--------|
+| Requirement coverage | Pass/Issues |
+| Edge, failure, and adversarial coverage | Pass/Issues |
+| Assertion quality | Pass/Issues |
+| Test seam realism | Pass/Issues |
+| Fixtures, snapshots, and fuzz/property strategy | Pass/Issues |
 
-## Severity rubric used
+### Issues by Priority
 
-- blocker: must fix before acceptance.
-- concern: should fix or explicitly accept as debt.
-- suggestion: optional hardening.
+#### BLOCKER (Must fix before acceptance)
+- **<short finding title>**
+  - Target artifact: <test file, production file, or behavior area>
+  - Upstream artifact: <artifact path or none>
+  - Requires user decision: <yes/no>
+  - Rule reference: <repository rule, promised behavior, or testing doctrine>
+  - Location: <test file, production file, behavior, or missing test area>
+  - Evidence: <evidence>
+  - Problem: <what the test suite fails to prove>
+  - Impact: <concrete bug or regression that can survive>
+  - Recommendation: <specific stronger test approach>
+  - Scope: <local or cross-cutting>
+  - Confidence: <high, medium, or low>
 
-## Findings
+#### CONCERN (Should fix or explicitly accept)
+- **<short finding title>**
+  - Target artifact: <test file, production file, or behavior area>
+  - Upstream artifact: <artifact path or none>
+  - Requires user decision: <yes/no>
+  - Rule reference: <repository rule, promised behavior, or testing doctrine>
+  - Location: <test file, production file, behavior, or missing test area>
+  - Evidence: <evidence>
+  - Problem: <what the test suite fails to prove>
+  - Impact: <concrete bug or regression that can survive>
+  - Recommendation: <specific stronger test approach>
+  - Scope: <local or cross-cutting>
+  - Confidence: <high, medium, or low>
 
-### 1. Short finding title
+#### SUGGESTION (Optional hardening)
+- **<short finding title>**
+  - Target artifact: <test file, production file, or behavior area>
+  - Upstream artifact: <artifact path or none>
+  - Requires user decision: <yes/no>
+  - Rule reference: <repository rule, promised behavior, or testing doctrine>
+  - Location: <test file, production file, behavior, or missing test area>
+  - Evidence: <evidence>
+  - Problem: <what the test suite fails to prove>
+  - Impact: <concrete bug or regression that can survive>
+  - Recommendation: <specific stronger test approach>
+  - Scope: <local or cross-cutting>
+  - Confidence: <high, medium, or low>
 
-Severity: blocker
-Category: test quality
-Rule reference: repository rule, promised behavior, or testing doctrine
-Location: test file, production file, behavior, or missing test area
-Evidence: <evidence>
-Problem: what the test suite fails to prove
-Bug that can survive: concrete failure mode
-Recommended remediation: specific stronger test approach
-Scope: local or cross-cutting
-Confidence: high, medium, or low
-
-## Coverage and gap map
-
+### Coverage and Gap Map
 List major behaviors reviewed and whether tests prove normal, edge, failure, and adversarial cases. For spec-driven changes, include a requirement-to-test coverage map with file paths, test names, concrete assertions, and the smallest concrete remediation for each blocker or concern.
 
-## False positives / keep as-is
-
+### False Positives / Keep as-is
 List suspicious-looking tests that are justified and why.
+
+### Final Assessment
+- If blocker issues exist: "X blocker issue(s) found. Fix before accepting the reviewed implementation."
+- If only concern issues exist: "No blocker issues. Y concern(s) require fixes or explicit acceptance before accepting the reviewed implementation."
+- If only suggestion issues exist: "No blocker or concern issues. Z suggestion(s) to consider."
+- If no issues exist: "No issues found. Test evidence is acceptable for the reviewed scope."
 ```
 
-If no issues are found, return `No issues found` after the coverage and gap map.
+If a priority section has no issues, write `None` under that heading. Keep the coverage and keep-as-is sections even when no issues are found.

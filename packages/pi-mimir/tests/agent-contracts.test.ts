@@ -37,6 +37,8 @@ describe("agent and skill contracts", () => {
 		expect(text).toContain("use parseable checkbox format `- [ ] X.Y Task description`");
 		expect(text).toContain("### Cross-artifact coherence checks");
 		expect(text).toContain("Review proposal/specs/design/tasks together as one planning review.");
+		expect(text).toContain("The review is single-shot");
+		expect(text).toContain("net new issues");
 	});
 
 	it("reviewer loads consolidated planning review instead of artifact-specific planning skills", () => {
@@ -65,7 +67,8 @@ describe("agent and skill contracts", () => {
 		expect(text).toContain("Refactoring has a precise meaning");
 		expect(text).toContain("Command Query Separation");
 		expect(text).toContain("Do not force repositories into a feature-folder model");
-		expect(text).toContain("No grids or tables");
+		expect(text).toContain("Architecture Review Report");
+		expect(text).toContain("### Issues by Priority");
 	});
 
 	it("review-tests skill reviews test quality with adversarial evidence standards", () => {
@@ -76,8 +79,8 @@ describe("agent and skill contracts", () => {
 		expect(text).toContain("Missing property tests");
 		expect(text).toContain("Missing fuzzing");
 		expect(text).toContain("Mock damage");
-		expect(text).toContain("No grids or tables");
-		expect(text).toContain("Return concise findings");
+		expect(text).toContain("Test Review Report");
+		expect(text).toContain("### Issues by Priority");
 	});
 
 	it("review-data-flow skill reviews structural data-flow costs without micro-optimization filler", () => {
@@ -86,8 +89,8 @@ describe("agent and skill contracts", () => {
 		expect(text).toContain("Needless copying");
 		expect(text).toContain("N+1");
 		expect(text).toContain("Language lenses");
-		expect(text).toContain("No grids or tables");
-		expect(text).toContain("Return concise findings");
+		expect(text).toContain("Data-flow Review Report");
+		expect(text).toContain("### Issues by Priority");
 	});
 
 	it("review-security skill reviews exploit paths through trust boundaries without checklist filler", () => {
@@ -95,9 +98,9 @@ describe("agent and skill contracts", () => {
 		expect(text).toContain("assets, actors, attacker-controlled inputs");
 		expect(text).toContain("trust boundaries");
 		expect(text).toContain("enforcement points");
-		expect(text).toContain("Exploit path");
-		expect(text).toContain("No grids or tables");
-		expect(text).toContain("Return concise findings");
+		expect(text).toContain("Asset at risk");
+		expect(text).toContain("Security Review Report");
+		expect(text).toContain("### Issues by Priority");
 	});
 
 	it("specialist review skills avoid workflow integration metadata and change-only scope", () => {
@@ -127,8 +130,9 @@ describe("agent and skill contracts", () => {
 		const text = readFileSync("skillseeds/review-implementation/SKILL.md", "utf-8");
 		expect(text).toContain("Review implementation work for a named OpenSpec change");
 		expect(text).toContain("Use only when an OpenSpec workflow explicitly requests implementation review");
-		expect(text).toContain("Return concise findings");
-		expect(text).toContain("No issues found");
+		expect(text).toContain("Implementation Review Report");
+		expect(text).toContain("Report the whole issue list");
+		expect(text).toContain("do not limit output to the highest-severity actionable set");
 		expect(text).toContain("/skill:review-architecture <change-name>");
 		expect(text).toContain("/skill:review-tests <change-name>");
 		expect(text).toContain("/skill:review-data-flow <change-name>");
@@ -144,15 +148,17 @@ describe("agent and skill contracts", () => {
 		expect(text).toContain("Do not perform broad discovery");
 	});
 
-	it("reviewer requires prose findings, artifact routing, and user-decision flags", () => {
+	it("reviewer requires structured findings, artifact routing, and user-decision flags", () => {
 		const reviewer = readFileSync("agents/reviewer.md", "utf-8");
 		expect(reviewer).toContain("requires a product, scope, or design decision");
+		expect(reviewer).toContain("Treat every review as single-shot");
 		expect(reviewer).toContain("Target artifact:");
-		expect(reviewer).toContain("Do not use tables or pipe-delimited rows");
+		expect(reviewer).toContain("### Issues by Priority");
+		expect(reviewer).toContain("Report the whole actionable issue list");
 		const text = readFileSync("skillseeds/review-plan/SKILL.md", "utf-8");
 		expect(text).toContain("Requires user decision:");
-		expect(text).toContain("Do not use tables or pipe-delimited rows");
+		expect(text).toContain("### Summary");
+		expect(text).toContain("### Final Assessment");
 		expect(text).not.toContain("what did we miss?");
-		expect(text).not.toContain(" | ");
 	});
 });

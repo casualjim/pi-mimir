@@ -216,8 +216,11 @@ Do not anchor on one architecture discipline or force named architecture schools
 7. For distributed or service-like boundaries, check independent deployability, failure handling, observability, provisioning, and deployment assumptions.
 8. For strangler or branch-by-abstraction work, check seam quality, incremental delivery, switch-over plan, and retirement/removal plan.
 9. For refactoring claims, check behavior preservation, test confidence, code-smell evidence, and whether the structural change makes intended work cheaper or future work safer.
-10. Classify each suspicious item as a blocker, concern, suggestion, acceptable tradeoff, or keep-as-is.
-11. Return only numbered findings and the required review sections.
+10. Treat the review as single-shot: inspect the full in-scope material now, surface all actionable issues observable from the current evidence, and do not intentionally save findings for later rounds.
+11. After the reported findings are addressed, a follow-up review over unchanged material should ideally report only net new issues introduced by the changes or made newly reviewable by newly supplied evidence.
+12. If a later-round issue comes from previously reviewed material, explicitly state why it was not reliably reviewable earlier.
+13. Classify each suspicious item as a blocker, concern, suggestion, acceptable tradeoff, or keep-as-is.
+14. Return only numbered findings and the required review sections.
 
 ## Findings to hunt
 
@@ -259,43 +262,78 @@ Use each language’s boundary mechanisms as evidence. Do not make them the arch
 
 ## Required output
 
-Return concise findings. No grids or tables.
+Generate a complete architecture review report: summary scorecard, issues grouped by priority, review coverage map, false positives / keep-as-is, and final assessment.
+Report the whole issue list; do not limit output to only the highest-priority findings.
+
+Use clear markdown with this structure:
 
 ```md
-## Executive summary
+## Architecture Review Report: <review scope>
 
-- Highest-impact issue first.
-- No praise.
-- No filler.
+### Summary
+| Dimension | Status |
+|-----------|--------|
+| Architecture fit | Pass/Issues |
+| Ownership and boundaries | Pass/Issues |
+| Dependency direction | Pass/Issues |
+| Runtime and trust boundaries | Pass/Issues |
+| Evolution and refactoring safety | Pass/Issues |
 
-## Severity rubric used
+### Issues by Priority
 
-- blocker: must fix before acceptance because it creates correctness risk, security exposure, hard repository-constraint violation, architectural break, or serious maintainability regression.
-- concern: should fix or explicitly accept as debt because it creates real maintenance, usability, ownership, or evolution cost.
-- suggestion: optional improvement only when evidence does not show material architecture or maintainability harm.
+#### BLOCKER (Must fix before acceptance)
+- **<short finding title>**
+  - Target artifact: <artifact path>
+  - Upstream artifact: <artifact path or none>
+  - Requires user decision: <yes/no>
+  - Concern reference: <exact repository constraint, design concern, or review heuristic>
+  - Location: <file, symbol, module, package, API, or import path>
+  - Evidence: <evidence> quote or exact description
+  - Problem: <what is wrong>
+  - Impact: <concrete maintainability, separation-of-concerns, runtime, or evolution impact>
+  - Recommendation: <smallest concrete repair>
+  - Scope: <local or cross-cutting>
+  - Confidence: <high, medium, or low>
 
-## Findings
+#### CONCERN (Should fix or explicitly accept)
+- **<short finding title>**
+  - Target artifact: <artifact path>
+  - Upstream artifact: <artifact path or none>
+  - Requires user decision: <yes/no>
+  - Concern reference: <exact repository constraint, design concern, or review heuristic>
+  - Location: <file, symbol, module, package, API, or import path>
+  - Evidence: <evidence> quote or exact description
+  - Problem: <what is wrong>
+  - Impact: <concrete maintainability, separation-of-concerns, runtime, or evolution impact>
+  - Recommendation: <smallest concrete repair>
+  - Scope: <local or cross-cutting>
+  - Confidence: <high, medium, or low>
 
-### 1. Short finding title
+#### SUGGESTION (Optional improvement)
+- **<short finding title>**
+  - Target artifact: <artifact path>
+  - Upstream artifact: <artifact path or none>
+  - Requires user decision: <yes/no>
+  - Concern reference: <exact repository constraint, design concern, or review heuristic>
+  - Location: <file, symbol, module, package, API, or import path>
+  - Evidence: <evidence> quote or exact description
+  - Problem: <what is wrong>
+  - Impact: <concrete maintainability, separation-of-concerns, runtime, or evolution impact>
+  - Recommendation: <smallest concrete repair>
+  - Scope: <local or cross-cutting>
+  - Confidence: <high, medium, or low>
 
-Severity: blocker
-Category: architecture adherence
-Concern reference: exact repository constraint, design concern, or review heuristic
-Location: file, symbol, module, package, API, or import path
-Evidence: <evidence> quote or exact description
-Problem: what is wrong
-Why it matters: concrete maintainability, separation-of-concerns, runtime, or evolution impact
-Recommended remediation: smallest concrete repair
-Scope: local or cross-cutting
-Confidence: high, medium, or low
-
-## Review coverage map
-
+### Review Coverage Map
 List architecture concerns reviewed and whether each had findings.
 
-## False positives / keep as-is
-
+### False Positives / Keep as-is
 List suspicious-looking code that is justified and why.
+
+### Final Assessment
+- If blocker issues exist: "X blocker issue(s) found. Fix before accepting the reviewed implementation."
+- If only concern issues exist: "No blocker issues. Y concern(s) require fixes or explicit acceptance before accepting the reviewed implementation."
+- If only suggestion issues exist: "No blocker or concern issues. Z suggestion(s) to consider."
+- If no issues exist: "No issues found. Architecture is acceptable for the reviewed scope."
 ```
 
-If there are no findings, keep the same headings, state that no architecture concerns were found, and record justified suspicious items under keep-as-is.
+If a priority section has no issues, write `None` under that heading. Keep the coverage and keep-as-is sections even when no issues are found.

@@ -103,7 +103,10 @@ Ask:
 4. Inspect public APIs for allocation-heavy shapes that force caller cost.
 5. Inspect database, network, filesystem, subprocess, and search behavior for missing batching, projection, filtering, cancellation, backpressure, or streaming.
 6. Inspect lock scope, fan-out, task scheduling, queues, retries, caches, and eager logging.
-7. Separate structural findings from speculative micro-optimizations and keep false positives explicit.
+7. Treat the review as single-shot: inspect the full in-scope material now, surface all actionable issues observable from the current evidence, and do not intentionally save findings for later rounds.
+8. After the reported findings are addressed, a follow-up review over unchanged material should ideally report only net new issues introduced by the changes or made newly reviewable by newly supplied evidence.
+9. If a later-round issue comes from previously reviewed material, explicitly state why it was not reliably reviewable earlier.
+10. Separate structural findings from speculative micro-optimizations and keep false positives explicit.
 
 ## Severity standard
 
@@ -113,42 +116,78 @@ Ask:
 
 ## Required output
 
-Return concise findings. No grids or tables. No praise.
+Generate a complete data-flow review report: summary scorecard, issues grouped by priority, data-flow and allocation audit, false positives / keep-as-is, and final assessment.
+Report the whole issue list; do not limit output to only the highest-priority findings.
+
+Use clear markdown with this structure:
 
 ```md
-## Executive summary
+## Data-flow Review Report: <review scope>
 
-- Highest-cost structural issues first.
-- No micro-optimization filler.
+### Summary
+| Dimension | Status |
+|-----------|--------|
+| Reduction and pagination shape | Pass/Issues |
+| Streaming and materialization | Pass/Issues |
+| Allocation and copying | Pass/Issues |
+| I/O batching and projection | Pass/Issues |
+| Concurrency, locking, and backpressure | Pass/Issues |
 
-## Severity rubric used
+### Issues by Priority
 
-- blocker: must fix before acceptance.
-- concern: should fix or explicitly accept as debt.
-- suggestion: optional improvement.
+#### BLOCKER (Must fix before acceptance)
+- **<short finding title>**
+  - Target artifact: <artifact path>
+  - Upstream artifact: <artifact path or none>
+  - Requires user decision: <yes/no>
+  - Rule reference: <repository rule, streaming rule, pagination rule, or data-flow doctrine>
+  - Location: <file, symbol, API, query, loop, or workflow>
+  - Evidence: <source/cardinality/reduction/transformation/materialization/sink evidence>
+  - Problem: <what cost is paid too early, unnecessarily, or incorrectly>
+  - Impact: <correctness, memory, latency, throughput, allocation, backpressure, lock, I/O, or scaling impact>
+  - Recommendation: <concrete lower-cost shape>
+  - Scope: <local or cross-cutting>
+  - Confidence: <high, medium, or low>
 
-## Findings
+#### CONCERN (Should fix or explicitly accept)
+- **<short finding title>**
+  - Target artifact: <artifact path>
+  - Upstream artifact: <artifact path or none>
+  - Requires user decision: <yes/no>
+  - Rule reference: <repository rule, streaming rule, pagination rule, or data-flow doctrine>
+  - Location: <file, symbol, API, query, loop, or workflow>
+  - Evidence: <source/cardinality/reduction/transformation/materialization/sink evidence>
+  - Problem: <what cost is paid too early, unnecessarily, or incorrectly>
+  - Impact: <correctness, memory, latency, throughput, allocation, backpressure, lock, I/O, or scaling impact>
+  - Recommendation: <concrete lower-cost shape>
+  - Scope: <local or cross-cutting>
+  - Confidence: <high, medium, or low>
 
-### 1. Short finding title
+#### SUGGESTION (Optional improvement)
+- **<short finding title>**
+  - Target artifact: <artifact path>
+  - Upstream artifact: <artifact path or none>
+  - Requires user decision: <yes/no>
+  - Rule reference: <repository rule, streaming rule, pagination rule, or data-flow doctrine>
+  - Location: <file, symbol, API, query, loop, or workflow>
+  - Evidence: <source/cardinality/reduction/transformation/materialization/sink evidence>
+  - Problem: <what cost is paid too early, unnecessarily, or incorrectly>
+  - Impact: <correctness, memory, latency, throughput, allocation, backpressure, lock, I/O, or scaling impact>
+  - Recommendation: <concrete lower-cost shape>
+  - Scope: <local or cross-cutting>
+  - Confidence: <high, medium, or low>
 
-Severity: blocker
-Category: data flow
-Rule reference: repository rule, streaming rule, pagination rule, or data-flow doctrine
-Location: file, symbol, API, query, loop, or workflow
-Evidence: <evidence> — source/cardinality/reduction/transformation/materialization/sink evidence
-Problem: what cost is paid too early, unnecessarily, or incorrectly
-Why it matters: correctness, memory, latency, throughput, allocation, backpressure, lock, I/O, or scaling impact
-Recommended remediation: concrete lower-cost shape
-Scope: local or cross-cutting
-Confidence: high, medium, or low
-
-## Data-flow and allocation audit
-
+### Data-flow and Allocation Audit
 Summarize source-to-sink paths reviewed and where materialization, copying, parsing, serialization, locking, pagination, batching, and backpressure occur.
 
-## False positives / keep as-is
-
+### False Positives / Keep as-is
 List suspicious-looking costs that are justified and why.
+
+### Final Assessment
+- If blocker issues exist: "X blocker issue(s) found. Fix before accepting the reviewed implementation."
+- If only concern issues exist: "No blocker issues. Y concern(s) require fixes or explicit acceptance before accepting the reviewed implementation."
+- If only suggestion issues exist: "No blocker or concern issues. Z suggestion(s) to consider."
+- If no issues exist: "No issues found. Data-flow shape is acceptable for the reviewed scope."
 ```
 
-If no issues are found, return `No issues found` after the audit and false-positive sections.
+If a priority section has no issues, write `None` under that heading. Keep the audit and keep-as-is sections even when no issues are found.

@@ -24,18 +24,21 @@ Review proposal, specs, design, and tasks for a named OpenSpec change as one pla
 - Review proposal/specs/design/tasks together as one planning review.
 - Do not review implementation, code, tests, CI, or archive readiness.
 - Do not edit artifacts while reviewing; return findings for a separate revision step.
-- Return findings inline by default. Only write a review file if the caller explicitly asks.
+- Return the whole issue list inline by default. Only write a review file if the caller explicitly asks.
+- The review is single-shot: inspect every in-scope artifact and section now, surface all actionable issues observable from the current evidence, and do not intentionally save findings for later rounds.
+- After the reported findings are addressed, a follow-up review over unchanged planning material should ideally report only net new issues introduced by the edits or made newly reviewable by newly supplied evidence.
+- If you report a later-round issue from previously reviewed planning material, explicitly state why it was not reliably reviewable earlier.
 
 ## Workflow
 
 1. Read proposal, specs, design, and tasks together as one planning set.
 2. Route every finding to one target artifact. If the root cause belongs upstream, name that upstream artifact explicitly.
 3. Prefer one integrated review over mechanical fan-out.
-4. Collect findings, deduplicate them, and report the highest-severity actionable set.
-5. Fix blockers by updating only the targeted planning artifact, or report them as required changes.
-6. If a finding points to an upstream artifact, route the finding to that artifact.
-7. Fix concerns or ask the user to explicitly accept them.
-8. Ask the user when a finding requires a product, scope, or design decision that is not already in the artifacts.
+4. Collect all findings across all planning artifacts, deduplicate them, and report the complete actionable issue list in one pass.
+5. Do not stop after the highest-severity class, the first few issues, or a representative sample; include every CRITICAL, WARNING, and SUGGESTION discovered.
+6. Do not intentionally save issues in unchanged sections for later rounds; if the evidence exists in this review pass, report it now.
+7. If a finding points to an upstream artifact, route the finding to that artifact.
+8. Mark findings that require a product, scope, or design decision not already in the artifacts as requiring a user decision.
 9. Treat suggestions as optional.
 
 Do not write application code. Do not run apply, archive, git commit, git push, PR creation, or finishing-branch behavior.
@@ -97,51 +100,73 @@ Check that the planning artifacts as a set:
 - stay consistent with each other;
 - do not contradict on scope, capabilities, behavior, decisions, or sequencing;
 - contain no orphan design elements or tasks unrelated to proposal/specs;
-- are ready to drive implementation only after blocker findings are resolved.
+- are ready to drive implementation only after CRITICAL findings are resolved and WARNING findings are fixed or explicitly accepted.
 
 ## Output
 
-Return concise findings as prose/bullets. Use severity `blocker`, `concern`, or `suggestion`. Do not use tables or pipe-delimited rows.
+Generate a complete planning review report: summary scorecard, issues grouped by priority, and final assessment. 
+Report the whole issue list; do not limit output to the highest-severity actionable set.
 
-- `blocker`: planning cannot safely drive implementation.
-- `concern`: planning can continue only if the user explicitly accepts the ambiguity or trade-off.
-- `suggestion`: optional clarity improvement.
+Use these priorities:
 
-```md
-### <Severity>: <short finding title>
+- `CRITICAL` (must fix before implementation): planning cannot safely drive implementation, contradicts OpenSpec semantics, or leaves required behavior/design/tasking undefined.
+- `WARNING` (should fix or explicitly accept): planning can continue only if the user accepts the ambiguity, trade-off, or debt.
+- `SUGGESTION` (nice to fix): optional clarity or polish improvement.
 
-Target artifact: <artifact path>
-Upstream artifact: <artifact path or none>
-Requires user decision: <yes/no>
-Location: <section, line, or path>
-Evidence: <quoted or summarized evidence>
-Problem: <what is wrong>
-Impact: <why it matters>
-Recommended fix: <smallest concrete fix>
-```
-
-If asked to write a review artifact, use this prose/bullet structure and do not turn it into a table:
+Use clear markdown with this structure:
 
 ```md
-# Planning Artifact Review
+## Planning Review Report: <change-name>
 
-## Review Target
+### Summary
+| Dimension | Status |
+|-----------|--------|
+| Proposal | Pass/Issues |
+| Specs | Pass/Issues |
+| Design | Pass/Issues |
+| Tasks | Pass/Issues |
+| Cross-artifact coherence | Pass/Issues |
 
-## Decision
+### Issues by Priority
 
-- [ ] Pass
-- [ ] Pass with concerns
-- [ ] Fail
+#### CRITICAL (Must fix before implementation)
+- **<short finding title>**
+  - Target artifact: <artifact path>
+  - Upstream artifact: <artifact path or none>
+  - Requires user decision: <yes/no>
+  - Location: <section, line, or path>
+  - Evidence: <quoted or summarized evidence>
+  - Problem: <what is wrong>
+  - Impact: <why it matters>
+  - Recommendation: <smallest concrete fix>
 
-## Blockers
+#### WARNING (Should fix or explicitly accept)
+- **<short finding title>**
+  - Target artifact: <artifact path>
+  - Upstream artifact: <artifact path or none>
+  - Requires user decision: <yes/no>
+  - Location: <section, line, or path>
+  - Evidence: <quoted or summarized evidence>
+  - Problem: <what is wrong>
+  - Impact: <why it matters>
+  - Recommendation: <smallest concrete fix>
 
-## Concerns
+#### SUGGESTION (Nice to fix)
+- **<short finding title>**
+  - Target artifact: <artifact path>
+  - Upstream artifact: <artifact path or none>
+  - Requires user decision: <yes/no>
+  - Location: <section, line, or path>
+  - Evidence: <quoted or summarized evidence>
+  - Problem: <what is wrong>
+  - Impact: <why it matters>
+  - Recommendation: <smallest concrete fix>
 
-## Suggestions
-
-## Required Fixes
-
-## Evidence
+### Final Assessment
+- If CRITICAL issues exist: "X critical issue(s) found. Fix before implementation."
+- If only WARNING issues exist: "No critical issues. Y warning(s) require fixes or explicit acceptance before implementation."
+- If only SUGGESTION issues exist: "No critical or warning issues. Z suggestion(s) to consider. Ready for implementation."
+- If no issues exist: "No issues found. Ready for implementation."
 ```
 
-Record evidence, whether a user decision is required, and the smallest concrete fix. If no issues are found, return `No issues found` or mark Decision as Pass and leave findings sections empty.
+If a priority section has no issues, write `None` under that heading. When asked to write a review artifact, use the same report structure. Every issue must include evidence, whether a user decision is required, and a specific actionable recommendation; avoid vague recommendations such as "consider reviewing".
