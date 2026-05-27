@@ -7,8 +7,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { type ExtensionAPI, isToolCallEventType } from "@earendil-works/pi-coding-agent";
-import { handleCodebaseMemoryDiscoveryGate, resetCodebaseMemoryGate } from "./codebase-memory-gate.js";
-import { FLAG_DEBUG, MSG_TYPE_CODEBASE_MEMORY_GUIDANCE, MSG_TYPE_CODEBASE_MEMORY_TOOL_GUIDANCE, MSG_TYPE_GIT_CONTEXT, MSG_TYPE_WORKFLOW_GUIDANCE } from "./constants.js";
+import { FLAG_DEBUG, MSG_TYPE_CODEBASE_MEMORY_GUIDANCE, MSG_TYPE_GIT_CONTEXT, MSG_TYPE_WORKFLOW_GUIDANCE } from "./constants.js";
 import {
 	clearGitContextCache,
 	isGitMutatingCommand,
@@ -17,17 +16,17 @@ import {
 } from "./git-context.js";
 import { clearInjectionState, handleToolCallGuidance, injectRootGuidance } from "./guidance.js";
 import { findStaleOpenSpecAssets } from "./managed-assets.js";
-import { EXPECTED_CODEBASE_MEMORY_TOOLS, codebaseMemoryMcpNeedsDirectTools, findWorkflowOverlaps, hasCodebaseMemoryMcp } from "./package-checks.js";
+import { CODEBASE_MEMORY_INSTALL_COMMAND, EXPECTED_CODEBASE_MEMORY_TOOLS, findWorkflowOverlaps, getCodebaseMemorySupportStatus } from "./package-checks.js";
 
 const OPENSPEC_DIRS = [
 	"openspec/changes",
 	"openspec/profiles",
 ] as const;
 
-const msgMissingCodebaseMemory = () =>
-	`codebase-memory MCP is required for the full pi-mimir architecture-memory-first workflow. Run /openspec:init or /openspec:update to configure the bundled codebase-memory-mcp server when one is not already present, then verify tools: ${EXPECTED_CODEBASE_MEMORY_TOOLS.join(", ")}. Exact file reads are degraded fallback only.`;
-const msgMissingDirectTools = () =>
-	"codebase-memory MCP is configured without directTools: true. It can still work through MCP, but direct codebase_memory_* tools may not be exposed.";
+const msgMissingCodebaseMemory = (pluginInstalled: boolean, missingTools: string[]) =>
+	pluginInstalled
+		? `codebase-memory support is still inactive in this session. Missing tools: ${missingTools.join(", ")}. Reload Pi or fix the plugin configuration before claiming full workflow readiness. Degraded discovery is in effect.`
+		: `codebase-memory support is required for the full pi-mimir architecture-memory-first workflow. Install it with: ${CODEBASE_MEMORY_INSTALL_COMMAND}. Expected tools: ${EXPECTED_CODEBASE_MEMORY_TOOLS.join(", ")}. Degraded discovery is in effect until the plugin is installed and active.`;
 const msgWorkflowOverlap = (list: string) =>
 	`Known workflow plugin overlap detected (${list}). pi-mimir complements OpenSpec and offers optional composed plan/implement workflows; it does not treat workflow skill names or generated OpenSpec skills as conflicts.`;
 const msgStaleOpenSpecAssets = (n: number) =>
@@ -61,7 +60,6 @@ type UI = { notify: (msg: string, sev: "info" | "warning" | "error") => void };
 
 export function registerSessionHooks(pi: ExtensionAPI): void {
 	pi.on("session_start", async (_event, ctx) => {
-		resetCodebaseMemoryGate(ctx.cwd);
 		clearInjectionState();
 		injectWorkflowGuidance(pi);
 		injectCodebaseMemoryGuidance(pi);
@@ -71,14 +69,13 @@ export function registerSessionHooks(pi: ExtensionAPI): void {
 			pi.sendMessage({ customType: MSG_TYPE_GIT_CONTEXT, content: msg, display: !!pi.getFlag(FLAG_DEBUG) }),
 		);
 		if (ctx.hasUI) {
-			warnMissingCodebaseMemory(ctx.ui);
+			warnMissingCodebaseMemory(ctx.ui, pi);
 			warnWorkflowOverlaps(ctx.ui, ctx.cwd);
 			warnStaleOpenSpecAssets(ctx.ui, ctx.cwd);
 		}
 	});
 
 	pi.on("session_compact", async (_event, ctx) => {
-		resetCodebaseMemoryGate(ctx.cwd);
 		clearInjectionState();
 		clearGitContextCache();
 		resetInjectedMarker();
@@ -91,17 +88,12 @@ export function registerSessionHooks(pi: ExtensionAPI): void {
 	});
 
 	pi.on("session_shutdown", async () => {
-		resetCodebaseMemoryGate();
 		clearInjectionState();
 		clearGitContextCache();
 		resetInjectedMarker();
 	});
 
 	pi.on("tool_call", async (event, ctx) => {
-		const guidance = handleCodebaseMemoryDiscoveryGate(event, ctx.cwd);
-		if (guidance) {
-			pi.sendMessage({ customType: MSG_TYPE_CODEBASE_MEMORY_TOOL_GUIDANCE, content: guidance.content, display: !!pi.getFlag(FLAG_DEBUG) });
-		}
 		handleToolCallGuidance(event, ctx, pi);
 		if (isToolCallEventType("bash", event) && isGitMutatingCommand(event.input.command)) {
 			clearGitContextCache();
@@ -142,12 +134,10 @@ async function injectGitContext(pi: ExtensionAPI, send: (msg: string) => void): 
 	if (msg) send(msg);
 }
 
-function warnMissingCodebaseMemory(ui: UI): void {
-	if (!hasCodebaseMemoryMcp()) {
-		ui.notify(msgMissingCodebaseMemory(), "warning");
-		return;
-	}
-	if (codebaseMemoryMcpNeedsDirectTools()) ui.notify(msgMissingDirectTools(), "info");
+function warnMissingCodebaseMemory(ui: UI, pi: ExtensionAPI): void {
+	const status = getCodebaseMemorySupportStatus(pi);
+	if (status.toolsAvailable) return;
+	ui.notify(msgMissingCodebaseMemory(status.packageInstalled, status.missingTools), "warning");
 }
 
 function warnWorkflowOverlaps(ui: UI, cwd: string): void {

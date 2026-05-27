@@ -6,7 +6,8 @@ It provides focused entrypoints for planning, implementation, and review while k
 
 ## Packages
 
-- `packages/pi-mimir` — the Pi package: extension, agents, skill seeds, OpenSpec schema assets, and tests.
+- `packages/pi-mimir` — the OpenSpec workflow package: extension, agents, skill seeds, OpenSpec schema assets, and tests.
+- `packages/pi-codebase-memory` — standalone codebase-memory plugin for MCP wiring, guidance, and the public skill.
 - `packages/advisor` — supporting package in this workspace.
 
 ## Main workflow
@@ -17,7 +18,11 @@ After installing the Pi package, initialize a repository with:
 /openspec:init
 ```
 
-For full architecture-aware discovery, install and configure [codebase-memory MCP](https://github.com/DeusData/codebase-memory-mcp).
+For full architecture-aware discovery, install the separate `pi-codebase-memory` plugin:
+
+```text
+pi install @casualjim/pi-codebase-memory
+```
 
 Primary skill entrypoints:
 

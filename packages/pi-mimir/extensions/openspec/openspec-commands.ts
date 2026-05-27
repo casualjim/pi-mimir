@@ -6,9 +6,8 @@ import { PACKAGE_ROOT, syncBundledAgents } from "./agents.js";
 import { writeOpenSpecAssetManifest } from "./managed-assets.js";
 import { readMimirManagedManifest, writeMimirManagedManifest } from "./managed-manifest.js";
 import {
-	CODEBASE_MEMORY_BRIDGE_PACKAGE,
 	EXPECTED_CODEBASE_MEMORY_TOOLS,
-	ensureCodebaseMemoryMcpConfig,
+	getCodebaseMemorySupportStatus,
 } from "./package-checks.js";
 import { registerOpenSpecCliOutputRenderer, sendOpenSpecCliOutput } from "./openspec-output-renderer.js";
 import { syncBundledSchemas } from "./schema-sync.js";
@@ -36,17 +35,11 @@ export interface SyncBundledSkillsResult {
 	removed: string[];
 }
 
-export interface CodebaseMemoryBridgeResult {
-	adapterAlreadyInstalled: boolean;
-	adapterInstallAttempted: boolean;
-	adapterInstallSucceeded: boolean;
-	adapterInstallError?: string;
-	codebaseMemoryMcpConfigured: boolean;
-	codebaseMemoryMcpConfiguredAlready: boolean;
-	codebaseMemoryMcpConfigCreated: boolean;
-	codebaseMemoryMcpConfigPath: string;
-	codebaseMemoryMcpConfigError?: string;
-	codebaseMemoryMcpNeedsDirectTools: boolean;
+export interface CodebaseMemorySupportResult {
+	packageInstalled: boolean;
+	toolsAvailable: boolean;
+	missingTools: string[];
+	installCommand: string;
 }
 
 export function ensureReviewGatedOpenSpecConfig(cwd: string): EnsureReviewGatedConfigResult {
@@ -203,7 +196,7 @@ export function registerOpenSpecCommands(pi: ExtensionAPI): void {
 			const skills = syncBundledSkills(ctx.cwd);
 			const agents = syncBundledAgents(ctx.cwd);
 			writeOpenSpecAssetManifest(ctx.cwd);
-			const codebaseMemory = await ensureCodebaseMemoryBridge(pi);
+			const codebaseMemory = getCodebaseMemorySupportStatus(pi);
 
 			notify(ctx, buildInitReport(config, skills, agents, schemas, codebaseMemory), initReportLevel(schemas, agents, codebaseMemory));
 		},
@@ -224,21 +217,6 @@ export function registerOpenSpecCommands(pi: ExtensionAPI): void {
 	});
 }
 
-export async function ensureCodebaseMemoryBridge(_pi: ExtensionAPI): Promise<CodebaseMemoryBridgeResult> {
-	const mcpConfig = ensureCodebaseMemoryMcpConfig();
-	return {
-		adapterAlreadyInstalled: true,
-		adapterInstallAttempted: false,
-		adapterInstallSucceeded: true,
-		codebaseMemoryMcpConfigured: mcpConfig.configuredAlready || mcpConfig.created,
-		codebaseMemoryMcpConfiguredAlready: mcpConfig.configuredAlready,
-		codebaseMemoryMcpConfigCreated: mcpConfig.created,
-		codebaseMemoryMcpConfigPath: mcpConfig.path,
-		codebaseMemoryMcpConfigError: mcpConfig.error,
-		codebaseMemoryMcpNeedsDirectTools: false,
-	};
-}
-
 async function runOpenSpecCli(pi: ExtensionAPI, ctx: CommandContext, label: string, args: string[]): Promise<void> {
 	const result = await pi.exec("openspec", args, { cwd: ctx.cwd, timeout: OPENSPEC_TIMEOUT_MS });
 	const output = [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
@@ -257,7 +235,7 @@ function buildInitReport(
 	skills: SyncBundledSkillsResult,
 	agents: ReturnType<typeof syncBundledAgents>,
 	schemas: ReturnType<typeof syncBundledSchemas>,
-	codebaseMemory: CodebaseMemoryBridgeResult,
+	codebaseMemory: CodebaseMemorySupportResult,
 ): string {
 	const lines = ["OpenSpec initialized for Pi review-gated workflow."];
 	lines.push(config.updated ? `Configured openspec/config.yaml with schema: ${REVIEW_GATED_SCHEMA}.` : "openspec/config.yaml already uses schema: review-gated.");
@@ -267,16 +245,13 @@ function buildInitReport(
 
 	if (schemas.errors.length > 0) lines.push(`Schema sync errors: ${schemas.errors.map((e) => e.message).join("; ")}`);
 	if (agents.errors.length > 0) lines.push(`Agent sync errors: ${agents.errors.map((e) => e.message).join("; ")}`);
-	lines.push(`pi-mcp-adapter bridge: ${codebaseMemoryBridgeSummary(codebaseMemory)}.`);
-	if (codebaseMemory.codebaseMemoryMcpConfigured) {
-		lines.push(codebaseMemory.codebaseMemoryMcpConfigCreated
-			? `codebase-memory MCP configured in ${codebaseMemory.codebaseMemoryMcpConfigPath}. Restart/reload Pi if the new MCP server is not active yet.`
-			: `Existing codebase-memory MCP configuration preserved. Expected tools: ${EXPECTED_CODEBASE_MEMORY_TOOLS.join(", ")}.`);
-		if (codebaseMemory.codebaseMemoryMcpNeedsDirectTools) lines.push("NOTE: codebase-memory MCP is configured without directTools: true; it can still work through MCP, but direct codebase_memory_* tools may not be exposed.");
+	if (codebaseMemory.toolsAvailable) {
+		lines.push(`codebase-memory support is active. Expected tools: ${EXPECTED_CODEBASE_MEMORY_TOOLS.join(", ")}.`);
 	} else {
-		lines.push(
-			`WARNING: codebase-memory MCP is required for full pi-mimir architecture-memory-first discovery but could not be configured automatically${codebaseMemory.codebaseMemoryMcpConfigError ? `: ${codebaseMemory.codebaseMemoryMcpConfigError}` : ""}. Verify MCP config at ${codebaseMemory.codebaseMemoryMcpConfigPath}. Exact file reads are degraded fallback only.`,
-		);
+		lines.push(`Workflow setup is incomplete: codebase-memory support is not active in this session.`);
+		lines.push(`Install support with: ${codebaseMemory.installCommand}`);
+		if (codebaseMemory.packageInstalled) lines.push(`The plugin appears to be installed, but these tools are still unavailable: ${codebaseMemory.missingTools.join(", ")}. Reload Pi or fix the plugin configuration before claiming full workflow readiness.`);
+		else lines.push(`Missing tools: ${codebaseMemory.missingTools.join(", ")}. Exact file reads are degraded fallback only until the plugin is installed and active.`);
 	}
 	return lines.join("\n");
 }
@@ -284,13 +259,9 @@ function buildInitReport(
 function initReportLevel(
 	schemas: ReturnType<typeof syncBundledSchemas>,
 	agents: ReturnType<typeof syncBundledAgents>,
-	codebaseMemory: CodebaseMemoryBridgeResult,
+	codebaseMemory: CodebaseMemorySupportResult,
 ): "info" | "warning" {
-	return schemas.errors.length > 0 || agents.errors.length > 0 || !codebaseMemory.adapterInstallSucceeded || !codebaseMemory.codebaseMemoryMcpConfigured ? "warning" : "info";
-}
-
-function codebaseMemoryBridgeSummary(_result: CodebaseMemoryBridgeResult): string {
-	return `${CODEBASE_MEMORY_BRIDGE_PACKAGE} compatibility retained; codebase-memory-mcp configured directly when missing`;
+	return schemas.errors.length > 0 || agents.errors.length > 0 || !codebaseMemory.toolsAvailable ? "warning" : "info";
 }
 
 function summary(result: ReturnType<typeof syncBundledSchemas>): string {

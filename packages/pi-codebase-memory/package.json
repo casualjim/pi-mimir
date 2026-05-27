@@ -1,8 +1,8 @@
 {
-  "name": "pi-mimir",
+  "name": "@casualjim/pi-codebase-memory",
   "version": "0.1.0",
   "license": "MIT",
-  "description": "OpenSpec-driven development workflow for Pi Agent",
+  "description": "Codebase-memory MCP wiring and guidance plugin for Pi",
   "keywords": [
     "pi-package"
   ],
@@ -10,25 +10,22 @@
   "main": "index.js",
   "files": [
     "extensions/",
-    "skillseeds/",
-    "agents/",
-    "openspec/",
-    "rules/",
-    "templates/",
+    "skills/",
     "README.md"
   ],
   "pi": {
     "extensions": [
-      "extensions/openspec"
+      "extensions/codebase-memory"
     ],
-    "skills": []
+    "skills": [
+      "skills"
+    ]
   },
   "dependencies": {
-    "@earendil-works/pi-tui": "*"
+    "codebase-memory-mcp": "^0.6.1"
   },
   "scripts": {
     "test": "vitest run",
-    "test:e2e": "node --experimental-strip-types tests/integration/run-e2e.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

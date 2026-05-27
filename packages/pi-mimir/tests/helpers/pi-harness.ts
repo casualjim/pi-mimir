@@ -49,6 +49,8 @@ export interface HarnessOptions {
 	execStubs?: Record<string, ExecStub | ((cmd: string, args: string[]) => Promise<ExecStub>)>;
 	/** Initial flag values */
 	flagValues?: Record<string, boolean | string>;
+	/** Tool names exposed by pi.getAllTools() */
+	toolNames?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -130,6 +132,9 @@ export function createHarness(options: HarnessOptions = {}) {
 		},
 		registerTool() {},
 		registerShortcut() {},
+		getAllTools() {
+			return (options.toolNames ?? []).map((name) => ({ name, description: name }));
+		},
 		registerMessageRenderer(name: string, renderer: Function) {
 			messageRenderers.set(name, renderer);
 		},

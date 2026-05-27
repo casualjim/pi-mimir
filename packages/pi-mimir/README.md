@@ -10,6 +10,7 @@ OpenSpec workflow package for Pi. `pi-mimir` adds a review-gated OpenSpec workfl
 - `review-implementation` — run a standalone implementation review over existing implementation evidence.
 - A `review-gated` OpenSpec schema and supporting templates.
 - Session guidance for codebase-memory-first discovery.
+- Explicit incomplete-setup reporting when the separate `pi-codebase-memory` plugin is not active.
 
 `pi-mimir` does not commit, push, create pull requests, archive changes, or run branch-finishing workflows. Generated OpenSpec skills are allowed to coexist and may be called by the full workflow where appropriate.
 
@@ -26,8 +27,8 @@ The init command:
 1. runs `openspec init --tools pi`,
 2. configures `openspec/config.yaml` to use the `review-gated` schema,
 3. syncs bundled schemas, skills, and agents,
-4. configures the bundled `codebase-memory-mcp` server when no existing codebase-memory MCP server is present, and
-5. keeps existing codebase-memory MCP configuration unchanged when already present.
+4. checks whether the required `codebase_memory_*` tools are active, and
+5. reports setup as incomplete with an install command when `pi-codebase-memory` is not yet active.
 
 To refresh OpenSpec Pi tooling later, run:
 
@@ -41,10 +42,15 @@ The update command runs `openspec update`, keeps `openspec/config.yaml` on the `
 
 - Pi with package support.
 - OpenSpec CLI available as `openspec`.
-- Bundled [codebase-memory MCP](https://github.com/DeusData/codebase-memory-mcp) for full architecture-aware discovery.
-- `pi-mcp-adapter` compatibility is retained; existing codebase-memory MCP server definitions are preserved.
+- [`@casualjim/pi-codebase-memory`](../pi-codebase-memory/README.md) installed in Pi for full architecture-aware discovery.
 
-Without codebase-memory, workflows can still use exact file reads and shell inspection, but should report discovery as degraded and avoid claiming architecture-aware analysis.
+Install codebase-memory support with:
+
+```text
+pi install @casualjim/pi-codebase-memory
+```
+
+Without that plugin active, workflows can still use exact file reads and shell inspection, but should report discovery as degraded and avoid claiming architecture-aware analysis.
 
 ## Usage
 

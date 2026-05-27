@@ -1,19 +1,16 @@
 /**
  * pi-mimir readiness checks.
  *
- * Keeps codebase-memory MCP detection and workflow overlap warnings without the
- * retired rpiv sibling setup registry.
+ * Keeps workflow overlap warnings and checks whether the external
+ * pi-codebase-memory plugin is installed and active.
  */
 
-import { createRequire } from "node:module";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 
-const require = createRequire(import.meta.url);
-
-export const CODEBASE_MEMORY_BRIDGE_PACKAGE = "npm:pi-mcp-adapter";
-export const CODEBASE_MEMORY_MCP_SERVER_NAME = "codebase-memory-mcp";
+export const CODEBASE_MEMORY_PLUGIN_PACKAGE = "@casualjim/pi-codebase-memory";
+export const CODEBASE_MEMORY_INSTALL_COMMAND = `pi install ${CODEBASE_MEMORY_PLUGIN_PACKAGE}`;
 export const EXPECTED_CODEBASE_MEMORY_TOOLS = [
 	"codebase_memory_get_architecture",
 	"codebase_memory_search_graph",
@@ -28,10 +25,6 @@ function piHome(): string {
 
 function piAgentSettingsPath(): string {
 	return join(piHome(), ".pi", "agent", "settings.json");
-}
-
-function piAgentMcpPath(): string {
-	return join(piHome(), ".pi", "agent", "mcp.json");
 }
 
 function readText(path: string): string {
@@ -54,94 +47,44 @@ function readInstalledPackages(): string[] {
 	}
 }
 
-export function hasPiMcpAdapterInstalled(): boolean {
-	return readInstalledPackages().some((entry) => /(?:^|npm:)pi-mcp-adapter(?:@|$)/i.test(entry));
+export function hasPiCodebaseMemoryInstalled(): boolean {
+	return readInstalledPackages().some((entry) => new RegExp(`(?:^|npm:)${CODEBASE_MEMORY_PLUGIN_PACKAGE.replace("/", "\\/")}(?:@|$)`, "i").test(entry));
 }
 
-interface McpServerConfig {
-	command?: unknown;
-	args?: unknown;
-	directTools?: unknown;
+export interface CodebaseMemoryToolStatus {
+	toolsAvailable: boolean;
+	missingTools: string[];
 }
 
-interface McpConfig {
-	mcpServers?: Record<string, McpServerConfig>;
+export interface CodebaseMemorySupportStatus extends CodebaseMemoryToolStatus {
+	packageInstalled: boolean;
+	installCommand: string;
 }
 
-export function hasCodebaseMemoryMcpConfig(raw: string): boolean {
-	return getCodebaseMemoryMcpConfigStatus(raw).configured;
+export function getCodebaseMemoryToolStatus(pi: { getAllTools?: (() => unknown[]) | undefined }): CodebaseMemoryToolStatus {
+	const tools = typeof pi.getAllTools === "function" ? pi.getAllTools() : [];
+	const toolNames = new Set(
+		Array.isArray(tools)
+			? tools.map((tool) => {
+				if (tool && typeof tool === "object" && "name" in tool && typeof (tool as { name?: unknown }).name === "string") return (tool as { name: string }).name;
+				return typeof tool === "string" ? tool : "";
+			}).filter(Boolean)
+			: [],
+	);
+	const missingTools = EXPECTED_CODEBASE_MEMORY_TOOLS.filter((name) => !toolNames.has(name));
+	return {
+		toolsAvailable: missingTools.length === 0,
+		missingTools,
+	};
 }
 
-export function codebaseMemoryMcpNeedsDirectToolsConfig(raw: string): boolean {
-	return getCodebaseMemoryMcpConfigStatus(raw).needsDirectTools;
-}
-
-export function getCodebaseMemoryMcpConfigStatus(raw: string): { configured: boolean; directTools: boolean; needsDirectTools: boolean } {
-	if (!raw.trim()) return { configured: false, directTools: false, needsDirectTools: false };
-	try {
-		const parsed = JSON.parse(raw) as McpConfig;
-		const servers = Object.entries(parsed.mcpServers ?? {}).filter(([name, server]) => hasCodebaseMemoryMcpReference(name) || hasCodebaseMemoryMcpReference(server));
-		const directTools = servers.some(([, server]) => server.directTools === true);
-		return { configured: servers.length > 0, directTools, needsDirectTools: servers.length > 0 && !directTools };
-	} catch {
-		return { configured: false, directTools: false, needsDirectTools: false };
-	}
-}
-
-function hasCodebaseMemoryMcpReference(value: unknown): boolean {
-	if (typeof value === "string") return /codebase-memory-mcp/i.test(value);
-	if (Array.isArray(value)) return value.some(hasCodebaseMemoryMcpReference);
-	if (value && typeof value === "object") return Object.entries(value).some(([key, entry]) => hasCodebaseMemoryMcpReference(key) || hasCodebaseMemoryMcpReference(entry));
-	return false;
-}
-
-export function hasCodebaseMemoryMcp(): boolean {
-	return hasCodebaseMemoryMcpConfig(readText(piAgentMcpPath()));
-}
-
-export function codebaseMemoryMcpNeedsDirectTools(): boolean {
-	return codebaseMemoryMcpNeedsDirectToolsConfig(readText(piAgentMcpPath()));
-}
-
-export interface EnsureCodebaseMemoryMcpConfigResult {
-	configuredAlready: boolean;
-	created: boolean;
-	path: string;
-	serverName?: string;
-	error?: string;
-}
-
-export function resolveBundledCodebaseMemoryMcpBin(): string | undefined {
-	try {
-		return require.resolve("codebase-memory-mcp/bin.js");
-	} catch {
-		return undefined;
-	}
-}
-
-export function ensureCodebaseMemoryMcpConfig(): EnsureCodebaseMemoryMcpConfigResult {
-	const path = piAgentMcpPath();
-	const raw = readText(path);
-	if (hasCodebaseMemoryMcpConfig(raw)) return { configuredAlready: true, created: false, path };
-
-	const bin = resolveBundledCodebaseMemoryMcpBin();
-	if (!bin) return { configuredAlready: false, created: false, path, error: "Bundled codebase-memory-mcp binary could not be resolved" };
-
-	try {
-		const parsed = raw.trim() ? JSON.parse(raw) as McpConfig : {};
-		const mcpServers = parsed.mcpServers && typeof parsed.mcpServers === "object" ? parsed.mcpServers : {};
-		mcpServers[CODEBASE_MEMORY_MCP_SERVER_NAME] = {
-			command: process.execPath,
-			args: [bin],
-			directTools: true,
-		};
-		const next: McpConfig = { ...parsed, mcpServers };
-		mkdirSync(dirname(path), { recursive: true });
-		writeFileSync(path, `${JSON.stringify(next, null, 2)}\n`, "utf-8");
-		return { configuredAlready: false, created: true, path, serverName: CODEBASE_MEMORY_MCP_SERVER_NAME };
-	} catch (error) {
-		return { configuredAlready: false, created: false, path, error: error instanceof Error ? error.message : String(error) };
-	}
+export function getCodebaseMemorySupportStatus(pi: { getAllTools?: (() => unknown[]) | undefined }): CodebaseMemorySupportStatus {
+	const toolStatus = getCodebaseMemoryToolStatus(pi);
+	return {
+		packageInstalled: hasPiCodebaseMemoryInstalled(),
+		installCommand: CODEBASE_MEMORY_INSTALL_COMMAND,
+		...toolStatus,
+	};
 }
 
 export function findWorkflowOverlaps(_cwd?: string): string[] {

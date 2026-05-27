@@ -6,11 +6,12 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { type SyncResult, syncBundledAgents } from "./agents.js";
 import {
-	ensureCodebaseMemoryBridge,
+	type CodebaseMemorySupportResult,
 	ensureReviewGatedOpenSpecConfig,
 	syncBundledSkills,
 } from "./openspec-commands.js";
 import { writeOpenSpecAssetManifest } from "./managed-assets.js";
+import { getCodebaseMemorySupportStatus } from "./package-checks.js";
 import { syncBundledSchemas } from "./schema-sync.js";
 
 const OPENSPEC_TIMEOUT_MS = 120_000;
@@ -42,7 +43,7 @@ export function registerUpdateAgentsCommand(pi: ExtensionAPI): void {
 			const skills = syncBundledSkills(ctx.cwd);
 			const agents = syncBundledAgents(ctx.cwd);
 			writeOpenSpecAssetManifest(ctx.cwd);
-			const codebaseMemory = await ensureCodebaseMemoryBridge(pi);
+			const codebaseMemory = getCodebaseMemorySupportStatus(pi);
 			if (!ctx.hasUI) return;
 			ctx.ui?.notify(buildUpdateReport(config.updated, schemas, skills, agents, codebaseMemory), updateReportLevel(schemas, agents, codebaseMemory));
 		},
@@ -54,7 +55,7 @@ function buildUpdateReport(
 	schemas: ReturnType<typeof syncBundledSchemas>,
 	skills: ReturnType<typeof syncBundledSkills>,
 	agents: SyncResult,
-	codebaseMemory: Awaited<ReturnType<typeof ensureCodebaseMemoryBridge>>,
+	codebaseMemory: CodebaseMemorySupportResult,
 ): string {
 	const lines = ["OpenSpec Pi workflow updated."];
 	lines.push(configUpdated ? "Configured openspec/config.yaml with schema: review-gated." : "openspec/config.yaml already uses schema: review-gated.");
@@ -64,9 +65,9 @@ function buildUpdateReport(
 
 	if (schemas.errors.length > 0) lines.push(`Schema sync errors: ${schemas.errors.map((e) => e.message).join("; ")}`);
 	if (agents.errors.length > 0) lines.push(`Agent sync errors: ${agents.errors.map((e) => e.message).join("; ")}`);
-	if (codebaseMemory.codebaseMemoryMcpConfigCreated) lines.push(`Configured codebase-memory MCP in ${codebaseMemory.codebaseMemoryMcpConfigPath}. Restart/reload Pi if the new MCP server is not active yet.`);
-	else if (codebaseMemory.codebaseMemoryMcpConfiguredAlready) lines.push("Existing codebase-memory MCP configuration preserved.");
-	else if (!codebaseMemory.codebaseMemoryMcpConfigured) lines.push(`WARNING: codebase-memory MCP is required for full pi-mimir architecture-memory-first discovery${codebaseMemory.codebaseMemoryMcpConfigError ? `: ${codebaseMemory.codebaseMemoryMcpConfigError}` : ""}.`);
+	if (codebaseMemory.toolsAvailable) lines.push("codebase-memory support is active.");
+	else if (codebaseMemory.packageInstalled) lines.push(`Workflow setup is incomplete: the plugin is installed, but these tools are unavailable in this session: ${codebaseMemory.missingTools.join(", ")}. Reload Pi or fix plugin configuration.`);
+	else lines.push(`Workflow setup is incomplete. Install codebase-memory support with: ${codebaseMemory.installCommand}`);
 	return lines.join("\n");
 }
 
@@ -107,7 +108,7 @@ function notify(ctx: CommandContext, message: string, level: "info" | "warning" 
 function updateReportLevel(
 	schemas: ReturnType<typeof syncBundledSchemas>,
 	agents: SyncResult,
-	codebaseMemory: Awaited<ReturnType<typeof ensureCodebaseMemoryBridge>>,
+	codebaseMemory: CodebaseMemorySupportResult,
 ): "info" | "warning" {
-	return schemas.errors.length > 0 || agents.errors.length > 0 || !codebaseMemory.adapterInstallSucceeded || !codebaseMemory.codebaseMemoryMcpConfigured ? "warning" : "info";
+	return schemas.errors.length > 0 || agents.errors.length > 0 || !codebaseMemory.toolsAvailable ? "warning" : "info";
 }
