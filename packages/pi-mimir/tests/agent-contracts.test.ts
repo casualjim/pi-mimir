@@ -39,6 +39,8 @@ describe("agent and skill contracts", () => {
 		expect(text).toContain("Review proposal/specs/design/tasks together as one planning review.");
 		expect(text).toContain("The review is single-shot");
 		expect(text).toContain("net new issues");
+		expect(text).toContain("Apply a materiality filter");
+		expect(text).toContain("Do not emit findings for wording-only");
 	});
 
 	it("reviewer loads consolidated planning review instead of artifact-specific planning skills", () => {

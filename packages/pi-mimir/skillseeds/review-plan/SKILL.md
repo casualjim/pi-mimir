@@ -28,6 +28,7 @@ Review proposal, specs, design, and tasks for a named OpenSpec change as one pla
 - The review is single-shot: inspect every in-scope artifact and section now, surface all actionable issues observable from the current evidence, and do not intentionally save findings for later rounds.
 - After the reported findings are addressed, a follow-up review over unchanged planning material should ideally report only net new issues introduced by the edits or made newly reviewable by newly supplied evidence.
 - If you report a later-round issue from previously reviewed planning material, explicitly state why it was not reliably reviewable earlier.
+- Apply a materiality filter: suppress wording-only, tone-only, prose-polish, or editorial findings when they do not materially change scope, behavior, risk, implementation readiness, or the concrete interpretation of the change.
 
 ## Workflow
 
@@ -35,11 +36,12 @@ Review proposal, specs, design, and tasks for a named OpenSpec change as one pla
 2. Route every finding to one target artifact. If the root cause belongs upstream, name that upstream artifact explicitly.
 3. Prefer one integrated review over mechanical fan-out.
 4. Collect all findings across all planning artifacts, deduplicate them, and report the complete actionable issue list in one pass.
-5. Do not stop after the highest-severity class, the first few issues, or a representative sample; include every CRITICAL, WARNING, and SUGGESTION discovered.
-6. Do not intentionally save issues in unchanged sections for later rounds; if the evidence exists in this review pass, report it now.
-7. If a finding points to an upstream artifact, route the finding to that artifact.
-8. Mark findings that require a product, scope, or design decision not already in the artifacts as requiring a user decision.
-9. Treat suggestions as optional.
+5. Apply a materiality filter before reporting: if fixing the issue would not meaningfully change implementation behavior, scope understanding, risk, design direction, tasking, or readiness, do not report it.
+6. Do not stop after the highest-severity class, the first few issues, or a representative sample; include every CRITICAL, WARNING, and SUGGESTION that survives the materiality filter.
+7. Do not intentionally save issues in unchanged sections for later rounds; if the evidence exists in this review pass and the issue is material, report it now.
+8. If a finding points to an upstream artifact, route the finding to that artifact.
+9. Mark findings that require a product, scope, or design decision not already in the artifacts as requiring a user decision.
+10. Treat suggestions as optional.
 
 Do not write application code. Do not run apply, archive, git commit, git push, PR creation, or finishing-branch behavior.
 
@@ -100,6 +102,7 @@ Check that the planning artifacts as a set:
 - stay consistent with each other;
 - do not contradict on scope, capabilities, behavior, decisions, or sequencing;
 - contain no orphan design elements or tasks unrelated to proposal/specs;
+- focus on substantive implementation readiness rather than editorial polish;
 - are ready to drive implementation only after CRITICAL findings are resolved and WARNING findings are fixed or explicitly accepted.
 
 ## Output
@@ -111,7 +114,9 @@ Use these priorities:
 
 - `CRITICAL` (must fix before implementation): planning cannot safely drive implementation, contradicts OpenSpec semantics, or leaves required behavior/design/tasking undefined.
 - `WARNING` (should fix or explicitly accept): planning can continue only if the user accepts the ambiguity, trade-off, or debt.
-- `SUGGESTION` (nice to fix): optional clarity or polish improvement.
+- `SUGGESTION` (nice to fix): optional improvement only when it materially improves understanding, reviewability, or implementation readiness.
+
+Do not emit findings for wording-only, tone-only, or editorial refinements that leave the substantive outcome unchanged.
 
 Use clear markdown with this structure:
 

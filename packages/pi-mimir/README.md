@@ -88,7 +88,7 @@ The runtime sends a non-blocking one-shot reminder on broad raw discovery tools 
 
 ## Review skills
 
-`review-plan` and `review-implementation` are the default standalone review entrypoints. They return the whole actionable issue list inline by default and are intended to be single-shot rather than staged across repeated rounds; persist findings only when explicitly asked.
+`review-plan` and `review-implementation` are the default standalone review entrypoints. They return the whole actionable issue list inline by default and are intended to be single-shot rather than staged across repeated rounds; for `review-plan`, wording-only or editorial comments with no meaningful outcome change are suppressed. Persist findings only when explicitly asked.
 
 `plan` uses a single consolidated planning reviewer. It does not fan out into artifact-specific planning review skills during the default workflow.
 
@@ -101,7 +101,7 @@ Manual implementation deep dives:
 
 The narrower `review-*` skills are opt-in deep dives, not automatic workflow steps.
 
-Planning review findings identify the target artifact, any upstream artifact that must be fixed first, and whether a user decision is required instead of guessing.
+Planning review findings identify the target artifact, any upstream artifact that must be fixed first, and whether a user decision is required instead of guessing. They are intended to focus on substantive implementation readiness rather than minute wording polish.
 
 Review findings use these severities:
 
