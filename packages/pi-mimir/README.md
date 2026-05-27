@@ -11,6 +11,7 @@ OpenSpec workflow package for Pi. `pi-mimir` adds a review-gated OpenSpec workfl
 - A `review-gated` OpenSpec schema and supporting templates.
 - Session guidance for codebase-memory-first discovery.
 - Explicit incomplete-setup reporting when the separate `pi-codebase-memory` plugin is not active.
+- Compatibility with the sibling `@casualjim/pi-mimir-advisor` package for forked child advisor consultations.
 
 `pi-mimir` does not commit, push, create pull requests, archive changes, or run branch-finishing workflows. Generated OpenSpec skills are allowed to coexist and may be called by the full workflow where appropriate.
 

@@ -8,7 +8,7 @@ It provides focused entrypoints for planning, implementation, and review while k
 
 - `packages/pi-mimir` — the OpenSpec workflow package: extension, agents, skill seeds, OpenSpec schema assets, and tests.
 - `packages/pi-codebase-memory` — standalone codebase-memory plugin for MCP wiring, guidance, and the public skill.
-- `packages/advisor` — supporting package in this workspace.
+- `packages/advisor` — forked child advisor package for second-opinion guidance in pi-mimir sessions.
 
 ## Main workflow
 

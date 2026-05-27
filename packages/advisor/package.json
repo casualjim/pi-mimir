@@ -2,5 +2,40 @@
   "name": "@casualjim/pi-mimir-advisor",
   "version": "0.1.0",
   "license": "MIT",
-  "description": "Subagent-based advisor for pi-mimir"
+  "description": "Forked child advisor package for pi-mimir",
+  "keywords": [
+    "pi-package"
+  ],
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "extensions/",
+    "agents/",
+    "prompts/",
+    "README.md"
+  ],
+  "pi": {
+    "extensions": [
+      "extensions/advisor"
+    ]
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "@types/node": "^22.0.0",
+    "typebox": "*",
+    "typescript": "^5.4.0",
+    "vitest": "^3.1.0"
+  }
 }
