@@ -1,0 +1,33 @@
+{
+  "name": "@casualjim/pi-caveman",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "Caveman skills packaged for Pi",
+  "keywords": [
+    "pi-package"
+  ],
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "skills/",
+    "agents/",
+    "README.md",
+    "LICENSE",
+    "index.js"
+  ],
+  "pi": {
+    "skills": [
+      "skills"
+    ]
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:e2e": "node --experimental-strip-types tests/integration/run-e2e.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^3.1.0"
+  }
+}

@@ -13,12 +13,20 @@ _.fnox-env = { tools = true }
 description = "Build and run Docker-backed real Pi integration tests"
 run = """
 set -euo pipefail
-docker build --progress=plain \
-  -f packages/core/tests/integration/docker/Dockerfile \
+docker build \
+  -f packages/pi-mimir/tests/integration/docker/Dockerfile \
   -t pi-mimir-workflow-e2e \
   .
 docker run --rm \
   -e ZAI_API_KEY \
   -e E2E_MODEL \
-  pi-mimir-workflow-e2e
+  --workdir /workspace/pi-mimir-workflow \
+  pi-mimir-workflow-e2e \
+  npm run test:e2e --workspace pi-mimir
+docker run --rm \
+  -e ZAI_API_KEY \
+  -e E2E_MODEL \
+  --workdir /workspace/pi-mimir-workflow \
+  pi-mimir-workflow-e2e \
+  npm run test:e2e --workspace @casualjim/pi-caveman
 """

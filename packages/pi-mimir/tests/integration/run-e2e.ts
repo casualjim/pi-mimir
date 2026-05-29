@@ -81,7 +81,7 @@ function piPrompt(name: string, prompt: string, options: RunOptions = {}) {
 	return run(
 		name,
 		"pi",
-		["--offline", "--openspec-debug", "--no-tools", "--model", MODEL, "--session-dir", SESSION_DIR, "-p", prompt],
+		["--offline", "--openspec-debug", "--model", MODEL, "--session-dir", SESSION_DIR, "-p", prompt],
 		{ timeout: 300_000, ...options },
 	).combined;
 }

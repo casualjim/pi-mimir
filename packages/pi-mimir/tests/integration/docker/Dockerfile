@@ -4,9 +4,9 @@ ENV HOME=/tmp/pi-home
 ENV PI_CODING_AGENT_DIR=/tmp/pi-home/.pi/agent
 ENV PI_OFFLINE=1
 
-WORKDIR /workspace/pi-mimir-workflow/packages/pi-mimir
+WORKDIR /workspace/pi-mimir-workflow
 COPY . /workspace/pi-mimir-workflow
 
 RUN npm install -g @earendil-works/pi-coding-agent
 
-CMD ["node", "--experimental-strip-types", "tests/integration/run-e2e.ts"]
+CMD ["npm", "run", "test:e2e", "--workspace", "pi-mimir"]

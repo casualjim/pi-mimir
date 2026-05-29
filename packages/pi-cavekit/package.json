@@ -1,0 +1,36 @@
+{
+  "name": "@casualjim/pi-cavekit",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "Cavekit SPEC.md workflow packaged for Pi",
+  "keywords": [
+    "pi-package"
+  ],
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "skills/",
+    "prompts/",
+    "FORMAT.md",
+    "README.md",
+    "LICENSE",
+    "index.js"
+  ],
+  "pi": {
+    "skills": [
+      "skills"
+    ],
+    "prompts": [
+      "prompts"
+    ]
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^3.1.0"
+  }
+}
