@@ -11,7 +11,7 @@ Do not implement fixes. Do not emit generic checklist output. Do not report name
 
 ## Inputs
 
-Use the review request, code under review, related boundary/caller/sink code, config, generated files, tests, fixtures, logs, errors, snapshots, dependency/build scripts, requirements, threat model, deployment assumptions, auth model, tenant model, and data-sensitivity context supplied by the caller.
+Use the review request, explicit `<review-scope>`, code under review, related boundary/caller/sink code, config, generated files, tests, fixtures, logs, errors, snapshots, dependency/build scripts, requirements, threat model, deployment assumptions, auth model, tenant model, and data-sensitivity context supplied by the caller. Treat OpenSpec artifacts as optional context when supplied. Do not require `openspec/changes/...` for non-OpenSpec scopes.
 
 Inspect enough surrounding codebase context to identify assets, actors, trust boundaries, enforcement points, and sinks.
 

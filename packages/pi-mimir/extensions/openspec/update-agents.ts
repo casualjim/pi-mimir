@@ -1,6 +1,6 @@
 /**
  * /openspec:update — refreshes OpenSpec Pi tooling and bundled workflow assets.
- * Runs openspec update, then syncs schemas, skills, agents, and manifests.
+ * Runs openspec update, then syncs schemas, project-state assets, and legacy managed copy cleanup.
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
@@ -30,7 +30,7 @@ const msgSyncedWithErrors = (summary: string, errors: string[]) =>
 
 export function registerUpdateAgentsCommand(pi: ExtensionAPI): void {
 	pi.registerCommand("openspec:update", {
-		description: "Update OpenSpec Pi tooling and refresh bundled schemas, skills, agents, and manifests",
+		description: "Update OpenSpec Pi tooling and refresh bundled schemas, project assets, and legacy copies",
 		handler: async (_args, ctx: CommandContext) => {
 			const update = await pi.exec("openspec", ["update"], { cwd: ctx.cwd, timeout: OPENSPEC_TIMEOUT_MS });
 			if (update.code !== 0) {
@@ -60,8 +60,10 @@ function buildUpdateReport(
 	const lines = ["OpenSpec Pi workflow updated."];
 	lines.push(configUpdated ? "Configured openspec/config.yaml with schema: review-gated." : "openspec/config.yaml already uses schema: review-gated.");
 	lines.push(`Updated schemas: ${countSummary(schemas.added.length, schemas.updated.length, schemas.removed.length)}.`);
-	lines.push(`Updated skills: ${countSummary(skills.added.length, skills.updated.length, skills.removed.length)}.`);
-	lines.push(`Updated agents: ${formatSyncReport(agents)}.`);
+	lines.push("Packaged skills are available through the pi-mimir package; no .pi/skills copy needed.");
+	lines.push(`Pruned legacy copied skills: ${countSummary(skills.added.length, skills.updated.length, skills.removed.length)}.`);
+	lines.push("Packaged agents are available through the pi-mimir package; no .pi/agents copy needed.");
+	lines.push(`Pruned legacy copied agents: ${formatSyncReport(agents)}.`);
 
 	if (schemas.errors.length > 0) lines.push(`Schema sync errors: ${schemas.errors.map((e) => e.message).join("; ")}`);
 	if (agents.errors.length > 0) lines.push(`Agent sync errors: ${agents.errors.map((e) => e.message).join("; ")}`);

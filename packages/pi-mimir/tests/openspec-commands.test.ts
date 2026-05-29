@@ -53,33 +53,34 @@ describe("bundled skill sync", () => {
 		rmSync(cwd, { recursive: true, force: true });
 	});
 
-	it("copies packaged skills into .pi/skills", () => {
+	it("does not copy packaged skills into .pi/skills", () => {
 		const result = syncBundledSkills(cwd);
 
-		expect(result.added).toContain("plan");
-		expect(result.added).toContain("review-architecture");
-		expect(result.added).toContain("review-data-flow");
-		expect(result.added).toContain("review-security");
-		expect(result.added).toContain("review-tests");
-		expect(existsSync(join(cwd, ".pi", "skills", "plan", "SKILL.md"))).toBe(true);
-		expect(existsSync(join(cwd, ".pi", "skills", "implement", "SKILL.md"))).toBe(true);
-		const manifest = JSON.parse(readFileSync(join(cwd, ".pi", "mimir-managed.json"), "utf-8"));
-		expect(manifest.skills.plan).toMatch(/^[a-f0-9]{64}$/);
+		expect(result).toEqual({ added: [], updated: [], removed: [] });
+		expect(existsSync(join(cwd, ".pi", "skills", "plan", "SKILL.md"))).toBe(false);
+		expect(existsSync(join(cwd, ".pi", "mimir-managed.json"))).toBe(false);
 	});
 
-	it("tracks a multi-file skill with one folder merkle hash", () => {
-		const extraDir = join("skillseeds", "plan", "_test-assets");
-		const extraFile = join(extraDir, "nested.txt");
-		mkdirSync(extraDir, { recursive: true });
-		writeFileSync(extraFile, "nested skill asset\n", "utf-8");
-		try {
-			syncBundledSkills(cwd);
-			const manifest = JSON.parse(readFileSync(join(cwd, ".pi", "mimir-managed.json"), "utf-8"));
-			expect(existsSync(join(cwd, ".pi", "skills", "plan", "_test-assets", "nested.txt"))).toBe(true);
-			expect(manifest.skills.plan).toMatch(/^[a-f0-9]{64}$/);
-		} finally {
-			rmSync(extraDir, { recursive: true, force: true });
-		}
+	it("prunes unchanged legacy copied skills and clears manifest tracking", () => {
+		mkdirSync(join(cwd, ".pi", "skills", "plan"), { recursive: true });
+		writeFileSync(join(cwd, ".pi", "skills", "plan", "SKILL.md"), "# legacy\n", "utf-8");
+		writeFileSync(join(cwd, ".pi", "mimir-managed.json"), JSON.stringify({ skills: { plan: "3fff697edcad92c7838f4f1ab43a4704c8c79f4bf3775bfed584e978b8a05953" } }), "utf-8");
+
+		const result = syncBundledSkills(cwd);
+
+		expect(result.removed).toContain("plan");
+		expect(existsSync(join(cwd, ".pi", "skills", "plan"))).toBe(false);
+	});
+
+	it("preserves user-modified legacy copied skills", () => {
+		mkdirSync(join(cwd, ".pi", "skills", "plan"), { recursive: true });
+		writeFileSync(join(cwd, ".pi", "skills", "plan", "SKILL.md"), "# user modified\n", "utf-8");
+		writeFileSync(join(cwd, ".pi", "mimir-managed.json"), JSON.stringify({ skills: { plan: "1e9a848b3d7fe05f48a8fbc7451e5d57af00e34a8be2d59a61fc7cdbfd9017c4" } }), "utf-8");
+
+		const result = syncBundledSkills(cwd);
+
+		expect(result.removed).not.toContain("plan");
+		expect(existsSync(join(cwd, ".pi", "skills", "plan", "SKILL.md"))).toBe(true);
 	});
 });
 
@@ -138,8 +139,8 @@ describe("/openspec:* commands", () => {
 		await harness.commands.get("openspec:init")!.handler("", { hasUI: true, ui: harness.ctx.ui, cwd });
 
 		expect(readFileSync(join(cwd, "openspec", "config.yaml"), "utf-8")).toContain("schema: review-gated");
-		expect(existsSync(join(cwd, ".pi", "skills", "plan", "SKILL.md"))).toBe(true);
-		expect(existsSync(join(cwd, ".pi", "agents"))).toBe(true);
+		expect(existsSync(join(cwd, ".pi", "skills", "plan", "SKILL.md"))).toBe(false);
+		expect(existsSync(join(cwd, ".pi", "agents"))).toBe(false);
 		expect(existsSync(join(cwd, ".pi", "agent", "mcp.json"))).toBe(false);
 		expect(harness.notifications.at(-1)?.message).toContain("Workflow setup is incomplete");
 		expect(harness.notifications.at(-1)?.message).toContain("pi install @casualjim/pi-codebase-memory");
@@ -180,8 +181,8 @@ describe("/openspec:* commands", () => {
 
 		expect(harness.execCalls.some((call) => call.cmd === "openspec" && call.args.join(" ") === "update")).toBe(true);
 		expect(readFileSync(join(cwd, "openspec", "config.yaml"), "utf-8")).toContain("schema: review-gated");
-		expect(existsSync(join(cwd, ".pi", "skills", "plan", "SKILL.md"))).toBe(true);
-		expect(existsSync(join(cwd, ".pi", "agents"))).toBe(true);
+		expect(existsSync(join(cwd, ".pi", "skills", "plan", "SKILL.md"))).toBe(false);
+		expect(existsSync(join(cwd, ".pi", "agents"))).toBe(false);
 		expect(existsSync(join(cwd, ".pi", "mimir-managed.json"))).toBe(true);
 		expect(harness.notifications.at(-1)?.message).toContain("Workflow setup is incomplete");
 		expect(harness.notifications.at(-1)?.message).toContain("pi install @casualjim/pi-codebase-memory");

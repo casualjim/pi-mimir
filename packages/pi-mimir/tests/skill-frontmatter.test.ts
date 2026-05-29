@@ -26,8 +26,8 @@ describe("skill frontmatter", () => {
 		expect(descriptionOf(readSkillSeed("plan"))).toContain("proposal");
 		expect(descriptionOf(readSkillSeed("implement"))).toContain("OpenSpec");
 		expect(descriptionOf(readSkillSeed("implement"))).toContain("explicit archive");
-		expect(descriptionOf(readSkillSeed("review-implementation"))).toContain("OpenSpec");
 		expect(descriptionOf(readSkillSeed("review-implementation"))).toContain("implementation review");
+		expect(descriptionOf(readSkillSeed("review-implementation"))).toContain("Use when");
 	});
 
 	it("marks composed workflow entrypoints as manual-only skills", () => {

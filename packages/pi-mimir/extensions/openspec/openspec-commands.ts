@@ -1,8 +1,8 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { PACKAGE_ROOT, syncBundledAgents } from "./agents.js";
+import { syncBundledAgents } from "./agents.js";
 import { writeOpenSpecAssetManifest } from "./managed-assets.js";
 import { readMimirManagedManifest, writeMimirManagedManifest } from "./managed-manifest.js";
 import {
@@ -69,48 +69,12 @@ export function ensureReviewGatedOpenSpecConfig(cwd: string): EnsureReviewGatedC
 }
 
 export function syncBundledSkills(cwd: string): SyncBundledSkillsResult {
-	const sourceDir = join(PACKAGE_ROOT, "skillseeds");
-	const targetDir = join(cwd, ".pi", "skills");
 	const result: SyncBundledSkillsResult = { added: [], updated: [], removed: [] };
-	if (!existsSync(sourceDir)) return result;
-
-	mkdirSync(targetDir, { recursive: true });
 	const previousManifest = coerceSkillManifest(readMimirManagedManifest(cwd).skills);
-	const manifest: SkillManifest = {};
-	const bundledSkillNames = ["plan", "implement", "review-architecture", "review-implementation", "review-data-flow", "review-security", "review-plan", "review-tests"];
-	const bundledSkillSet = new Set(bundledSkillNames);
+	if (Object.keys(previousManifest).length === 0) return result;
 
-	for (const name of bundledSkillNames) {
-		const src = join(sourceDir, name);
-		if (!existsSync(src)) continue;
-		const dest = join(targetDir, name);
-		const srcHash = merkleHashDirectory(src);
-		const knownHash = previousManifest[name] ?? "";
-
-		if (!existsSync(dest)) {
-			cpSync(src, dest, { recursive: true, force: true });
-			manifest[name] = srcHash;
-			result.added.push(name);
-			continue;
-		}
-
-		const currentHash = merkleHashDirectory(dest);
-		if (currentHash === srcHash) {
-			manifest[name] = srcHash;
-			continue;
-		}
-
-		if (knownHash !== "" && currentHash === knownHash) {
-			cpSync(src, dest, { recursive: true, force: true });
-			manifest[name] = srcHash;
-			result.updated.push(name);
-		}
-		// Locally edited bundled skills are left on disk and removed from the manifest;
-		// they are now user-owned rather than managed drift.
-	}
-
+	const targetDir = join(cwd, ".pi", "skills");
 	for (const [name, knownHash] of Object.entries(previousManifest)) {
-		if (bundledSkillSet.has(name)) continue;
 		const dest = join(targetDir, name);
 		if (!isSafeSkillName(name) || !existsSync(dest)) {
 			result.removed.push(name);
@@ -122,11 +86,10 @@ export function syncBundledSkills(cwd: string): SyncBundledSkillsResult {
 			rmSync(dest, { recursive: true, force: true });
 			result.removed.push(name);
 		}
-		// Locally edited stale skills are left on disk and removed from the manifest;
-		// they are now user-owned rather than managed drift.
+		// Locally edited legacy skills stay on disk and become user-owned.
 	}
 
-	writeSkillManifest(cwd, manifest);
+	clearSkillManifest(cwd);
 	return result;
 }
 
@@ -171,11 +134,9 @@ function merkleHashNode(path: string): string {
 	return sha256(parts);
 }
 
-function writeSkillManifest(cwd: string, manifest: SkillManifest): void {
+function clearSkillManifest(cwd: string): void {
 	const root = readMimirManagedManifest(cwd);
-	const ordered: SkillManifest = {};
-	for (const skill of Object.keys(manifest).sort()) ordered[skill] = manifest[skill] ?? "";
-	root.skills = ordered;
+	delete root.skills;
 	writeMimirManagedManifest(cwd, root);
 }
 
@@ -240,8 +201,10 @@ function buildInitReport(
 	const lines = ["OpenSpec initialized for Pi review-gated workflow."];
 	lines.push(config.updated ? `Configured openspec/config.yaml with schema: ${REVIEW_GATED_SCHEMA}.` : "openspec/config.yaml already uses schema: review-gated.");
 	lines.push(`Synced bundled schemas: ${summary(schemas)}.`);
-	lines.push(`Synced skills: ${countSummary(skills.added.length, skills.updated.length, skills.removed.length)}.`);
-	lines.push(`Synced agents: ${countSummary(agents.added.length, agents.updated.length, agents.removed.length)}.`);
+	lines.push("Packaged skills are available through the pi-mimir package; no .pi/skills copy needed.");
+	lines.push(`Pruned legacy copied skills: ${countSummary(skills.added.length, skills.updated.length, skills.removed.length)}.`);
+	lines.push("Packaged agents are available through the pi-mimir package; no .pi/agents copy needed.");
+	lines.push(`Pruned legacy copied agents: ${countSummary(agents.added.length, agents.updated.length, agents.removed.length)}.`);
 
 	if (schemas.errors.length > 0) lines.push(`Schema sync errors: ${schemas.errors.map((e) => e.message).join("; ")}`);
 	if (agents.errors.length > 0) lines.push(`Agent sync errors: ${agents.errors.map((e) => e.message).join("; ")}`);

@@ -11,7 +11,7 @@ Do not implement fixes. Do not chase micro-optimizations. Do not add complexity 
 
 ## Inputs
 
-Use the review request, implementation files under review, related producers/consumers/sinks, workload expectations, benchmarks, profiles, logs, tests, requirements, design notes, and repository performance conventions supplied by the caller.
+Use the review request, explicit `<review-scope>`, implementation files under review, related producers/consumers/sinks, workload expectations, benchmarks, profiles, logs, tests, requirements, design notes, and repository performance conventions supplied by the caller. Treat OpenSpec artifacts as optional context when supplied. Do not require `openspec/changes/...` for non-OpenSpec scopes.
 
 Inspect enough surrounding codebase context to understand source-to-sink data flow, reductions, transformations, materialization points, public API shape, I/O behavior, locking, concurrency, boundaries, and sinks.
 

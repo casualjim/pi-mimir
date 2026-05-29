@@ -1,20 +1,18 @@
 /**
- * Agent auto-copy — copies bundled agents into <cwd>/.pi/agents/.
+ * Bundled OpenSpec agents are package-provided, not copied into projects.
  *
- * Pure utility. No ExtensionAPI interactions.
- *
- * Manifest-based ownership with content-addressable sha256 hashing and path-traversal hardening.
+ * This module only prunes legacy managed copies recorded by older pi-mimir
+ * releases. User-modified legacy copies are preserved and become user-owned.
  */
 
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
 	LEGACY_AGENT_MANIFEST,
 	readLegacyJson,
 	readMimirManagedManifest,
-	removeLegacyManagedManifests,
 	writeMimirManagedManifest,
 } from "./managed-manifest.js";
 
@@ -27,7 +25,7 @@ export const BUNDLED_AGENTS_DIR = join(PACKAGE_ROOT, "agents");
 
 export interface SyncError {
 	file?: string;
-	op: "read-src" | "read-dest" | "copy" | "remove" | "manifest-read" | "manifest-write" | "mkdir";
+	op: "read-dest" | "remove" | "manifest-read" | "manifest-write";
 	message: string;
 }
 
@@ -69,12 +67,12 @@ function sha256(buf: Buffer | string): string {
 function coerceManifest(value: unknown): Manifest {
 	const out: Manifest = {};
 	if (Array.isArray(value)) {
-		for (const e of value) if (typeof e === "string" && isManagedAgentName(e)) out[e] = "";
+		for (const entry of value) if (typeof entry === "string" && isManagedAgentName(entry)) out[entry] = "";
 		return out;
 	}
 	if (value && typeof value === "object") {
-		for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-			if (typeof k === "string" && typeof v === "string" && isManagedAgentName(k)) out[k] = v;
+		for (const [key, hash] of Object.entries(value as Record<string, unknown>)) {
+			if (typeof key === "string" && typeof hash === "string" && isManagedAgentName(key)) out[key] = hash;
 		}
 	}
 	return out;
@@ -83,115 +81,27 @@ function coerceManifest(value: unknown): Manifest {
 function readManifest(cwd: string): Manifest {
 	const manifest = readMimirManagedManifest(cwd);
 	const section = coerceManifest(manifest[MANIFEST_SECTION]);
-	if (Object.keys(section).length > 0) {
-		removeLegacyManagedManifests(cwd);
-		return section;
-	}
+	if (Object.keys(section).length > 0) return section;
 	return coerceManifest(readLegacyJson(cwd, LEGACY_AGENT_MANIFEST));
 }
 
-function writeManifest(cwd: string, manifest: Manifest, result: SyncResult): void {
+function clearManifest(cwd: string, result: SyncResult): void {
 	try {
 		const root = readMimirManagedManifest(cwd);
-		const ordered: Manifest = {};
-		for (const k of Object.keys(manifest).sort()) ordered[k] = manifest[k] ?? "";
-		root[MANIFEST_SECTION] = ordered;
+		delete root[MANIFEST_SECTION];
 		writeMimirManagedManifest(cwd, root);
-	} catch (e) {
-		result.errors.push({ op: "manifest-write", message: e instanceof Error ? e.message : String(e) });
+	} catch (error) {
+		result.errors.push({ op: "manifest-write", message: error instanceof Error ? error.message : String(error) });
 	}
 }
 
 export function syncBundledAgents(cwd: string): SyncResult {
 	const result = emptySyncResult();
-	if (!existsSync(BUNDLED_AGENTS_DIR)) return result;
+	const manifest = readManifest(cwd);
+	if (Object.keys(manifest).length === 0) return result;
 
 	const targetDir = join(cwd, ".pi", "agents");
-	try {
-		mkdirSync(targetDir, { recursive: true });
-	} catch (e) {
-		result.errors.push({ op: "mkdir", message: e instanceof Error ? e.message : "Failed to create target directory" });
-		return result;
-	}
-
-	let sourceEntries: string[];
-	try {
-		sourceEntries = readdirSync(BUNDLED_AGENTS_DIR).filter((f) => f.endsWith(".md"));
-	} catch {
-		result.errors.push({ op: "read-src", message: "Failed to read bundled agents directory" });
-		return result;
-	}
-
-	const sourceNames = new Set(sourceEntries);
-	const manifest = readManifest(cwd);
-	const newManifest: Manifest = {};
-
-	for (const entry of sourceEntries) {
-		const src = join(BUNDLED_AGENTS_DIR, entry);
-		const dest = safeJoin(targetDir, entry);
-		const knownHash = manifest[entry] ?? "";
-		if (dest === null) {
-			result.errors.push({ file: entry, op: "copy", message: "rejected unsafe path" });
-			newManifest[entry] = knownHash;
-			continue;
-		}
-
-		let srcContent: Buffer;
-		try {
-			srcContent = readFileSync(src);
-		} catch (e) {
-			result.errors.push({ file: entry, op: "read-src", message: e instanceof Error ? e.message : String(e) });
-			newManifest[entry] = knownHash;
-			continue;
-		}
-		const srcHash = sha256(srcContent);
-
-		if (!existsSync(dest)) {
-			try {
-				copyFileSync(src, dest);
-				result.added.push(entry);
-				newManifest[entry] = srcHash;
-			} catch (e) {
-				result.errors.push({ file: entry, op: "copy", message: e instanceof Error ? e.message : String(e) });
-				newManifest[entry] = knownHash;
-			}
-			continue;
-		}
-
-		let destContent: Buffer;
-		try {
-			destContent = readFileSync(dest);
-		} catch (e) {
-			result.errors.push({ file: entry, op: "read-dest", message: e instanceof Error ? e.message : String(e) });
-			newManifest[entry] = knownHash;
-			continue;
-		}
-		const destHash = sha256(destContent);
-
-		if (srcHash === destHash) {
-			result.unchanged.push(entry);
-			newManifest[entry] = srcHash;
-			continue;
-		}
-
-		const safeAutoUpdate = knownHash !== "" && destHash === knownHash;
-		if (safeAutoUpdate) {
-			try {
-				copyFileSync(src, dest);
-				result.updated.push(entry);
-				newManifest[entry] = srcHash;
-			} catch (e) {
-				result.errors.push({ file: entry, op: "copy", message: e instanceof Error ? e.message : String(e) });
-				newManifest[entry] = knownHash;
-			}
-		}
-		// Locally edited managed files are left on disk and removed from the manifest;
-		// they are now user-owned rather than managed drift.
-	}
-
-	for (const name of Object.keys(manifest)) {
-		if (sourceNames.has(name)) continue;
-		const knownHash = manifest[name] ?? "";
+	for (const [name, knownHash] of Object.entries(manifest)) {
 		const destPath = safeJoin(targetDir, name);
 		if (destPath === null) {
 			result.errors.push({ file: name, op: "remove", message: "rejected unsafe path" });
@@ -201,31 +111,25 @@ export function syncBundledAgents(cwd: string): SyncResult {
 			result.removed.push(name);
 			continue;
 		}
-
 		let destContent: Buffer;
 		try {
 			destContent = readFileSync(destPath);
-		} catch (e) {
-			result.errors.push({ file: name, op: "read-dest", message: e instanceof Error ? e.message : String(e) });
-			newManifest[name] = knownHash;
+		} catch (error) {
+			result.errors.push({ file: name, op: "read-dest", message: error instanceof Error ? error.message : String(error) });
 			continue;
 		}
 		const destHash = sha256(destContent);
-		const safeAutoRemove = knownHash !== "" && destHash === knownHash;
-
-		if (safeAutoRemove) {
+		if (knownHash !== "" && destHash === knownHash) {
 			try {
 				unlinkSync(destPath);
 				result.removed.push(name);
-			} catch (e) {
-				result.errors.push({ file: name, op: "remove", message: e instanceof Error ? e.message : String(e) });
-				newManifest[name] = manifest[name] ?? "";
+			} catch (error) {
+				result.errors.push({ file: name, op: "remove", message: error instanceof Error ? error.message : String(error) });
 			}
 		}
-		// Locally edited stale files are left on disk and removed from the manifest;
-		// they are now user-owned rather than managed drift.
+		// Locally edited legacy files stay on disk and become user-owned.
 	}
 
-	writeManifest(cwd, newManifest, result);
+	clearManifest(cwd, result);
 	return result;
 }

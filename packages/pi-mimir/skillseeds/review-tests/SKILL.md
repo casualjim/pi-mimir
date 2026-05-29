@@ -13,14 +13,13 @@ Do not rewrite tests or implement fixes. Return a structured, evidence-based rev
 
 ## Inputs
 
-Use the review request, production code under review, related codebase paths, tests, fixtures, snapshots, generated outputs, CI output, logs, requirements, specs, docs, API contracts, and repository testing conventions supplied by the caller.
+Use the review request, explicit `<review-scope>`, production code under review, related codebase paths, tests, fixtures, snapshots, generated outputs, CI output, logs, requirements, specs, docs, API contracts, and repository testing conventions supplied by the caller. Treat OpenSpec artifacts as optional context when supplied. Do not require `openspec/changes/...` for non-OpenSpec scopes.
 
-When reviewing a spec-driven implementation, use:
+When OpenSpec artifacts or spec-driven context are supplied, use:
 
-- `openspec/changes/<change>/specs/**/*.md`
-- `openspec/changes/<change>/proposal.md`, if needed for scope context
-- `openspec/changes/<change>/tasks.md`, if needed for implementation scope context
-- implementation test files relevant to the change
+- supplied specs/requirements artifacts
+- supplied proposal/design/tasks artifacts when needed for scope context
+- implementation test files relevant to the review scope
 - implementation code only as needed to understand whether tests exercise real behavior
 
 Inspect production code when needed to understand what the tests are supposed to prove. Inspect tests when needed to understand whether implementation claims are actually protected.
@@ -63,7 +62,7 @@ Check that tests:
 - use property tests when invariants matter and consider fuzzing for hostile or highly variable input
 - do not shape production architecture around mock ceremony or weaken behavior to make tests pass
 
-For spec-driven changes, also map coverage explicitly:
+When OpenSpec specs or equivalent requirement artifacts are supplied, also map coverage explicitly:
 
 - Enumerate every changed spec requirement and scenario from `specs/**/*.md`
 - For each requirement/scenario, identify the corresponding test file, test case name, and concrete assertion or observable behavior being checked

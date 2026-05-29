@@ -6,12 +6,13 @@ function registeredSkills(): string[] {
 }
 
 describe("package registration", () => {
-	it("does not register copied skill seeds as public package skills", () => {
-		expect(registeredSkills()).toEqual([]);
+	it("registers packaged skill seeds as package-provided Pi skills", () => {
+		expect(registeredSkills()).toEqual(["./skillseeds"]);
 	});
 
-	it("keeps copied skill seeds as packaged assets outside Pi's direct skills directory", () => {
+	it("keeps skill seeds and agents as packaged assets", () => {
 		expect(pkg.files).toContain("skillseeds/");
+		expect(pkg.files).toContain("agents/");
 		expect(pkg.files).not.toContain("skills/");
 	});
 

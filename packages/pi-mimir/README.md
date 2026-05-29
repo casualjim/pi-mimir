@@ -27,9 +27,10 @@ The init command:
 
 1. runs `openspec init --tools pi`,
 2. configures `openspec/config.yaml` to use the `review-gated` schema,
-3. syncs bundled schemas, skills, and agents,
-4. checks whether the required `codebase_memory_*` tools are active, and
-5. reports setup as incomplete with an install command when `pi-codebase-memory` is not yet active.
+3. syncs bundled OpenSpec schemas/project-state assets,
+4. keeps bundled skills and agents package-provided instead of copying them into `.pi/`,
+5. checks whether the required `codebase_memory_*` tools are active, and
+6. reports setup as incomplete with an install command when `pi-codebase-memory` is not yet active.
 
 To refresh OpenSpec Pi tooling later, run:
 
@@ -37,7 +38,7 @@ To refresh OpenSpec Pi tooling later, run:
 /openspec:update
 ```
 
-The update command runs `openspec update`, keeps `openspec/config.yaml` on the `review-gated` schema, syncs bundled schemas, skills, agents, and refreshes `.pi/mimir-managed.json`.
+The update command runs `openspec update`, keeps `openspec/config.yaml` on the `review-gated` schema, syncs bundled schemas/project-state assets, prunes legacy copied skills/agents when safe, and refreshes `.pi/mimir-managed.json` for OpenSpec assets only.
 
 ## Requirements
 
@@ -75,10 +76,10 @@ Use this only after the change is apply-ready. The workflow applies implementati
 
 ```text
 /skill:review-plan <change-name>
-/skill:review-implementation <change-name>
+/skill:review-implementation [review-scope]
 ```
 
-Use these when planning or implementation already exists and you want a separate review pass. Findings are returned inline by default as structured reports with a summary, issues grouped by priority, and a final assessment; the review is intended to be single-shot, so after reported findings are addressed a follow-up review over unchanged material should ideally report only net new issues introduced by the changes or made newly reviewable by newly supplied evidence. Only persist findings when you explicitly ask.
+Use these when planning or implementation already exists and you want a separate review pass. `review-plan` expects OpenSpec planning artifacts. `review-implementation` can review an OpenSpec change when supplied, or a non-OpenSpec scope/diff/evidence when no change exists. Findings are returned inline by default as structured reports with a summary, issues grouped by priority, and a final assessment; the review is intended to be single-shot, so after reported findings are addressed a follow-up review over unchanged material should ideally report only net new issues introduced by the changes or made newly reviewable by newly supplied evidence. Only persist findings when you explicitly ask.
 
 ## Discovery behavior
 
@@ -95,7 +96,7 @@ The runtime sends a non-blocking one-shot reminder on broad raw discovery tools 
 
 ## Review skills
 
-`review-plan` and `review-implementation` are the default standalone review entrypoints. They return the whole actionable issue list inline by default and are intended to be single-shot rather than staged across repeated rounds; for `review-plan`, wording-only or editorial comments with no meaningful outcome change are suppressed. Persist findings only when explicitly asked.
+`review-plan` and `review-implementation` are the default standalone review entrypoints. `review-implementation` uses OpenSpec proposal/spec/design/task artifacts when present, but does not require an OpenSpec change. They return the whole actionable issue list inline by default and are intended to be single-shot rather than staged across repeated rounds; for `review-plan`, wording-only or editorial comments with no meaningful outcome change are suppressed. Persist findings only when explicitly asked.
 
 `plan` uses a single consolidated planning reviewer. It does not fan out into artifact-specific planning review skills during the default workflow.
 

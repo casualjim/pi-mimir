@@ -15,9 +15,9 @@ Do not report preferences. Report consequences: what becomes harder to understan
 
 ## Inputs
 
-Use the review request, codebase areas under review, related source, tests, design notes, issue text, ADRs, requirements, logs, diagrams, and repository conventions supplied by the caller. Inspect enough surrounding context to ground findings in evidence and avoid treating local symptoms as isolated problems.
+Use the review request, explicit `<review-scope>`, codebase areas under review, related source, tests, design notes, issue text, ADRs, requirements, logs, diagrams, and repository conventions supplied by the caller. Treat OpenSpec artifacts as optional context when supplied. Do not require `openspec/changes/...` for non-OpenSpec scopes. Inspect enough surrounding context to ground findings in evidence and avoid treating local symptoms as isolated problems.
 
-For spec-driven implementation reviews, include:
+When OpenSpec artifacts or spec-driven context are supplied, include them only as needed:
 
 - repository-local rules such as AGENTS.md, CLAUDE.md, or project instructions when present
 - existing package/module/feature structure needed to understand architecture fit

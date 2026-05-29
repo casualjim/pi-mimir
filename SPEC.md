@@ -6,6 +6,7 @@ Pi workflow monorepo → review-gated OpenSpec planning/implementation, codebase
 ## §C CONSTRAINTS
 - npm workspaces `packages/*`; packages ESM; tests Vitest; typecheck `tsc --noEmit`.
 - Pi package metadata ! source of install surface: `pi.extensions`, `pi.skills`, `pi.prompts`, `files`.
+- `pi-mimir`/`advisor` bundled agents/skills ! package/plugin-backed; `.pi/agents`/`.pi/skills` bulk copy ⊥.
 - `pi-mimir` owns OpenSpec workflow orchestration; ! commit/push/PR/archive/finishing branch.
 - Full `pi-mimir` discovery requires separate `@casualjim/pi-codebase-memory`; unavailable tools → degraded discovery warning.
 - OpenSpec state lives under `openspec/`; review-gated schema ! valid OpenSpec `name/version/description/artifacts/apply` shape.
@@ -15,22 +16,23 @@ Pi workflow monorepo → review-gated OpenSpec planning/implementation, codebase
 - `advisor` off by default; configured model/effort persisted; child lane read-only; output only `PLAN`/`CORRECTION`/`STOP`.
 
 ## §I INTERFACES
-- pkg: `pi-mimir` → extension `extensions/openspec`, assets `skillseeds/`, `agents/`, `openspec/`.
-- cmd: `/openspec:init` → run `openspec init --tools pi`, force `openspec/config.yaml` schema `review-gated`, sync schemas/skills/agents, report codebase-memory status.
-- cmd: `/openspec:update` → run `openspec update`, refresh review-gated config/assets/manifests, report setup status.
+- pkg: `pi-mimir` → extension `extensions/openspec`, package skills `skillseeds/`, package agents `agents/`, project state `openspec/`.
+- cmd: `/openspec:init` → run `openspec init --tools pi`, force `openspec/config.yaml` schema `review-gated`, sync OpenSpec schemas/project state only, report codebase-memory status.
+- cmd: `/openspec:update` → run `openspec update`, refresh review-gated config/OpenSpec assets only, report setup status.
 - cmd: `/openspec:status`, `/openspec:list` → proxy `openspec view/list` output through custom renderer.
-- skill: `plan`, `implement`, `review-plan`, `review-implementation`, `review-architecture`, `review-tests`, `review-data-flow`, `review-security` copied into `.pi/skills` by `pi-mimir`.
+- skill: `plan`, `implement`, `review-plan`, `review-implementation`, `review-architecture`, `review-tests`, `review-data-flow`, `review-security` exposed by `pi-mimir` package/plugin; copied into `.pi/skills` ⊥; implementation/specialist reviews accept explicit non-OpenSpec scope + optional OpenSpec artifacts.
+- agent: `pi-mimir` bundled `agents/*` exposed by package/plugin catalog; copied into `.pi/agents` ⊥.
 - pkg: `@casualjim/pi-codebase-memory` → extension `extensions/codebase-memory`, skill `codebase-memory`, dep `codebase-memory-mcp`.
 - file: `~/.pi/agent/mcp.json` → `codebase-memory-mcp` server with `directTools: true` when absent.
-- pkg: `@casualjim/pi-mimir-advisor` → extension `extensions/advisor`, command `/advisor`, tool `advisor`, agent `advisor-child.md`.
-- file: `.pi/advisor-managed.json` → advisor bundled-agent manifest.
+- pkg: `@casualjim/pi-mimir-advisor` → extension `extensions/advisor`, command `/advisor`, tool `advisor`, packaged agent `advisor-child.md`; copied agent file ⊥.
+- file: `.pi/advisor-managed.json` → legacy advisor copied-agent manifest; read/prune only; new writes ⊥.
 - pkg: `@casualjim/pi-cavekit` → skills `cavekit-spec`, `cavekit-build`, `cavekit-check`, `cavekit-backprop`; prompts `/ck:spec`, `/ck:build`, `/ck:check`; file `FORMAT.md`.
 - file: project-root `SPEC.md` → Cavekit single durable spec artifact.
 - pkg: `@casualjim/pi-caveman` → extension `extensions/caveman`, skills `caveman`, `caveman-commit`, `caveman-review`, `caveman-compress`, `caveman-help`, `caveman-stats`, `cavecrew`; agents `cavecrew-*`.
 - hook: `pi-caveman` session start → load default mode, write safe mode flag, inject filtered `skills/caveman/SKILL.md` rules.
 - hook: `pi-caveman` Pi equivalent of `UserPromptSubmit` ? → track `/skill:caveman`/natural-language mode changes and inject active-mode reminder.
 - file: Pi caveman mode state path ? → valid modes only; symlink/oversize/corrupt reads ignored.
-- file: `.pi/mimir-managed.json` → pi-mimir managed skills/assets manifest.
+- file: `.pi/mimir-managed.json` → OpenSpec project-state asset manifest only; packaged skills/agents omitted; legacy copied entries read/prune only.
 
 ## §V INVARIANTS
 V1: package registration ! match intended Pi surface; no hidden public skills/prompts/extensions.
@@ -49,6 +51,8 @@ V13: `pi-caveman` ! activate Caveman on Pi session start; rules from `skills/cav
 V14: mode state ! valid mode enum only, symlink-safe write/read, size-bounded; corrupted state → no injection.
 V15: per-turn hook ! reinforce active Caveman; track `/skill:caveman*`, natural-language enable/disable, `stop caveman`, `normal mode`; independent modes `commit`/`review`/`compress` skip base reply rules.
 V16: Pi port ! mimic upstream Claude `SessionStart`/`UserPromptSubmit` behavior without installing Claude hooks, editing `~/.claude`, or shipping active non-Pi plugin manifests.
+V17: `pi-mimir`/`advisor` bundled agents/skills ! resolve from installed package/plugin catalogs; new copies under `.pi/agents`/`.pi/skills` ⊥.
+V18: `review-implementation` + specialist review skills ! accept explicit review scope without `openspec/changes/...`; OpenSpec artifacts ? context only when supplied.
 
 ## §T TASKS
 id|status|task|cites
@@ -65,6 +69,11 @@ T10|x|impl Pi per-turn/UserPromptSubmit equivalent: track `/skill:caveman*`, nat
 T11|x|update `caveman-stats`/status docs: native Pi stats/statusline only if Pi APIs exist; no fake estimates|V12,V16
 T12|x|add tests for extension registration, start injection, mode tracking, state safety, no `~/.claude` mutation, no non-Pi manifests|V1,V2,V13,V14,V15,V16
 T13|x|update `packages/pi-caveman/README.md` to explain Pi-native hooks and remaining upstream-hook exclusions|V13,V16
+T14|x|change `packages/pi-mimir` setup/update: expose packaged skills/agents through plugin/package, stop `.pi/skills`/`.pi/agents` bulk copy|V1,V2,V3,V17
+T15|x|change `packages/advisor`: resolve `advisor-child.md` from package/plugin, stop `.pi/advisor-managed.json` new writes and copied agent files|V8,V9,V17
+T16|x|add tests mirroring `rpiv-pi`/`rpiv-advisor`: installed package agents available, init/update/advisor leave no copied bundled agents/skills, legacy managed copies safe|V1,V2,V3,V8,V17
+T17|x|change `review-architecture`, `review-tests`, `review-data-flow`, `review-security`: accept `<review-scope>`; OpenSpec artifacts optional; no mandatory `openspec/changes/...`|V18
+T18|x|add contract/frontmatter tests: specialist review skills do not mandate OpenSpec and still require explicit review request + evidence-based findings|V1,V18
 
 ## §B BUGS
 id|date|cause|fix

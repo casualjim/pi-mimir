@@ -6,7 +6,7 @@ Forked child advisor package for Pi and pi-mimir.
 
 - `/advisor` to configure an advisor model and optional reasoning effort.
 - An `advisor` tool that forks from the current session branch and asks a stronger model for concise guidance.
-- Bundled `advisor-child` agent delivery into `.pi/agents/`.
+- Packaged `advisor-child` agent loaded from the installed plugin package; no `.pi/agents/` copy needed.
 - Off-by-default activation, explicit disable support, and per-executor blocklist support through config.
 
 ## Behavior

@@ -123,22 +123,26 @@ describe("agent and skill contracts", () => {
 		for (const name of ["review-architecture", "review-tests", "review-data-flow", "review-security"]) {
 			const text = readFileSync(`skillseeds/${name}/SKILL.md`, "utf-8");
 			const lower = text.toLowerCase();
-			expect(text).not.toContain("OpenSpec");
+			expect(text).toContain("explicit `<review-scope>`");
+			expect(text).toContain("OpenSpec artifacts as optional context when supplied");
+			expect(text).toContain("Do not require `openspec/changes/...` for non-OpenSpec scopes");
 			for (const phrase of forbidden) expect(lower).not.toContain(phrase);
 		}
 	});
 
-	it("review-implementation remains an explicit OpenSpec implementation review, not a package-registered generic review", () => {
+	it("review-implementation supports optional OpenSpec context without requiring it", () => {
 		const text = readFileSync("skillseeds/review-implementation/SKILL.md", "utf-8");
-		expect(text).toContain("Review implementation work for a named OpenSpec change");
-		expect(text).toContain("Use only when an OpenSpec workflow explicitly requests implementation review");
+		expect(text).toContain("OpenSpec artifacts are optional context");
+		expect(text).toContain("Do not require `openspec/changes/...` to exist for non-OpenSpec review scopes");
+		expect(text).not.toContain("Review implementation work for a named OpenSpec change");
+		expect(text).not.toContain("Use only when an OpenSpec workflow explicitly requests implementation review");
 		expect(text).toContain("Implementation Review Report");
 		expect(text).toContain("Report the whole issue list");
 		expect(text).toContain("do not limit output to the highest-severity actionable set");
-		expect(text).toContain("/skill:review-architecture <change-name>");
-		expect(text).toContain("/skill:review-tests <change-name>");
-		expect(text).toContain("/skill:review-data-flow <change-name>");
-		expect(text).toContain("/skill:review-security <change-name>");
+		expect(text).toContain("/skill:review-architecture <review-scope>");
+		expect(text).toContain("/skill:review-tests <review-scope>");
+		expect(text).toContain("/skill:review-data-flow <review-scope>");
+		expect(text).toContain("/skill:review-security <review-scope>");
 		expect(text).toContain("does not include commit, push, PR, archive, or finishing-branch behavior");
 	});
 

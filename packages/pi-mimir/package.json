@@ -21,7 +21,9 @@
     "extensions": [
       "extensions/openspec"
     ],
-    "skills": []
+    "skills": [
+      "./skillseeds"
+    ]
   },
   "dependencies": {
     "@earendil-works/pi-tui": "*"
