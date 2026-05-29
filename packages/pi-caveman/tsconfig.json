@@ -9,5 +9,5 @@
     "forceConsistentCasingInFileNames": true,
     "types": ["node", "vitest"]
   },
-  "include": ["tests/**/*.ts", "vitest.config.ts"]
+  "include": ["extensions/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
 }

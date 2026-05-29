@@ -1,6 +1,6 @@
 # pi-caveman
 
-Pi-native port of [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman): terse agent communication skills that reduce output tokens while keeping technical accuracy.
+Pi-native port of [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman): terse agent communication skills and Pi-native session hooks that reduce output tokens while keeping technical accuracy.
 
 ## Install
 
@@ -26,11 +26,21 @@ pi install ./packages/pi-caveman
 
 Pi registers skills as `/skill:<name>` commands when skill commands are enabled. Natural-language triggers in each skill also work through normal skill discovery.
 
+## Pi-native hooks
+
+`pi-caveman` includes a Pi extension at `extensions/caveman` that mirrors upstream Claude Code hook behavior without installing Claude hooks or mutating `~/.claude`:
+
+- `session_start` loads the default Caveman mode, writes safe Pi mode state, and injects filtered `skills/caveman/SKILL.md` rules as hidden context.
+- `input` tracks `/skill:caveman`, `/skill:caveman <mode>`, `/skill:caveman-commit`, `/skill:caveman-review`, `/skill:caveman-compress`, natural-language enable/disable, `stop caveman`, and `normal mode`.
+- `before_agent_start` reinforces active base Caveman mode each turn. Independent modes (`commit`, `review`, `compress`) do not inject base reply rules because their skills own behavior.
+
+Default mode is `full`. Override with `CAVEMAN_DEFAULT_MODE` or config JSON at the Pi Caveman config path. Set `CAVEMAN_DEFAULT_MODE=off` to disable startup activation.
+
 ## Known limitations
 
-This package ports Caveman behavior to Pi. It does not activate upstream installers, Claude Code hooks, statusline integrations, Codex/Gemini/Cursor plugin manifests, or any non-Pi agent configuration.
+This package ports Caveman behavior to Pi. It activates only the Pi-native extension hooks described above. It does not activate upstream installers, Claude Code hooks, statusline integrations, Codex/Gemini/Cursor plugin manifests, or any non-Pi agent configuration.
 
-`caveman-stats` in upstream Caveman is implemented through Claude Code hooks. Pi does not expose that same hook/log path through this skills-only package, so stats are represented honestly rather than estimated. A future Pi extension could add native session-token stats.
+`caveman-stats` in upstream Caveman is implemented through Claude Code hooks and Claude transcript logs. The Pi extension does not fake token savings or read Claude logs. A future Pi stats/status API could add native session-token stats.
 
 `cavecrew` includes upstream prompt resources under `agents/`, but Pi subagent execution still depends on the subagents configured in the running Pi environment.
 

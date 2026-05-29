@@ -2,8 +2,8 @@
 name: caveman-stats
 description: >
   Explain Caveman token-stats support in Pi. Upstream Caveman stats are powered by
-  Claude Code hooks and session logs; this Pi skills-only package does not fake
-  token savings. Triggers on /skill:caveman-stats or "caveman stats".
+  Claude Code hooks and session logs; this Pi package does not fake token savings.
+  Triggers on /skill:caveman-stats or "caveman stats".
 ---
 
 # Caveman Stats
@@ -17,16 +17,17 @@ Upstream Caveman computes stats through Claude Code hook files:
 - `hooks/caveman-mode-tracker.js`
 - Claude Code session logs
 
-This Pi package is skills-only. It does not install hooks, read Claude Code logs, or mutate non-Pi agent config. Therefore real Caveman token stats are unavailable here unless a future Pi extension adds native session-token integration.
+This Pi package has Pi-native mode hooks, but they only activate/track Caveman mode. They do not install Claude Code hooks, read Claude Code logs, provide statusline stats, mutate non-Pi agent config, or expose measured token savings. Real Caveman token stats remain unavailable unless Pi exposes a reliable token/session-log API.
 
 ## Response Pattern
 
 When invoked, say:
 
 ```text
-Caveman stats unavailable in Pi skills-only package.
+Caveman stats unavailable in Pi package.
+Pi-native hooks track mode only; no measured token stats API yet.
 Upstream stats need Claude Code hooks/session logs.
-No fake estimate. Future Pi extension could add native token stats.
+No fake estimate.
 ```
 
 If Pi later exposes a reliable token/session log API, use that source only. Never infer savings from response length or claim exact percentages for current session without measured data.

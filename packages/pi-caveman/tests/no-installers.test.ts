@@ -25,11 +25,16 @@ describe('non-Pi installer exclusion', () => {
     expect(relativeFiles).not.toContain('src/hooks/install.ps1');
   });
 
-  it('keeps hook references informational, not active package behavior', async () => {
+  it('keeps non-Pi hook references informational while enabling only the Pi-native extension', async () => {
     const pkg = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8')) as {
       pi?: { extensions?: string[] };
     };
 
-    expect(pkg.pi?.extensions).toBeUndefined();
+    expect(pkg.pi?.extensions).toEqual(['extensions/caveman']);
+
+    const relativeFiles = (await listFiles(root)).map((file) => path.relative(root, file));
+    expect(relativeFiles).not.toContain('.claude-plugin/plugin.json');
+    expect(relativeFiles).not.toContain('.codex/hooks.json');
+    expect(relativeFiles).not.toContain('gemini-extension.json');
   });
 });

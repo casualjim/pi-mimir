@@ -68,4 +68,14 @@ describe('Caveman skill files', () => {
 
     expect([...names].sort()).toEqual([...requiredSkills].sort());
   });
+
+  it('keeps caveman-stats wording aligned with Pi-native hooks', async () => {
+    const skill = await readFile(path.join(skillsRoot, 'caveman-stats', 'SKILL.md'), 'utf8');
+    const readme = await readFile(path.join(skillsRoot, 'caveman-stats', 'README.md'), 'utf8');
+    const combined = `${skill}\n${readme}`;
+
+    expect(combined).not.toMatch(/skills-only package/i);
+    expect(combined).toMatch(/Pi-native mode hooks/);
+    expect(combined).toMatch(/No fake estimate/i);
+  });
 });

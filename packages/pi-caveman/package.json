@@ -11,6 +11,7 @@
   "files": [
     "skills/",
     "agents/",
+    "extensions/",
     "README.md",
     "LICENSE",
     "index.js"
@@ -18,6 +19,9 @@
   "pi": {
     "skills": [
       "skills"
+    ],
+    "extensions": [
+      "extensions/caveman"
     ]
   },
   "scripts": {
@@ -26,6 +30,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
     "@types/node": "^22.0.0",
     "typescript": "^5.4.0",
     "vitest": "^3.1.0"

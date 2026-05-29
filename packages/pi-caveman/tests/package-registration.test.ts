@@ -14,19 +14,20 @@ describe('pi-caveman package registration', () => {
       name: string;
       keywords?: string[];
       files?: string[];
-      pi?: { skills?: string[] };
+      pi?: { skills?: string[]; extensions?: string[] };
     }>('package.json');
 
     expect(pkg.name).toBe('@casualjim/pi-caveman');
     expect(pkg.keywords).toContain('pi-package');
     expect(pkg.pi?.skills).toEqual(['skills']);
+    expect(pkg.pi?.extensions).toEqual(['extensions/caveman']);
   });
 
   it('publishes skills, agents, README, license, and entrypoint', async () => {
     const pkg = await readJson<{ files?: string[] }>('package.json');
 
     expect(pkg.files).toEqual(
-      expect.arrayContaining(['skills/', 'agents/', 'README.md', 'LICENSE', 'index.js']),
+      expect.arrayContaining(['skills/', 'agents/', 'extensions/', 'README.md', 'LICENSE', 'index.js']),
     );
   });
 
