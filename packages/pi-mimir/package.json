@@ -1,6 +1,6 @@
 {
   "name": "@casualjim/pi-mimir",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "description": "OpenSpec-driven development workflow for Pi Agent",
   "keywords": [
