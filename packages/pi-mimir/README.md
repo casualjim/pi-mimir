@@ -1,6 +1,6 @@
 # pi-mimir
 
-OpenSpec workflow package for Pi. `pi-mimir` adds a review-gated OpenSpec workflow with focused planning, implementation, and review entrypoints.
+OpenSpec workflow package for Pi. `@casualjim/pi-mimir` adds a review-gated OpenSpec workflow with focused planning, implementation, and review entrypoints.
 
 ## What it provides
 
@@ -11,9 +11,9 @@ OpenSpec workflow package for Pi. `pi-mimir` adds a review-gated OpenSpec workfl
 - A `review-gated` OpenSpec schema and supporting templates.
 - Session guidance for codebase-memory-first discovery.
 - Explicit incomplete-setup reporting when the separate `pi-codebase-memory` plugin is not active.
-- Compatibility with the sibling `@casualjim/pi-mimir-advisor` package for forked child advisor consultations.
+- Compatibility with the sibling `@casualjim/pi-advisor` package for forked child advisor consultations.
 
-`pi-mimir` does not commit, push, create pull requests, archive changes, or run branch-finishing workflows. Generated OpenSpec skills are allowed to coexist and may be called by the full workflow where appropriate.
+`@casualjim/pi-mimir` does not commit, push, create pull requests, archive changes, or run branch-finishing workflows. Generated OpenSpec skills are allowed to coexist and may be called by the full workflow where appropriate.
 
 ## Install
 
@@ -83,7 +83,7 @@ Use these when planning or implementation already exists and you want a separate
 
 ## Discovery behavior
 
-For code discovery, `pi-mimir` guides agents toward this ladder:
+For code discovery, `@casualjim/pi-mimir` guides agents toward this ladder:
 
 1. `codebase_memory_get_architecture`
 2. `codebase_memory_search_graph` or `codebase_memory_search_code`

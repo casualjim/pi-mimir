@@ -1,7 +1,13 @@
 {
-  "name": "pi-mimir",
+  "name": "pi-mimir-workspace",
   "license": "MIT",
   "workspaces": [
     "packages/*"
-  ]
+  ],
+  "private": true,
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm test --workspaces --if-present",
+    "check:pack": "npm run check:pack --workspaces --if-present"
+  }
 }

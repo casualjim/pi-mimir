@@ -98,7 +98,7 @@ writeFileSync(`${PROJECT}/openspec/changes/sample-change/tasks.md`, "## 1. Sampl
 
 run("install pi-mimir", "pi", ["install", "-l", PACKAGE_SOURCE], { cwd: PROJECT });
 const list = run("list installed packages", "pi", ["list"], { cwd: PROJECT }).combined;
-assertIncludes(list, "pi-mimir", "install/list");
+assertIncludes(list, "@casualjim/pi-mimir", "install/list");
 
 const guidancePrompt = [
 	"Report the OpenSpec workflow guidance from your system prompt.",

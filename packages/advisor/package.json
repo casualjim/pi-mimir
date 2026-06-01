@@ -1,5 +1,5 @@
 {
-  "name": "@casualjim/pi-mimir-advisor",
+  "name": "@casualjim/pi-advisor",
   "version": "0.1.0",
   "license": "MIT",
   "description": "Forked child advisor package for pi-mimir",
@@ -21,7 +21,8 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:pack": "npm pack --dry-run"
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",
@@ -37,5 +38,8 @@
     "typebox": "*",
     "typescript": "^5.4.0",
     "vitest": "^3.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

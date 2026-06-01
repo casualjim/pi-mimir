@@ -26,11 +26,15 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:pack": "npm pack --dry-run"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "typescript": "^5.4.0",
     "vitest": "^3.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

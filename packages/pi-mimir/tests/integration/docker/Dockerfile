@@ -9,4 +9,4 @@ COPY . /workspace/pi-mimir-workflow
 
 RUN npm install -g @earendil-works/pi-coding-agent
 
-CMD ["npm", "run", "test:e2e", "--workspace", "pi-mimir"]
+CMD ["npm", "run", "test:e2e", "--workspace", "@casualjim/pi-mimir"]
