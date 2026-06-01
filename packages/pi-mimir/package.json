@@ -36,7 +36,6 @@
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "*",
-    "@fission-ai/openspec": "^1.3.1",
     "@types/node": "^22.0.0",
     "typescript": "^5.4.0",
     "vitest": "^3.1.0"

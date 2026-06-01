@@ -29,6 +29,9 @@ jobs:
           node-version: "24"
           cache: npm
 
+      - name: Install OpenSpec CLI
+        run: npm install --global @fission-ai/openspec
+
       - name: Install dependencies
         run: npm ci
 
