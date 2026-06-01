@@ -9,5 +9,9 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm test --workspaces --if-present",
     "check:pack": "npm run check:pack --workspaces --if-present"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/casualjim/pi-mimir"
   }
 }
