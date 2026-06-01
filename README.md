@@ -1,52 +1,101 @@
 # pi-mimir
 
-`pi-mimir` is a Pi workflow package for review-gated OpenSpec development.
+`pi-mimir` is a Pi package monorepo for review-gated OpenSpec workflows, codebase-memory discovery support, forked advisor guidance, Cavekit specs, and Caveman terse mode.
 
-It provides focused entrypoints for planning, implementation, and review while keeping generated OpenSpec sync/archive behavior explicit.
+## Workspace packages
 
-## Packages
+- `packages/pi-mimir` — `@casualjim/pi-mimir`; OpenSpec extension, workflow skills, role agents, review-gated schema assets, and tests.
+- `packages/pi-codebase-memory` — `@casualjim/pi-codebase-memory`; standalone codebase-memory MCP setup plugin, raw-discovery reminders, and public `codebase-memory` skill.
+- `packages/advisor` — `@casualjim/pi-advisor`; forked child advisor extension, `/advisor` command, `advisor` tool, and packaged `advisor-child` agent.
+- `packages/pi-cavekit` — `@casualjim/pi-cavekit`; Pi prompt templates and skills for root `SPEC.md` workflows.
+- `packages/pi-caveman` — `@casualjim/pi-caveman`; terse-mode skills, Cavecrew guidance, and Pi-native Caveman extension hooks.
 
-- `packages/pi-mimir` — the OpenSpec workflow package: extension, agents, skill seeds, OpenSpec schema assets, and tests.
-- `packages/pi-codebase-memory` — standalone codebase-memory plugin for MCP wiring, guidance, and the public skill.
-- `packages/advisor` — forked child advisor package for second-opinion guidance in pi-mimir sessions.
+## Install in Pi
 
-## Main workflow
+Install whichever packages you need:
 
-After installing the Pi package, initialize a repository with:
+```text
+pi install npm:@casualjim/pi-mimir
+pi install npm:@casualjim/pi-codebase-memory
+pi install npm:@casualjim/pi-advisor
+pi install npm:@casualjim/pi-cavekit
+pi install npm:@casualjim/pi-caveman
+```
+
+For local development from this checkout, install package paths instead:
+
+```text
+pi install ./packages/pi-mimir
+pi install ./packages/pi-codebase-memory
+pi install ./packages/advisor
+pi install ./packages/pi-cavekit
+pi install ./packages/pi-caveman
+```
+
+## OpenSpec workflow
+
+After installing `@casualjim/pi-mimir`, initialise a target repository with:
 
 ```text
 /openspec:init
 ```
 
-For full architecture-aware discovery, install the separate `pi-codebase-memory` plugin:
-
-```text
-pi install @casualjim/pi-codebase-memory
-```
+`/openspec:init` runs `openspec init --tools pi`, sets `openspec/config.yaml` to the `review-gated` schema, syncs OpenSpec schema/project-state assets, exposes packaged skills without copying them into `.pi/skills`, syncs role agents into `~/.pi/agent/agents`, and reports whether codebase-memory tools are active.
 
 Primary skill entrypoints:
 
-- `plan` — plan or refine an OpenSpec change through proposal, specs, design, tasks, and planning review gates.
-- `implement` — implement an apply-ready OpenSpec change, verify it, run implementation review gates, and stop before archive.
-- `review-plan` — run planning artifact review gates directly.
-- `review-implementation` — run implementation review gates directly.
+- `plan` — compose generated proposal/spec/design/task behaviour with one holistic planning review.
+- `implement` — apply an implementation-ready OpenSpec change, verify it, and stop before archive. Implementation review is separate and explicit.
+- `review-plan` — run a standalone planning review over existing planning artifacts.
+- `review-implementation` — run a standalone implementation review over implementation evidence.
 
-See [`packages/pi-mimir/README.md`](packages/pi-mimir/README.md) for usage and development details.
+`@casualjim/pi-mimir` does not commit, push, create pull requests, archive changes, or run branch-finishing workflows.
+
+For full architecture-aware discovery, install and activate the separate codebase-memory package:
+
+```text
+pi install npm:@casualjim/pi-codebase-memory
+```
+
+Without active `codebase_memory_*` tools, workflows must report degraded discovery and use exact reads or shell inspection as fallback.
+
+See [`packages/pi-mimir/README.md`](packages/pi-mimir/README.md) for detailed usage.
+
+## Cavekit and Caveman
+
+`@casualjim/pi-cavekit` provides:
+
+```text
+/ck:spec
+/ck:build
+/ck:check
+```
+
+It uses project-root `SPEC.md` as the durable spec artifact and bundles `FORMAT.md` as reference material.
+
+`@casualjim/pi-caveman` provides persistent terse response mode, commit/review/compress helper skills, Cavecrew delegation guidance, and Pi-native `session_start`, `input`, and `before_agent_start` hooks. It does not install Claude Code hooks or mutate `~/.claude`.
 
 ## Development
 
-From the repository root, install workspace dependencies:
+Install workspace dependencies from the repository root:
 
 ```bash
 npm install
 ```
 
-Run package checks from `packages/pi-mimir`:
+Run checks:
 
 ```bash
-cd packages/pi-mimir
-npm test
-npm run typecheck
+npm test --workspaces --if-present
+npm run typecheck --workspaces --if-present
+npm run check:pack --workspaces --if-present
+```
+
+Run package-specific checks when working in one package, for example:
+
+```bash
+npm test --workspace @casualjim/pi-mimir
+npm run typecheck --workspace @casualjim/pi-mimir
 ```
 
 ## License

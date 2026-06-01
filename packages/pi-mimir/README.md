@@ -49,7 +49,7 @@ The update command runs `openspec update`, keeps `openspec/config.yaml` on the `
 Install codebase-memory support with:
 
 ```text
-pi install @casualjim/pi-codebase-memory
+pi install npm:@casualjim/pi-codebase-memory
 ```
 
 Without that plugin active, workflows can still use exact file reads and shell inspection, but should report discovery as degraded and avoid claiming architecture-aware analysis.

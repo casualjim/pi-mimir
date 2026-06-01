@@ -22,10 +22,17 @@ The advisor child is read-only and cannot recurse through the `advisor` tool.
 
 ## Install
 
-Install the package in Pi, then configure it in a session with:
+Install the package in Pi, then configure it in a session:
 
 ```text
+pi install npm:@casualjim/pi-advisor
 /advisor
+```
+
+For local development from this monorepo:
+
+```text
+pi install ./packages/advisor
 ```
 
 ## Notes

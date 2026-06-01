@@ -13,7 +13,7 @@ The package bundles upstream Cavekit `FORMAT.md` as the reference for that file'
 ## Install
 
 ```text
-pi install @casualjim/pi-cavekit
+pi install npm:@casualjim/pi-cavekit
 ```
 
 For local development from this monorepo:

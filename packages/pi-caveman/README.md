@@ -5,7 +5,7 @@ Pi-native port of [JuliusBrussee/caveman](https://github.com/JuliusBrussee/cavem
 ## Install
 
 ```text
-pi install @casualjim/pi-caveman
+pi install npm:@casualjim/pi-caveman
 ```
 
 For local development from this monorepo:
