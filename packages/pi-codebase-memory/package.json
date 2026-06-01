@@ -1,6 +1,6 @@
 {
   "name": "@casualjim/pi-codebase-memory",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "description": "Codebase-memory MCP wiring and guidance plugin for Pi",
   "keywords": [
