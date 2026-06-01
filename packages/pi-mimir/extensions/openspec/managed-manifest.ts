@@ -1,14 +1,14 @@
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-export const MIMIR_MANAGED_MANIFEST = join(".pi", "mimir-managed.json");
+export const MANAGED_MANIFEST_NAME = "mimir-managed.json";
+export const MIMIR_MANAGED_MANIFEST = join(".pi", MANAGED_MANIFEST_NAME);
 export const LEGACY_ROOT_ASSET_MANIFEST = ".openspec-assets-managed.json";
 export const LEGACY_AGENT_MANIFEST = join(".pi", "agents", ".openspec-managed.json");
 
-type ManagedManifest = Record<string, unknown>;
+export type ManagedManifest = Record<string, unknown>;
 
-export function readMimirManagedManifest(cwd: string): ManagedManifest {
-	const manifestPath = join(cwd, MIMIR_MANAGED_MANIFEST);
+export function readManagedManifestFile(manifestPath: string): ManagedManifest {
 	if (!existsSync(manifestPath)) return {};
 	try {
 		const parsed = JSON.parse(readFileSync(manifestPath, "utf-8"));
@@ -18,10 +18,17 @@ export function readMimirManagedManifest(cwd: string): ManagedManifest {
 	}
 }
 
-export function writeMimirManagedManifest(cwd: string, manifest: ManagedManifest): void {
-	const manifestPath = join(cwd, MIMIR_MANAGED_MANIFEST);
+export function writeManagedManifestFile(manifestPath: string, manifest: ManagedManifest): void {
 	mkdirSync(dirname(manifestPath), { recursive: true });
 	writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf-8");
+}
+
+export function readMimirManagedManifest(cwd: string): ManagedManifest {
+	return readManagedManifestFile(join(cwd, MIMIR_MANAGED_MANIFEST));
+}
+
+export function writeMimirManagedManifest(cwd: string, manifest: ManagedManifest): void {
+	writeManagedManifestFile(join(cwd, MIMIR_MANAGED_MANIFEST), manifest);
 	removeLegacyManagedManifests(cwd);
 }
 

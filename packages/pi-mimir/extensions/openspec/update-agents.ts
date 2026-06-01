@@ -62,8 +62,7 @@ function buildUpdateReport(
 	lines.push(`Updated schemas: ${countSummary(schemas.added.length, schemas.updated.length, schemas.removed.length)}.`);
 	lines.push("Packaged skills are available through the pi-mimir package; no .pi/skills copy needed.");
 	lines.push(`Pruned legacy copied skills: ${countSummary(skills.added.length, skills.updated.length, skills.removed.length)}.`);
-	lines.push("Packaged agents are available through the pi-mimir package; no .pi/agents copy needed.");
-	lines.push(`Pruned legacy copied agents: ${formatSyncReport(agents)}.`);
+	lines.push(`Synced OpenSpec agents to ~/.pi/agent/agents: ${formatSyncReport(agents)}.`);
 
 	if (schemas.errors.length > 0) lines.push(`Schema sync errors: ${schemas.errors.map((e) => e.message).join("; ")}`);
 	if (agents.errors.length > 0) lines.push(`Agent sync errors: ${agents.errors.map((e) => e.message).join("; ")}`);

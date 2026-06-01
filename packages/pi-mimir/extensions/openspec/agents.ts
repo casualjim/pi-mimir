@@ -1,18 +1,23 @@
 /**
- * Bundled OpenSpec agents are package-provided, not copied into projects.
+ * pi-subagents discovers user agents from ~/.pi/agent/agents, not from pi
+ * package resource manifests. Keep pi-mimir's OpenSpec role agents there as
+ * managed copies so they override the lower-priority pi-subagents builtins.
  *
- * This module only prunes legacy managed copies recorded by older pi-mimir
- * releases. User-modified legacy copies are preserved and become user-owned.
+ * User-modified copies are preserved and become user-owned.
  */
 
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
 	LEGACY_AGENT_MANIFEST,
+	MANAGED_MANIFEST_NAME,
 	readLegacyJson,
+	readManagedManifestFile,
 	readMimirManagedManifest,
+	writeManagedManifestFile,
 	writeMimirManagedManifest,
 } from "./managed-manifest.js";
 
@@ -25,7 +30,7 @@ export const BUNDLED_AGENTS_DIR = join(PACKAGE_ROOT, "agents");
 
 export interface SyncError {
 	file?: string;
-	op: "read-dest" | "remove" | "manifest-read" | "manifest-write";
+	op: "read-dest" | "write-dest" | "remove" | "manifest-read" | "manifest-write";
 	message: string;
 }
 
@@ -78,14 +83,21 @@ function coerceManifest(value: unknown): Manifest {
 	return out;
 }
 
-function readManifest(cwd: string): Manifest {
+function getAgentRoot(): string {
+	const configured = process.env.PI_CODING_AGENT_DIR;
+	if (configured === "~") return homedir();
+	if (configured?.startsWith("~/")) return join(homedir(), configured.slice(2));
+	return configured || join(homedir(), ".pi", "agent");
+}
+
+function readProjectLegacyManifest(cwd: string): Manifest {
 	const manifest = readMimirManagedManifest(cwd);
 	const section = coerceManifest(manifest[MANIFEST_SECTION]);
 	if (Object.keys(section).length > 0) return section;
 	return coerceManifest(readLegacyJson(cwd, LEGACY_AGENT_MANIFEST));
 }
 
-function clearManifest(cwd: string, result: SyncResult): void {
+function clearProjectLegacyManifest(cwd: string, result: SyncResult): void {
 	try {
 		const root = readMimirManagedManifest(cwd);
 		delete root[MANIFEST_SECTION];
@@ -95,22 +107,112 @@ function clearManifest(cwd: string, result: SyncResult): void {
 	}
 }
 
+function userManifestPath(): string {
+	return join(getAgentRoot(), MANAGED_MANIFEST_NAME);
+}
+
+function readUserManifest(): Manifest {
+	return coerceManifest(readManagedManifestFile(userManifestPath())[MANIFEST_SECTION]);
+}
+
+function writeUserManifest(result: SyncResult, manifest: Manifest): void {
+	try {
+		const root = readManagedManifestFile(userManifestPath());
+		if (Object.keys(manifest).length > 0) root[MANIFEST_SECTION] = manifest;
+		else delete root[MANIFEST_SECTION];
+		writeManagedManifestFile(userManifestPath(), root);
+	} catch (error) {
+		result.errors.push({ op: "manifest-write", message: error instanceof Error ? error.message : String(error) });
+	}
+}
+
+function readBundledAgents(): Manifest {
+	const out: Manifest = {};
+	try {
+		for (const entry of readdirSync(BUNDLED_AGENTS_DIR, { withFileTypes: true })) {
+			if (!entry.isFile() || !isManagedAgentName(entry.name)) continue;
+			out[entry.name] = sha256(readFileSync(join(BUNDLED_AGENTS_DIR, entry.name)));
+		}
+	} catch {
+		return out;
+	}
+	return out;
+}
+
+function copyBundledAgent(name: string, destPath: string, result: SyncResult): boolean {
+	try {
+		mkdirSync(dirname(destPath), { recursive: true });
+		writeFileSync(destPath, readFileSync(join(BUNDLED_AGENTS_DIR, name)));
+		return true;
+	} catch (error) {
+		result.errors.push({ file: name, op: "write-dest", message: error instanceof Error ? error.message : String(error) });
+		return false;
+	}
+}
+
+function removeManagedAgent(targetDir: string, name: string, knownHash: string, result: SyncResult): boolean {
+	const destPath = safeJoin(targetDir, name);
+	if (destPath === null) {
+		result.errors.push({ file: name, op: "remove", message: "rejected unsafe path" });
+		return false;
+	}
+	if (!existsSync(destPath)) {
+		result.removed.push(name);
+		return true;
+	}
+	let destContent: Buffer;
+	try {
+		destContent = readFileSync(destPath);
+	} catch (error) {
+		result.errors.push({ file: name, op: "read-dest", message: error instanceof Error ? error.message : String(error) });
+		return false;
+	}
+	if (knownHash !== "" && sha256(destContent) === knownHash) {
+		try {
+			unlinkSync(destPath);
+			result.removed.push(name);
+			return true;
+		} catch (error) {
+			result.errors.push({ file: name, op: "remove", message: error instanceof Error ? error.message : String(error) });
+			return false;
+		}
+	}
+	// Locally edited files stay on disk and become user-owned.
+	return false;
+}
+
+function pruneProjectLegacyAgents(cwd: string, result: SyncResult): void {
+	const legacyManifest = readProjectLegacyManifest(cwd);
+	if (Object.keys(legacyManifest).length === 0) return;
+	const targetDir = join(cwd, ".pi", "agents");
+	for (const [name, knownHash] of Object.entries(legacyManifest)) {
+		removeManagedAgent(targetDir, name, knownHash, result);
+	}
+	clearProjectLegacyManifest(cwd, result);
+}
+
 export function syncBundledAgents(cwd: string): SyncResult {
 	const result = emptySyncResult();
-	const manifest = readManifest(cwd);
-	if (Object.keys(manifest).length === 0) return result;
+	const previousManifest = readUserManifest();
+	const bundled = readBundledAgents();
+	const nextManifest: Manifest = {};
+	const targetDir = join(getAgentRoot(), "agents");
 
-	const targetDir = join(cwd, ".pi", "agents");
-	for (const [name, knownHash] of Object.entries(manifest)) {
+	for (const [name, sourceHash] of Object.entries(bundled)) {
 		const destPath = safeJoin(targetDir, name);
 		if (destPath === null) {
 			result.errors.push({ file: name, op: "remove", message: "rejected unsafe path" });
 			continue;
 		}
+
 		if (!existsSync(destPath)) {
-			result.removed.push(name);
+			if (copyBundledAgent(name, destPath, result)) {
+				result.added.push(name);
+				nextManifest[name] = sourceHash;
+			}
 			continue;
 		}
+
 		let destContent: Buffer;
 		try {
 			destContent = readFileSync(destPath);
@@ -118,18 +220,30 @@ export function syncBundledAgents(cwd: string): SyncResult {
 			result.errors.push({ file: name, op: "read-dest", message: error instanceof Error ? error.message : String(error) });
 			continue;
 		}
+
 		const destHash = sha256(destContent);
-		if (knownHash !== "" && destHash === knownHash) {
-			try {
-				unlinkSync(destPath);
-				result.removed.push(name);
-			} catch (error) {
-				result.errors.push({ file: name, op: "remove", message: error instanceof Error ? error.message : String(error) });
+		const knownHash = previousManifest[name];
+		if (knownHash !== undefined && knownHash !== "" && destHash === knownHash && destHash !== sourceHash) {
+			if (copyBundledAgent(name, destPath, result)) {
+				result.updated.push(name);
+				nextManifest[name] = sourceHash;
 			}
+			continue;
 		}
-		// Locally edited legacy files stay on disk and become user-owned.
+
+		if (destHash === sourceHash) {
+			result.unchanged.push(name);
+			nextManifest[name] = sourceHash;
+		}
+		// Locally edited user agents stay on disk and become user-owned.
 	}
 
-	clearManifest(cwd, result);
+	for (const [name, knownHash] of Object.entries(previousManifest)) {
+		if (name in bundled) continue;
+		removeManagedAgent(targetDir, name, knownHash, result);
+	}
+
+	pruneProjectLegacyAgents(cwd, result);
+	writeUserManifest(result, nextManifest);
 	return result;
 }

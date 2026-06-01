@@ -28,7 +28,7 @@ The init command:
 1. runs `openspec init --tools pi`,
 2. configures `openspec/config.yaml` to use the `review-gated` schema,
 3. syncs bundled OpenSpec schemas/project-state assets,
-4. keeps bundled skills and agents package-provided instead of copying them into `.pi/`,
+4. keeps bundled skills package-provided and syncs OpenSpec agents into `~/.pi/agent/agents`,
 5. checks whether the required `codebase_memory_*` tools are active, and
 6. reports setup as incomplete with an install command when `pi-codebase-memory` is not yet active.
 
@@ -38,7 +38,7 @@ To refresh OpenSpec Pi tooling later, run:
 /openspec:update
 ```
 
-The update command runs `openspec update`, keeps `openspec/config.yaml` on the `review-gated` schema, syncs bundled schemas/project-state assets, prunes legacy copied skills/agents when safe, and refreshes `.pi/mimir-managed.json` for OpenSpec assets only.
+The update command runs `openspec update`, keeps `openspec/config.yaml` on the `review-gated` schema, syncs bundled schemas/project-state assets, prunes legacy copied skills/agents when safe, writes OpenSpec agent ownership to `~/.pi/agent/mimir-managed.json`, and refreshes `.pi/mimir-managed.json` for project OpenSpec assets only.
 
 ## Requirements
 
