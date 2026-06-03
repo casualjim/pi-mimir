@@ -36,7 +36,9 @@ Write `SPEC.md` at project root. Show the full file and ask: `spec OK? suggest e
 
 ## DISTILL — code → spec
 
-Walk the current repo. Produce:
+Walk the current repo. If `cavecrew-investigator` is available, use it first for read-only compressed repository mapping: public surfaces, package metadata, main entrypoints, tests/assertions, TODOs, config/env/files, and likely invariants. The investigator must return file:line evidence only and must not design, fix, edit, or mutate state. If unavailable, continue with codebase-memory tools when available, then exact reads/search as fallback.
+
+Produce:
 
 - §G: infer from README, package metadata, main entrypoints, or obvious behavior.
 - §C: infer stack, language, runtime, and locked constraints.

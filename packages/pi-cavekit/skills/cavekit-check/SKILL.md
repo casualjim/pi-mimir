@@ -18,6 +18,10 @@ Read bundled `../../FORMAT.md` before interpreting `SPEC.md` structure and addre
    - `§T` → audit task status against code evidence
    - `--all` → check §V, §I, and §T
 
+## Optional Cavecrew investigation
+
+When evidence lookup needs code archaeology and `cavecrew-investigator` is available, use it for read-only compressed fact finding. Prefer it for locating §I implementations, §V enforcement/tests, §T status evidence, callers, and related files. The investigator must return file:line evidence only and must not design, fix, edit, or mutate state. If unavailable, use codebase-memory tools when available, then exact reads/search as fallback.
+
 ## Check §V — invariants
 
 For each `V<n>`:

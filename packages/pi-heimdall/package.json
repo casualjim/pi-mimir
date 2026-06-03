@@ -1,0 +1,64 @@
+{
+  "name": "@casualjim/pi-heimdall",
+  "version": "0.2.11",
+  "description": "Guardian extension for pi — security guards that block accidental secret exposure, enforce command policies, protect .env files, and sandbox bash commands",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "security",
+    "secrets",
+    "sops",
+    "kubectl"
+  ],
+  "license": "MIT",
+  "author": "casualjim",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/casualjim/pi-mimir"
+  },
+  "type": "module",
+  "files": [
+    "extensions/",
+    "lib/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "check:pack": "npm pack --dry-run",
+    "test": "vitest run"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/heimdall.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "^0.78.0",
+    "@earendil-works/pi-coding-agent": "^0.78.0",
+    "@earendil-works/pi-tui": "^0.78.0",
+    "@types/node": "^22.19.19",
+    "@types/shell-quote": "^1.7.5",
+    "typebox": "^1.1.39",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.6"
+  },
+  "dependencies": {
+    "@casualjim/heimdall-sandbox": "^0.1.42",
+    "ignore": "^7.0.5",
+    "jsonc-parser": "^3.3.1",
+    "shell-quote": "^1.8.4"
+  }
+}

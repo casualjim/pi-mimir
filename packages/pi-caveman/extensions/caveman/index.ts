@@ -1,4 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { syncBundledCavecrewAgents } from "./agents.js";
 import { buildActiveReminder, loadCavemanRules } from "./rules.js";
 import {
   clearModeState,
@@ -63,6 +64,8 @@ function activeBaseMode(): CavemanMode | null {
 
 export default function cavemanExtension(pi: ExtensionAPI) {
   pi.on("session_start", async () => {
+    syncBundledCavecrewAgents();
+
     const mode = getDefaultMode();
     if (mode === "off") {
       clearModeState();

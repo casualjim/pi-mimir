@@ -33,6 +33,7 @@ Pi registers skills as `/skill:<name>` commands when skill commands are enabled.
 - `session_start` loads the default Caveman mode, writes safe Pi mode state, and injects filtered `skills/caveman/SKILL.md` rules as hidden context.
 - `input` tracks `/skill:caveman`, `/skill:caveman <mode>`, `/skill:caveman-commit`, `/skill:caveman-review`, `/skill:caveman-compress`, natural-language enable/disable, `stop caveman`, and `normal mode`.
 - `before_agent_start` reinforces active base Caveman mode each turn. Independent modes (`commit`, `review`, `compress`) do not inject base reply rules because their skills own behavior.
+- Cavecrew agent prompts sync to `~/.pi/agent/agents` with ownership tracked in `~/.pi/agent/caveman-managed.json`; user-edited managed files are preserved and become user-owned.
 
 Default mode is `full`. Override with `CAVEMAN_DEFAULT_MODE` or config JSON at the Pi Caveman config path. Set `CAVEMAN_DEFAULT_MODE=off` to disable startup activation.
 
@@ -42,7 +43,7 @@ This package ports Caveman behavior to Pi. It activates only the Pi-native exten
 
 `caveman-stats` in upstream Caveman is implemented through Claude Code hooks and Claude transcript logs. The Pi extension does not fake token savings or read Claude logs. A future Pi stats/status API could add native session-token stats.
 
-`cavecrew` includes upstream prompt resources under `agents/`, but Pi subagent execution still depends on the subagents configured in the running Pi environment.
+`cavecrew` includes upstream prompt resources under `agents/`. The Pi extension syncs them for pi-subagents discovery, but it does not auto-spawn agents. Cavecrew remains explicit delegation: list available subagents first, then run `cavecrew-investigator`, `cavecrew-builder`, or `cavecrew-reviewer` only when the main thread chooses delegation.
 
 ## Development
 

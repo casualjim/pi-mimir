@@ -61,8 +61,7 @@ const PACKAGE_ROOT = (() => {
 const BUNDLED_ADVISOR_AGENT_PATH = join(PACKAGE_ROOT, "agents", "advisor-child.md");
 
 function advisorConfigPath(): string {
-	const baseHome = process.env.PI_MIMIR_ADVISOR_HOME || homedir();
-	return join(baseHome, ".config", "pi-mimir-advisor", "advisor.json");
+	return join(homedir(), ".config", "pi-mimir-advisor", "advisor.json");
 }
 
 interface AdvisorConfig {

@@ -1,0 +1,26 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# Taskplane runtime artifacts (machine-specific, do not commit)
+.pi/batch-state.json
+.pi/batch-history.json
+.pi/lane-state-*
+.pi/merge-result-*
+.pi/merge-request-*
+.pi/worker-conversation-*
+.pi/orch-logs/
+.pi/orch-abort-signal
+.pi/settings.json
+.worktrees/
+.taskplane-tasks/
+
+# Pi project-local packages (if using pi install -l)
+.pi/npm/
+SANDBOX-PLAN.md
+research_codex-sandbox-architecture_20260503.md
+fnox.toml

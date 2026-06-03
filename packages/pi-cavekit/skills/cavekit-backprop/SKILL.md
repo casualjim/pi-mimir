@@ -22,7 +22,9 @@ Read bundled `../../FORMAT.md` before drafting §B or §V entries.
 
 ### 1. Trace
 
-Read failure output or bug report. Find exact file:line or behavior boundary. Name root cause in one concise sentence.
+Read failure output or bug report. If `cavecrew-investigator` is available, use it for read-only compressed trace evidence: exact file:line, callers, tests, interface boundary, and related context. The investigator must not design, fix, edit, mutate state, or draft SPEC.md changes. If unavailable, use codebase-memory tools when available, then exact reads/search as fallback.
+
+Find exact file:line or behavior boundary. Name root cause in one concise sentence.
 
 ### 2. Analyze
 
@@ -63,7 +65,7 @@ If implementation work is in scope, fix code and run the targeted test plus appr
 
 ### 6. Log
 
-Use `cavekit-spec` to append §B and §V/§T changes after user approval. Do not commit automatically; commit only when explicitly requested by the user in this session.
+Use `cavekit-spec` to append §B and §V/§T changes after user approval. `cavekit-backprop` and `cavecrew-investigator` do not mutate `SPEC.md`. Do not commit automatically; commit only when explicitly requested by the user in this session.
 
 ## Good invariant qualities
 

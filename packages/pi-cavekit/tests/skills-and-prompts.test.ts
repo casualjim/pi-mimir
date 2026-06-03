@@ -64,6 +64,24 @@ describe('Cavekit skill files', () => {
 
     expect([...names].sort()).toEqual([...requiredSkills].sort());
   });
+
+  it('soft-uses cavecrew-investigator without requiring pi-caveman', async () => {
+    const spec = await readFile(path.join(skillsRoot, 'cavekit-spec', 'SKILL.md'), 'utf8');
+    const check = await readFile(path.join(skillsRoot, 'cavekit-check', 'SKILL.md'), 'utf8');
+    const backprop = await readFile(path.join(skillsRoot, 'cavekit-backprop', 'SKILL.md'), 'utf8');
+
+    expect(spec).toContain('If `cavecrew-investigator` is available');
+    expect(spec).toContain('DISTILL');
+    expect(check).toContain('Optional Cavecrew investigation');
+    expect(check).toContain('§I implementations, §V enforcement/tests, §T status evidence');
+    expect(backprop).toContain('read-only compressed trace evidence');
+    expect(backprop).toContain('do not mutate `SPEC.md`');
+
+    for (const markdown of [spec, check, backprop]) {
+      expect(markdown).toContain('must not design, fix, edit');
+      expect(markdown).toContain('If unavailable');
+    }
+  });
 });
 
 describe('Cavekit prompt templates', () => {

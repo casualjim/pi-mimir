@@ -26,7 +26,7 @@ const forkedSessionFile = "/tmp/forked-session.jsonl";
 describe("advisor tool execution", () => {
 	beforeEach(() => {
 		tempHome = mkdtempSync(join(tmpdir(), "advisor-home-"));
-		process.env.PI_MIMIR_ADVISOR_HOME = tempHome;
+		vi.stubEnv("HOME", tempHome);
 		parentSessionFile = join(tempHome, "parent-session.jsonl");
 		writeFileSync(parentSessionFile, "{}\n", "utf-8");
 		writeFileSync(forkedSessionFile, "{}\n", "utf-8");
@@ -35,7 +35,7 @@ describe("advisor tool execution", () => {
 	});
 
 	afterEach(() => {
-		delete process.env.PI_MIMIR_ADVISOR_HOME;
+		vi.unstubAllEnvs();
 		rmSync(tempHome, { recursive: true, force: true });
 		rmSync(forkedSessionFile, { force: true });
 	});

@@ -1,7 +1,7 @@
 # SPEC
 
 ## §G GOAL
-Pi workflow monorepo → review-gated OpenSpec planning/implementation, codebase-memory support, forked advisor, Cavekit/Caveman Pi packages.
+Pi workflow monorepo → review-gated OpenSpec planning/implementation, standalone Codex-style code review, codebase-memory support, forked advisor, Cavekit/Caveman/Pi Grill/Heimdall packages.
 
 ## §C CONSTRAINTS
 - npm workspaces `packages/*`; packages ESM; tests Vitest; typecheck `tsc --noEmit`.
@@ -11,24 +11,41 @@ Pi workflow monorepo → review-gated OpenSpec planning/implementation, codebase
 - Full `@casualjim/pi-mimir` discovery requires separate `@casualjim/pi-codebase-memory`; unavailable tools → degraded discovery warning.
 - OpenSpec state lives under `openspec/`; review-gated schema ! valid OpenSpec `name/version/description/artifacts/apply` shape.
 - Managed assets content-addressed; user-modified managed files ! overwritten silently.
-- `pi-cavekit` skills/prompts only; bundles `FORMAT.md`; no extension, hooks, installer, managed config, `pi-caveman` dep.
-- `pi-caveman` ships Pi-native extension hooks equivalent to upstream Claude `SessionStart`/`UserPromptSubmit`; no `~/.claude` mutation or non-Pi plugin install.
+- `pi-cavekit` skills/prompts only; bundles `FORMAT.md`; no extension, hooks, installer, managed config, `pi-caveman` dep; `cavecrew-investigator` ? optional read-only delegation.
+- `pi-caveman` ships Pi-native extension hooks equivalent to upstream Claude `SessionStart`/`UserPromptSubmit`; no `~/.claude` mutation or non-Pi plugin install; Cavecrew agents ! Pi-subagents executable when package installed; use is skill/workflow-steered, not hook-auto-spawned.
 - `advisor` off by default; configured model/effort persisted; child lane read-only; output only `PLAN`/`CORRECTION`/`STOP`.
+- `@casualjim/pi-review` standalone; OpenSpec integration/dependency ⊥; `/review` behavior mirrors Codex `/review` task.
+- `@casualjim/pi-grill-me` ? soft-use `cavecrew-investigator` for read-only code archaeology; hard `pi-caveman` dep ⊥.
+- `@casualjim/pi-heimdall` in monorepo ! normalized workspace package, not raw standalone repo copy; repo-local artifacts (`node_modules/`, `.pi/`, `openspec/`, research/plan scratch docs) ⊥.
 
 ## §I INTERFACES
 - pkg: `@casualjim/pi-mimir` → extension `extensions/openspec`, package skills `skillseeds/`, package agents `agents/`, project state `openspec/`.
 - cmd: `/openspec:init` → run `openspec init --tools pi`, force `openspec/config.yaml` schema `review-gated`, sync OpenSpec schemas/project state only, report codebase-memory status.
 - cmd: `/openspec:update` → run `openspec update`, refresh review-gated config/OpenSpec assets only, report setup status.
 - cmd: `/openspec:status`, `/openspec:list` → proxy `openspec view/list` output through custom renderer.
-- skill: `plan`, `implement`, `review-plan`, `review-implementation`, `review-architecture`, `review-tests`, `review-data-flow`, `review-security` exposed by `@casualjim/pi-mimir` package/plugin; copied into `.pi/skills` ⊥; implementation/specialist reviews accept explicit non-OpenSpec scope + optional OpenSpec artifacts.
+- skill: `plan`, `implement`, `review-plan` exposed by `@casualjim/pi-openspec`; copied into `.pi/skills` ⊥; implementation review handoff uses standalone `@casualjim/pi-review` when installed.
+- skill: `review-implementation`, `review-architecture`, `review-tests`, `review-data-flow`, `review-security` exposed by `@casualjim/pi-review` from package `skills/`; copied into `.pi/skills` ⊥; implementation/specialist reviews accept explicit non-OpenSpec scope + optional OpenSpec artifacts.
 - agent: `@casualjim/pi-mimir` bundled `agents/*` synced into `~/.pi/agent/agents`; ownership tracked in `~/.pi/agent/mimir-managed.json`; copied into project `.pi/agents` ⊥.
 - pkg: `@casualjim/pi-codebase-memory` → extension `extensions/codebase-memory`, skill `codebase-memory`, dep `codebase-memory-mcp`.
 - file: `~/.pi/agent/mcp.json` → `codebase-memory-mcp` server with `directTools: true` when absent.
+- pkg: `@casualjim/pi-review` → extension `extensions/review`, command `/review`, bundled Codex review prompt, whole-tree implementation review skills, standalone review workflow.
+- cmd: `/review` → review staged/unstaged/untracked/uncommitted changes; use codebase-memory-first exploration then exact diff/file reads; emit structured findings; edit/git/comment ⊥.
+- cmd: `/review --base <branch>` → find merge-base with `<branch>`, inspect `git diff <merge-base>`, emit structured findings.
+- cmd: `/review --commit <sha>` → inspect changes from commit `<sha>`, emit structured findings.
+- cmd: `/review --custom <instructions>` → use non-empty custom review prompt, emit structured findings.
+- agent: `@casualjim/pi-review` bundled `agents/implementation-reviewer.md` synced into `~/.pi/agent/agents`; ownership tracked in `~/.pi/agent/pi-review-managed.json`.
 - pkg: `@casualjim/pi-advisor` → extension `extensions/advisor`, command `/advisor`, tool `advisor`, packaged agent `advisor-child.md`; copied agent file ⊥.
+- pkg: `@casualjim/pi-heimdall` → extension `extensions/heimdall.ts`, optional `extensions/heimdall-bg-tasks.ts`, libs under `lib/`, tests under `tests/`; package workspace files only.
 - file: `.pi/advisor-managed.json` → legacy advisor copied-agent manifest; read/prune only; new writes ⊥.
-- pkg: `@casualjim/pi-cavekit` → skills `cavekit-spec`, `cavekit-build`, `cavekit-check`, `cavekit-backprop`; prompts `/ck:spec`, `/ck:build`, `/ck:check`; file `FORMAT.md`.
+- pkg: `@casualjim/pi-cavekit` → skills `cavekit-spec`, `cavekit-build`, `cavekit-check`, `cavekit-backprop`; prompts `/ck:spec`, `/ck:build`, `/ck:check`; file `FORMAT.md`; ? soft-use `cavecrew-investigator` for read-only code archaeology when available.
 - file: project-root `SPEC.md` → Cavekit single durable spec artifact.
 - pkg: `@casualjim/pi-caveman` → extension `extensions/caveman`, skills `caveman`, `caveman-commit`, `caveman-review`, `caveman-compress`, `caveman-help`, `caveman-stats`, `cavecrew`; agents `cavecrew-*`.
+- skill: `cavecrew` → decision guide for explicit subagent delegation via `subagent` tool; must list available agents before execution; no automatic agent spawning by extension hooks.
+- agent: `cavecrew-investigator` → Pi-subagents executable read-only locator; codebase-memory tools first, exact reads/shell fallback; no fixes/design.
+- agent: `cavecrew-builder` → Pi-subagents executable surgical 1-2 file editor; Pi tools `read`/`edit`/`write`; no shell/git/destructive ops.
+- agent: `cavecrew-reviewer` → Pi-subagents executable diff/file reviewer; Pi tools `read`/`bash`; bash limited to non-mutating diff/log/show.
+- file: `~/.pi/agent/caveman-managed.json` → `@casualjim/pi-caveman` user-agent ownership manifest for synced Cavecrew agents.
+- pkg: `@casualjim/pi-grill-me` → skill `grill-with-docs`; ? delegate codebase fact-finding to `cavecrew-investigator` when available, else use own codebase-memory ladder.
 - hook: `pi-caveman` session start → load default mode, write safe mode flag, inject filtered `skills/caveman/SKILL.md` rules.
 - hook: `pi-caveman` Pi equivalent of `UserPromptSubmit` ? → track `/skill:caveman`/natural-language mode changes and inject active-mode reminder.
 - file: Pi caveman mode state path ? → valid modes only; symlink/oversize/corrupt reads ignored.
@@ -46,14 +63,24 @@ V7: codebase-memory plugin ! configure MCP only when missing; malformed config p
 V8: advisor ! inactive until configured; missing config/API/session prerequisites return structured failure, not silent no-op.
 V9: advisor child ! fork parent context, read-only tools, no recursive advisor, response ∈ `PLAN`/`CORRECTION`/`STOP`.
 V10: Cavekit `SPEC.md` writes ! follow bundled `FORMAT.md`; §T status ∈ `.`, `~`, `x`; table `|` escaped.
-V11: Cavekit package ! independent of `pi-caveman`; `FORMAT.md` reference bundled and prompts route to `cavekit-*` skills.
+V11: Cavekit package ! independent of `pi-caveman`; `FORMAT.md` reference bundled and prompts route to `cavekit-*` skills; `cavecrew-investigator` ? optional soft read-only delegation; no hard dep.
 V12: Caveman package ! preserve Pi-native terse skills; stats limitation honest until Pi token-log extension exists.
 V13: `pi-caveman` ! activate Caveman on Pi session start; rules from `skills/caveman/SKILL.md`, filtered by mode; `off` → no injection.
 V14: mode state ! valid mode enum only, symlink-safe write/read, size-bounded; corrupted state → no injection.
 V15: per-turn hook ! reinforce active Caveman; track `/skill:caveman*`, natural-language enable/disable, `stop caveman`, `normal mode`; independent modes `commit`/`review`/`compress` skip base reply rules.
 V16: Pi port ! mimic upstream Claude `SessionStart`/`UserPromptSubmit` behavior without installing Claude hooks, editing `~/.claude`, or shipping active non-Pi plugin manifests.
 V17: `@casualjim/pi-mimir` bundled skills ! resolve from installed package catalog; `@casualjim/pi-mimir` role agents ! sync to `~/.pi/agent/agents`; new copies under project `.pi/agents`/`.pi/skills` ⊥.
-V18: `review-implementation` + specialist review skills ! accept explicit review scope without `openspec/changes/...`; OpenSpec artifacts ? context only when supplied.
+V18: `@casualjim/pi-review` `review-implementation` + specialist review skills ! accept explicit review scope without `openspec/changes/...`; OpenSpec artifacts ? context only when supplied; whole-tree review ! not changed-line-limited.
+V19: `@casualjim/pi-review` ! standalone Codex-style `/review` + implementation review skills; no `pi-openspec` deps, imports, or workflow coupling.
+V20: `/review` targets ! support uncommitted changes, base branch, commit SHA, custom instructions; empty custom/branch/SHA rejected.
+V21: `/review` prompt ! port Codex `core/review_prompt.md` semantics: actionable bugs only, all findings, priorities P0-P3, shortest diff-overlap line ranges, no PR fix.
+V22: `/review` output ! structured findings with `title`, `body`, `confidence_score`, `priority`, `code_location.absolute_file_path`, `code_location.line_range`, plus overall correctness/explanation/confidence.
+V23: `pi-review` discovery ! codebase-memory ladder first when tools available; stale/unavailable graph → degraded discovery stated; exact diff/file reads allowed.
+V24: `cavecrew-investigator` ! expose codebase-memory tools + `read`/`bash` fallback; read-only; compressed file:line output; fixes/design ⊥.
+V25: `grill-with-docs` ! may use `cavecrew-investigator` for codebase facts when available; no hard `pi-caveman` dep; unavailable agent → normal codebase-memory fallback.
+V26: `pi-caveman` Cavecrew ! remain explicit skill/agent delegation; extension hooks only manage Caveman mode state/injection, ⊥ auto-spawn subagents.
+V27: Cavecrew agent files ! Pi-subagents-compatible frontmatter/tool names; synced to `~/.pi/agent/agents` with content-hash manifest; user-modified agents preserved; Claude tool names `Read/Grep/Glob/Bash/Edit/Write` ⊥.
+V28: `packages/pi-heimdall` ! contain only workspace package source/tests/docs needed for package; copied standalone repo artifacts (`node_modules/`, `.pi/`, `openspec/`, `fnox.toml`, research/plan scratch docs, standalone lockfiles) ⊥.
 
 ## §T TASKS
 id|status|task|cites
@@ -75,6 +102,21 @@ T15|x|change `packages/advisor`: resolve `advisor-child.md` from package/plugin,
 T16|x|add tests mirroring `rpiv-pi`/`rpiv-advisor`: installed package agents available, init/update/advisor leave no copied bundled agents/skills, legacy managed copies safe|V1,V2,V3,V8,V17
 T17|x|change `review-architecture`, `review-tests`, `review-data-flow`, `review-security`: accept `<review-scope>`; OpenSpec artifacts optional; no mandatory `openspec/changes/...`|V18
 T18|x|add contract/frontmatter tests: specialist review skills do not mandate OpenSpec and still require explicit review request + evidence-based findings|V1,V18
+T19|x|scaffold `packages/pi-review` workspace package with `@casualjim/pi-review`, `pi.extensions`, packaged prompt assets, README, tests|V1,V2,V19
+T20|x|port Codex `/review` target resolver + prompts: uncommitted, base branch merge-base diff, commit, custom|V20,V21
+T21|x|impl `/review` command/subagent workflow: no edits, no git mutation, no GitHub comments, structured findings returned inline|V19,V21,V22
+T22|x|add codebase-memory-first review discovery guidance with degraded fallback and exact diff/file-read path|V23
+T23|x|add tests for command registration, target validation, prompt rendering, output schema, no `pi-openspec` coupling|V1,V19,V20,V21,V22,V23
+T24|x|move `review-implementation` + specialist review skills and implementation reviewer agent into `packages/pi-review/skills`; update `pi-openspec` to planning review only|V1,V2,V18,V19,V23
+T25|x|add codebase-memory tools + ladder to `packages/pi-caveman/agents/cavecrew-investigator.md` while preserving read-only compressed locator contract|V1,V2,V24
+T26|x|update `packages/pi-grill-me/skills/engineering/grill-with-docs/SKILL.md` to soft-delegate codebase fact-finding to `cavecrew-investigator` when available, with fallback|V1,V25
+T27|x|add optional `cavecrew-investigator` guidance to `cavekit-spec` DISTILL and `cavekit-check` evidence lookup; fallback to own codebase-memory/direct reads|V11,V24
+T28|x|add optional `cavecrew-investigator` trace guidance to `cavekit-backprop`; keep spec mutation in `cavekit-spec`|V11,V24
+T29|x|document/test Cavecrew explicit-delegation model: upstream Claude plugin hooks only mode tracking; Pi extension must not auto-spawn cavecrew agents|V1,V2,V16,V26
+T30|x|sync `packages/pi-caveman/agents/cavecrew-*.md` into `~/.pi/agent/agents` with `~/.pi/agent/caveman-managed.json`; preserve user edits and remove stale managed agents|V1,V2,V3,V27
+T31|x|convert Cavecrew agent frontmatter/instructions to Pi-subagents tool names and behavior: investigator codebase-memory-first, builder `read/edit/write`, reviewer non-mutating `read/bash`|V1,V24,V27
+T32|x|update `cavecrew` skill instructions/tests to invoke Pi `subagent` tool correctly: list first, execute only available non-disabled agents, use `agent: "cavecrew-*"` task contracts|V1,V26,V27
+T33|x|normalize `packages/pi-heimdall`: remove copied standalone repo artifacts, keep package source/tests/docs, update tests/package checks if needed|V1,V2,V28
 
 ## §B BUGS
 id|date|cause|fix

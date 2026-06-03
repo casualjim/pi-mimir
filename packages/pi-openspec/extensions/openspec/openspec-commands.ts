@@ -1,0 +1,252 @@
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { syncBundledAgents } from "./agents.js";
+import { writeOpenSpecAssetManifest } from "./managed-assets.js";
+import { readMimirManagedManifest, writeMimirManagedManifest } from "./managed-manifest.js";
+import {
+	EXPECTED_CODEBASE_MEMORY_TOOLS,
+	getCodebaseMemorySupportStatus,
+} from "./package-checks.js";
+import { registerOpenSpecCliOutputRenderer, sendOpenSpecCliOutput } from "./openspec-output-renderer.js";
+import { syncBundledSchemas } from "./schema-sync.js";
+
+const OPENSPEC_TIMEOUT_MS = 120_000;
+const REVIEW_GATED_SCHEMA = "review-gated";
+
+type CommandContext = {
+	cwd: string;
+	hasUI?: boolean;
+	ui?: {
+		notify(message: string, level?: "info" | "warning" | "error"): void;
+	};
+};
+
+export interface EnsureReviewGatedConfigResult {
+	path: string;
+	created: boolean;
+	updated: boolean;
+}
+
+export interface SyncBundledSkillsResult {
+	added: string[];
+	updated: string[];
+	removed: string[];
+}
+
+export interface CodebaseMemorySupportResult {
+	packageInstalled: boolean;
+	toolsAvailable: boolean;
+	missingTools: string[];
+	installCommand: string;
+}
+
+export function ensureReviewGatedOpenSpecConfig(cwd: string): EnsureReviewGatedConfigResult {
+	const openspecDir = join(cwd, "openspec");
+	const configPath = join(openspecDir, "config.yaml");
+	mkdirSync(openspecDir, { recursive: true });
+
+	if (!existsSync(configPath)) {
+		writeFileSync(configPath, `schema: ${REVIEW_GATED_SCHEMA}\n`, "utf-8");
+		return { path: configPath, created: true, updated: true };
+	}
+
+	const original = readFileSync(configPath, "utf-8");
+	const lines = original.split(/\r?\n/);
+	const schemaLine = `schema: ${REVIEW_GATED_SCHEMA}`;
+	const existingIndex = lines.findIndex((line) => /^schema\s*:/.test(line));
+
+	if (existingIndex >= 0) {
+		if (lines[existingIndex] === schemaLine) return { path: configPath, created: false, updated: false };
+		lines[existingIndex] = schemaLine;
+		writeFileSync(configPath, normalizeTrailingNewline(lines.join("\n")), "utf-8");
+		return { path: configPath, created: false, updated: true };
+	}
+
+	writeFileSync(configPath, `${schemaLine}\n${original}`, "utf-8");
+	return { path: configPath, created: false, updated: true };
+}
+
+export function syncBundledSkills(cwd: string): SyncBundledSkillsResult {
+	const result: SyncBundledSkillsResult = { added: [], updated: [], removed: [] };
+	const previousManifest = coerceSkillManifest(readMimirManagedManifest(cwd).skills);
+	if (Object.keys(previousManifest).length === 0) return result;
+
+	const targetDir = join(cwd, ".pi", "skills");
+	for (const [name, knownHash] of Object.entries(previousManifest)) {
+		const dest = join(targetDir, name);
+		if (!isSafeSkillName(name) || !existsSync(dest)) {
+			result.removed.push(name);
+			continue;
+		}
+
+		const currentHash = merkleHashDirectory(dest);
+		if (knownHash !== "" && currentHash === knownHash) {
+			rmSync(dest, { recursive: true, force: true });
+			result.removed.push(name);
+		}
+		// Locally edited legacy skills stay on disk and become user-owned.
+	}
+
+	clearSkillManifest(cwd);
+	return result;
+}
+
+function sha256(parts: Array<Buffer | string>): string {
+	const hash = createHash("sha256");
+	for (const part of parts) hash.update(part);
+	return hash.digest("hex");
+}
+
+type SkillManifest = Record<string, string>;
+
+function isSafeSkillName(name: string): boolean {
+	return name.length > 0 && !name.includes("\0") && !name.includes("/") && !name.includes("\\") && name !== "." && name !== ".." && !name.includes("..");
+}
+
+function coerceSkillManifest(value: unknown): SkillManifest {
+	const manifest: SkillManifest = {};
+	if (value && typeof value === "object" && !Array.isArray(value)) {
+		for (const [name, hash] of Object.entries(value as Record<string, unknown>)) {
+			if (typeof name === "string" && isSafeSkillName(name) && typeof hash === "string") manifest[name] = hash;
+		}
+	}
+	return manifest;
+}
+
+function merkleHashDirectory(dir: string): string {
+	return merkleHashNode(dir);
+}
+
+function merkleHashNode(path: string): string {
+	const entries = readdirSync(path, { withFileTypes: true })
+		.filter((entry) => entry.isDirectory() || entry.isFile())
+		.sort((a, b) => a.name.localeCompare(b.name));
+	const parts: Array<Buffer | string> = ["dir\0"];
+	for (const entry of entries) {
+		const childPath = join(path, entry.name);
+		const childHash = entry.isDirectory()
+			? merkleHashNode(childPath)
+			: sha256(["file\0", readFileSync(childPath)]);
+		parts.push(entry.name, "\0", childHash, "\0");
+	}
+	return sha256(parts);
+}
+
+function clearSkillManifest(cwd: string): void {
+	const root = readMimirManagedManifest(cwd);
+	delete root.skills;
+	writeMimirManagedManifest(cwd, root);
+}
+
+export function registerOpenSpecCommands(pi: ExtensionAPI): void {
+	registerOpenSpecCliOutputRenderer(pi);
+
+	pi.registerCommand("openspec:init", {
+		description: "Initialize OpenSpec for Pi and configure the review-gated workflow schema/assets",
+		handler: async (_args, ctx: CommandContext) => {
+			const init = await pi.exec("openspec", ["init", "--tools", "pi"], { cwd: ctx.cwd, timeout: OPENSPEC_TIMEOUT_MS });
+			if (init.code !== 0) {
+				notify(ctx, formatExecFailure("openspec init --tools pi", init), "error");
+				return;
+			}
+
+			const config = ensureReviewGatedOpenSpecConfig(ctx.cwd);
+			const schemas = syncBundledSchemas();
+			const skills = syncBundledSkills(ctx.cwd);
+			const agents = syncBundledAgents(ctx.cwd);
+			writeOpenSpecAssetManifest(ctx.cwd);
+			const codebaseMemory = getCodebaseMemorySupportStatus(pi);
+
+			notify(ctx, buildInitReport(config, skills, agents, schemas, codebaseMemory), initReportLevel(schemas, agents, codebaseMemory));
+		},
+	});
+
+	pi.registerCommand("openspec:status", {
+		description: "Show the OpenSpec interactive dashboard",
+		handler: async (_args, ctx: CommandContext) => {
+			await runOpenSpecCli(pi, ctx, "openspec view", ["view"]);
+		},
+	});
+
+	pi.registerCommand("openspec:list", {
+		description: "List OpenSpec changes and specs",
+		handler: async (_args, ctx: CommandContext) => {
+			await runOpenSpecCli(pi, ctx, "openspec list", ["list"]);
+		},
+	});
+}
+
+async function runOpenSpecCli(pi: ExtensionAPI, ctx: CommandContext, label: string, args: string[]): Promise<void> {
+	const result = await pi.exec("openspec", args, { cwd: ctx.cwd, timeout: OPENSPEC_TIMEOUT_MS });
+	const output = [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
+	const fallback = result.code === 0 ? `${label} completed.` : `${label} failed with exit ${result.code}.`;
+	sendOpenSpecCliOutput(pi, {
+		label,
+		command: `openspec ${args.join(" ")}`,
+		exitCode: result.code,
+		stdout: result.stdout,
+		stderr: result.stderr,
+	}, output || fallback);
+}
+
+function buildInitReport(
+	config: EnsureReviewGatedConfigResult,
+	skills: SyncBundledSkillsResult,
+	agents: ReturnType<typeof syncBundledAgents>,
+	schemas: ReturnType<typeof syncBundledSchemas>,
+	codebaseMemory: CodebaseMemorySupportResult,
+): string {
+	const lines = ["OpenSpec initialized for Pi review-gated workflow."];
+	lines.push(config.updated ? `Configured openspec/config.yaml with schema: ${REVIEW_GATED_SCHEMA}.` : "openspec/config.yaml already uses schema: review-gated.");
+	lines.push(`Synced bundled schemas: ${summary(schemas)}.`);
+	lines.push("Packaged skills are available through the pi-openspec package; no .pi/skills copy needed.");
+	lines.push(`Pruned legacy copied skills: ${countSummary(skills.added.length, skills.updated.length, skills.removed.length)}.`);
+	lines.push(`Synced OpenSpec agents to ~/.pi/agent/agents: ${countSummary(agents.added.length, agents.updated.length, agents.removed.length)}.`);
+
+	if (schemas.errors.length > 0) lines.push(`Schema sync errors: ${schemas.errors.map((e) => e.message).join("; ")}`);
+	if (agents.errors.length > 0) lines.push(`Agent sync errors: ${agents.errors.map((e) => e.message).join("; ")}`);
+	if (codebaseMemory.toolsAvailable) {
+		lines.push(`codebase-memory support is active. Expected tools: ${EXPECTED_CODEBASE_MEMORY_TOOLS.join(", ")}.`);
+	} else {
+		lines.push(`Workflow setup is incomplete: codebase-memory support is not active in this session.`);
+		lines.push(`Install support with: ${codebaseMemory.installCommand}`);
+		if (codebaseMemory.packageInstalled) lines.push(`The plugin appears to be installed, but these tools are still unavailable: ${codebaseMemory.missingTools.join(", ")}. Reload Pi or fix the plugin configuration before claiming full workflow readiness.`);
+		else lines.push(`Missing tools: ${codebaseMemory.missingTools.join(", ")}. Exact file reads are degraded fallback only until the plugin is installed and active.`);
+	}
+	return lines.join("\n");
+}
+
+function initReportLevel(
+	schemas: ReturnType<typeof syncBundledSchemas>,
+	agents: ReturnType<typeof syncBundledAgents>,
+	codebaseMemory: CodebaseMemorySupportResult,
+): "info" | "warning" {
+	return schemas.errors.length > 0 || agents.errors.length > 0 || !codebaseMemory.toolsAvailable ? "warning" : "info";
+}
+
+function summary(result: ReturnType<typeof syncBundledSchemas>): string {
+	return countSummary(result.added.length, result.updated.length, result.removed.length);
+}
+
+function countSummary(added: number, updated: number, removed = 0): string {
+	const parts: string[] = [];
+	if (added > 0) parts.push(`${added} added`);
+	if (updated > 0) parts.push(`${updated} updated`);
+	if (removed > 0) parts.push(`${removed} removed`);
+	return parts.length > 0 ? parts.join(", ") : "up-to-date";
+}
+
+function formatExecFailure(label: string, result: { code: number; stdout?: string; stderr?: string }): string {
+	const detail = (result.stderr || result.stdout || "").trim();
+	return detail ? `${label} failed: ${detail}` : `${label} failed with exit ${result.code}.`;
+}
+
+function notify(ctx: CommandContext, message: string, level: "info" | "warning" | "error"): void {
+	if (ctx.hasUI && ctx.ui) ctx.ui.notify(message, level);
+}
+
+function normalizeTrailingNewline(content: string): string {
+	return content.endsWith("\n") ? content : `${content}\n`;
+}

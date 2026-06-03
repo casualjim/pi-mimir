@@ -19,9 +19,19 @@ Before executing any subagent, call:
 { "action": "list" }
 ```
 
-Only execute agents listed as available and non-disabled. If matching cavecrew agents are not registered, either:
-- use equivalent available agents with cavecrew output contract in task prompt, or
+Only execute agents listed as executable/non-disabled. Prefer exact runtime names:
+
+```json
+{ "agent": "cavecrew-investigator", "task": "Locate `X`. Return file:line only." }
+{ "agent": "cavecrew-builder", "task": "Edit only `path/to/file.ts`: fix `X`. Return receipt." }
+{ "agent": "cavecrew-reviewer", "task": "Review current diff. Findings only." }
+```
+
+If exact Cavecrew agents missing, either:
+- use equivalent available agents with Cavecrew output contract in task prompt, or
 - perform work in main thread when delegation would add ambiguity.
+
+Never auto-spawn Cavecrew from extension hooks. Delegation only after user/main-thread decision.
 
 ## When to use cavecrew vs alternatives
 
@@ -92,12 +102,12 @@ Skip investigator when file/line already known. Hand exact path:line to builder 
 
 ## Bundled Prompt Resources
 
-Reference prompt files live in package `agents/`:
+Reference prompt files live in package `agents/` and are synced as managed user agents to `~/.pi/agent/agents` when `pi-caveman` extension loads:
 - `cavecrew-investigator.md`
 - `cavecrew-builder.md`
 - `cavecrew-reviewer.md`
 
-Use them as source material for task prompts or future Pi subagent registration.
+Ownership tracked in `~/.pi/agent/caveman-managed.json`. User-modified synced agents stay user-owned and are not overwritten.
 
 ## Auto-clarity
 

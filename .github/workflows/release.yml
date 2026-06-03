@@ -30,7 +30,7 @@ jobs:
           cache: npm
 
       - name: Install OpenSpec CLI
-        run: npm install --global @fission-ai/openspec
+        run: npm install --global @fission-ai/openspec@1.4.1
 
       - name: Install dependencies
         run: npm ci
@@ -64,7 +64,9 @@ jobs:
           publish_if_missing @casualjim/pi-cavekit packages/pi-cavekit
           publish_if_missing @casualjim/pi-caveman packages/pi-caveman
           publish_if_missing @casualjim/pi-codebase-memory packages/pi-codebase-memory
-          publish_if_missing @casualjim/pi-mimir packages/pi-mimir
+          publish_if_missing @casualjim/pi-heimdall packages/pi-heimdall
+          publish_if_missing @casualjim/pi-openspec packages/pi-openspec
+          publish_if_missing @casualjim/pi-review packages/pi-review
 
       - name: Determine bump level
         id: bump
@@ -82,7 +84,7 @@ jobs:
 
       - name: Commit version bump
         run: |
-          NEXT_VERSION=$(node -p "require('./packages/pi-mimir/package.json').version")
+          NEXT_VERSION=$(node -p "require('./packages/pi-openspec/package.json').version")
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json packages/*/package.json

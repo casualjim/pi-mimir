@@ -30,7 +30,7 @@ let tempHome = "";
 
 beforeEach(() => {
 	tempHome = mkdtempSync(join(tmpdir(), "advisor-home-"));
-	process.env.PI_MIMIR_ADVISOR_HOME = tempHome;
+	vi.stubEnv("HOME", tempHome);
 	setAdvisorModel(undefined);
 	setAdvisorEffort(undefined);
 	vi.mocked(showAdvisorPicker).mockReset();
@@ -38,7 +38,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-	delete process.env.PI_MIMIR_ADVISOR_HOME;
+	vi.unstubAllEnvs();
 	rmSync(tempHome, { recursive: true, force: true });
 });
 

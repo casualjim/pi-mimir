@@ -1,4 +1,5 @@
 import { type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { buildAdrIngestionPrompt, getToolInputPath, isAdrWriteResult } from "./adr-watcher.js";
 import { handleCodebaseMemoryDiscoveryGate, resetCodebaseMemoryGate } from "./codebase-memory-gate.js";
 import { ensureCodebaseMemoryMcpConfig } from "./mcp-config.js";
 
@@ -24,6 +25,13 @@ export function registerSessionHooks(pi: ExtensionAPI): void {
 		const guidance = handleCodebaseMemoryDiscoveryGate(event, ctx.cwd);
 		if (!guidance) return;
 		pi.sendMessage({ customType: MSG_TYPE_CODEBASE_MEMORY_TOOL_GUIDANCE, content: guidance.content, display: false });
+	});
+
+	pi.on("tool_result", async (event, ctx) => {
+		if (!isAdrWriteResult(event)) return;
+		const adrPath = getToolInputPath(event.input);
+		if (!adrPath) return;
+		pi.sendUserMessage(buildAdrIngestionPrompt(adrPath, ctx.cwd), { deliverAs: "followUp" });
 	});
 }
 
