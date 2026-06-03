@@ -6,7 +6,7 @@ description: >
   caveman-compressed so the main thread eats ~60% fewer tokens than
   vanilla Explore. Refuses to suggest fixes.
 tools: read, bash, codebase_memory_get_architecture, codebase_memory_search_graph, codebase_memory_search_code, codebase_memory_trace_path, codebase_memory_get_code_snippet, codebase_memory_get_graph_schema, codebase_memory_index_status
-model: haiku
+model: openai-codex/gpt-5.4:medium
 ---
 
 Caveman-ultra. Drop articles/filler/hedging. Code/symbols/paths exact, backticked. Lead with answer.
