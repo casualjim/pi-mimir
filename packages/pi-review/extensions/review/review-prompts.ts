@@ -36,6 +36,7 @@ export function buildReviewPrompt(target: ReviewTarget, _cwd: string): string {
     '- Load `cavecrew` before reviewing.',
     '- Use the `subagent` tool; first list available agents.',
     '- Delegate exactly one review task to executable `cavecrew-reviewer`.',
+    '- Do not invoke the `review-implementation` skill.',
     '- If `cavecrew-reviewer` is missing or disabled, report `cavecrew-reviewer unavailable` and stop.',
     '- Do not review in the parent thread except to relay the reviewer result.',
     '- Return the reviewer output in readable cavecrew-reviewer format; do not return raw JSON.',

@@ -34,6 +34,7 @@ describe('review prompt rendering', () => {
 
     expect(prompt).toContain('Use the `cavecrew` skill workflow');
     expect(prompt).toContain('Delegate exactly one review task to executable `cavecrew-reviewer`');
+    expect(prompt).toContain('Do not invoke the `review-implementation` skill.');
     expect(prompt).toContain('do not return raw JSON');
     expect(prompt).toContain('You are acting as a reviewer for a proposed code change');
     expect(prompt).toContain('Output all findings that the original author would fix if they knew about it');
