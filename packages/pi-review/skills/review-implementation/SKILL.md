@@ -1,6 +1,7 @@
 ---
 name: review-implementation
 description: Review delivered code, CI, config, and generated assets. Use when explicit implementation review is requested; OpenSpec artifacts are optional context.
+disable-model-invocation: true
 ---
 
 # review-implementation

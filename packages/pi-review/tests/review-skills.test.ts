@@ -34,6 +34,7 @@ describe('review skill package', () => {
   it('review-implementation is whole-tree and uses caveman review output', () => {
     const text = readSkill('review-implementation');
 
+    expect(text).toContain('disable-model-invocation: true');
     expect(text).toContain('whole-tree implementation review');
     expect(text).toContain('Do not restrict findings to changed lines');
     expect(text).toContain('grouping findings with the same root cause');
