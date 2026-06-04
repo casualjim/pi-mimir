@@ -16,7 +16,7 @@ Pi workflow monorepo → review-gated OpenSpec planning/implementation, standalo
 - `pi-caveman` ships Pi-native extension hooks equivalent to upstream Claude `SessionStart`/`UserPromptSubmit`; no `~/.claude` mutation or non-Pi plugin install; Cavecrew agents ! Pi-subagents executable when package installed; use is skill/workflow-steered, not hook-auto-spawned.
 - `advisor` off by default; configured model/effort persisted; child lane read-only; output only `PLAN`/`CORRECTION`/`STOP`.
 - `@casualjim/pi-review` standalone; OpenSpec integration/dependency ⊥; `/review` behavior mirrors Codex `/review` task.
-- `@casualjim/pi-grill-me` ? soft-use `cavecrew-investigator` for read-only code archaeology; hard `pi-caveman` dep ⊥.
+- `@casualjim/pi-grill-me` ! use project-root `SPEC.md` as only durable truth doc; `SPEC.md` mutation ! route through `cavekit-spec`; direct grill edit of `SPEC.md` ⊥; `CONTEXT.md`/`CONTEXT-MAP.md` target ⊥; existing context files read-only legacy sources; ? soft-use `cavecrew-investigator`; hard `pi-caveman` dep ⊥.
 - `@casualjim/pi-heimdall` in monorepo ! normalized workspace package, not raw standalone repo copy; repo-local artifacts (`node_modules/`, `.pi/`, `openspec/`, research/plan scratch docs) ⊥.
 
 ## §I INTERFACES
@@ -49,7 +49,7 @@ Pi workflow monorepo → review-gated OpenSpec planning/implementation, standalo
 - agent: `cavecrew-builder` → Pi-subagents executable surgical 1-2 file editor; Pi tools `read`/`edit`/`write`; no shell/git/destructive ops.
 - agent: `cavecrew-reviewer` → Pi-subagents executable diff/file reviewer; Pi tools `read`/`bash`; bash limited to non-mutating diff/log/show.
 - file: `~/.pi/agent/caveman-managed.json` → `@casualjim/pi-caveman` user-agent ownership manifest for synced Cavecrew agents.
-- pkg: `@casualjim/pi-grill-me` → skill `grill-with-docs`; ? delegate codebase fact-finding to `cavecrew-investigator` when available, else use own codebase-memory ladder.
+- pkg: `@casualjim/pi-grill-me` → skill `grill-with-docs`; project-root `SPEC.md` canonical; all `SPEC.md` creation/amendment through `cavekit-spec`; legacy `CONTEXT.md`/`CONTEXT-MAP.md` read-only import input; ? delegate codebase fact-finding to `cavecrew-investigator` when available, else use own codebase-memory ladder.
 - hook: `pi-caveman` session start → load default mode, write safe mode flag, inject filtered `skills/caveman/SKILL.md` rules.
 - hook: `pi-caveman` Pi equivalent of `UserPromptSubmit` ? → track `/skill:caveman`/natural-language mode changes and inject active-mode reminder.
 - file: Pi caveman mode state path ? → valid modes only; symlink/oversize/corrupt reads ignored.
@@ -81,7 +81,7 @@ V21: `/review` prompt ! port Codex `core/review_prompt.md` semantics: actionable
 V22: `/review` output ! readable `cavecrew-reviewer` findings; preserve Codex bug-selection, priority, diff-overlap line-range semantics; raw ReviewOutput JSON ⊥.
 V23: `pi-review` discovery ! codebase-memory ladder first when tools available; stale/unavailable graph → degraded discovery stated; exact diff/file reads allowed.
 V24: `cavecrew-investigator` ! expose codebase-memory tools + `read`/`bash` fallback; read-only; compressed file:line output; fixes/design ⊥.
-V25: `grill-with-docs` ! may use `cavecrew-investigator` for codebase facts when available; no hard `pi-caveman` dep; unavailable agent → normal codebase-memory fallback.
+V25: `grill-with-docs` ! treat project-root `SPEC.md` as canonical; all `SPEC.md` mutations ! go through `cavekit-spec`; direct `SPEC.md` edit by grill ⊥; `CONTEXT.md`/`CONTEXT-MAP.md` read-only legacy input, never target; may use `cavecrew-investigator` for codebase facts when available; no hard `pi-caveman` dep; unavailable agent → normal codebase-memory fallback.
 V26: `pi-caveman` Cavecrew ! remain explicit skill/agent delegation; extension hooks only manage Caveman mode state/injection, ⊥ auto-spawn subagents.
 V27: Cavecrew agent files ! Pi-subagents-compatible frontmatter/tool names; synced to `~/.pi/agent/agents` with content-hash manifest; user-modified agents preserved; Claude tool names `Read/Grep/Glob/Bash/Edit/Write` ⊥.
 V28: `packages/pi-heimdall` ! contain only workspace package source/tests/docs needed for package; copied standalone repo artifacts (`node_modules/`, `.pi/`, `openspec/`, `fnox.toml`, research/plan scratch docs, standalone lockfiles) ⊥.
@@ -132,8 +132,12 @@ T37|x|make `caveman-compress` workflow Pi-native: helper uses Pi CLI/model call 
 T38|x|replace `ANTHROPIC_API_KEY`, `anthropic`, `claude --print`, and Claude wording in helper/docs/security with Pi CLI/provider-neutral behavior|V2,V16,V31
 T39|x|add tests for `caveman-compress` Pi-native default: Pi CLI call path, no Claude/Anthropic assumptions, backup safety, protected code/inline/path/URL preservation|V1,V2,V31
 T40|x|strip Codex `OUTPUT FORMAT`/JSON schema before `/review` cavecrew delegation; add severity map + tests for no prompt/agent conflict|V22,V32
+T41|x|make `pi-grill-me` always target project-root `SPEC.md`; demote `CONTEXT.md`/`CONTEXT-MAP.md` to read-only legacy source|V25
+T42|x|route all `pi-grill-me` `SPEC.md` creation/amendment through `cavekit-spec`; forbid direct grill edits|V25
 
 ## §B BUGS
 id|date|cause|fix
 B1|2026-06-03|`caveman-compress` helper defaulted to Anthropic SDK/`claude --print`, breaking Pi-native package behavior|V31
 B2|2026-06-03|`pi-review` copied Codex JSON prompt but not Codex parse/render review-mode path ∴ `/review` shows raw JSON|V32
+B3|2026-06-04|`pi-grill-me` used `CONTEXT.md` as separate truth doc, conflicting with Cavekit `SPEC.md`|V25
+B4|2026-06-04|`pi-grill-me` prompt allowed direct `SPEC.md` edits, bypassing sole mutator `cavekit-spec`|V25

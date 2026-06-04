@@ -1,6 +1,6 @@
 ---
 name: grill-with-docs
-description: Grilling session that challenges your plan against the existing domain model, sharpens terminology, and updates documentation (CONTEXT.md, ADRs) inline as decisions crystallise. Use when user wants to stress-test a plan against their project's language and documented decisions.
+description: Grilling session that challenges your plan against the existing domain model, sharpens terminology, and routes project-root SPEC.md amendments through cavekit-spec as decisions crystallise. Use when user wants to stress-test a plan against their project's language and documented decisions.
 allowed-tools: read edit write bash ask_user_question subagent codebase_memory_search_graph codebase_memory_search_code codebase_memory_get_code_snippet codebase_memory_trace_path codebase_memory_get_architecture codebase_memory_query_graph
 ---
 
@@ -28,11 +28,11 @@ During codebase exploration, also look for existing documentation:
 
 ### File structure
 
-Most repos have a single context:
+`SPEC.md` is always the canonical project document:
 
 ```
 /
-├── CONTEXT.md
+├── SPEC.md
 ├── docs/
 │   └── adr/
 │       ├── 0001-event-sourced-orders.md
@@ -40,29 +40,15 @@ Most repos have a single context:
 └── src/
 ```
 
-If a `CONTEXT-MAP.md` exists at the root, the repo has multiple contexts. The map points to where each one lives:
+Create files lazily — only when you have something to write. If no `SPEC.md` exists or a resolved term/decision requires a `SPEC.md` change, invoke/use `cavekit-spec`; grill-with-docs must not edit `SPEC.md` directly. If no `docs/adr/` exists, create it when the first ADR is needed.
 
-```
-/
-├── CONTEXT-MAP.md
-├── docs/
-│   └── adr/                          ← system-wide decisions
-├── src/
-│   ├── ordering/
-│   │   ├── CONTEXT.md
-│   │   └── docs/adr/                 ← context-specific decisions
-│   └── billing/
-│       ├── CONTEXT.md
-│       └── docs/adr/
-```
-
-Create files lazily — only when you have something to write. If no `CONTEXT.md` exists, create one when the first term is resolved. If no `docs/adr/` exists, create it when the first ADR is needed.
+Existing `CONTEXT.md` or `CONTEXT-MAP.md` files are read-only legacy input. Propose relevant term imports as `cavekit-spec` amendments, then ignore them. Never create or update `CONTEXT.md` or `CONTEXT-MAP.md`.
 
 ## During the session
 
-### Challenge against the glossary
+### Challenge against SPEC language
 
-When the user uses a term that conflicts with the existing language in `CONTEXT.md`, call it out immediately. "Your glossary defines 'cancellation' as X, but you seem to mean Y — which is it?"
+When the user uses a term that conflicts with existing language in `SPEC.md`, call it out immediately. "SPEC defines 'cancellation' as X, but you seem to mean Y — which is it?"
 
 ### Sharpen fuzzy language
 
@@ -76,11 +62,11 @@ When domain relationships are being discussed, stress-test them with specific sc
 
 When the user states how something works, check whether the code agrees. If you find a contradiction, surface it: "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
 
-### Update CONTEXT.md inline
+### Route SPEC.md changes through cavekit-spec
 
-When a term is resolved, update `CONTEXT.md` right there. Don't batch these up — capture them as they happen. Use the format in [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md).
+When a term or decision is resolved, immediately route the project-root `SPEC.md` change through `cavekit-spec`. Don't batch these up — capture them as they happen. Grill-with-docs may draft exact amendments, but must not directly edit `SPEC.md`. Use the routing guide in [SPEC-FORMAT.md](./SPEC-FORMAT.md).
 
-`CONTEXT.md` should be totally devoid of implementation details. Do not treat `CONTEXT.md` as a spec, a scratch pad, or a repository for implementation decisions. It is a glossary and nothing else.
+Use Cavekit-compatible sections: resolved domain terms and boundaries go in `§C CONSTRAINTS`; external surfaces go in `§I INTERFACES`; testable rules go in `§V INVARIANTS`; follow-up work goes in `§T TASKS`. Do not add a separate glossary section.
 
 ### Offer ADRs sparingly
 
@@ -90,6 +76,6 @@ Only offer to create an ADR when all three are true:
 2. **Surprising without context** — a future reader will wonder "why did they do it this way?"
 3. **The result of a real trade-off** — there were genuine alternatives and you picked one for specific reasons
 
-If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md).
+If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md). ADRs may explain rationale, but `SPEC.md` remains the source of truth; route any matching `SPEC.md` amendment through `cavekit-spec` too.
 
 </supporting-info>

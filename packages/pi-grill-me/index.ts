@@ -70,7 +70,7 @@ function statusMarkdown(state: GrillState): string {
 }
 
 const GRILL_WITH_DOCS_SKILL = stripFrontmatter(readBundledMarkdown("SKILL.md"));
-const CONTEXT_FORMAT = readBundledMarkdown("CONTEXT-FORMAT.md").trim();
+const SPEC_FORMAT = readBundledMarkdown("SPEC-FORMAT.md").trim();
 const ADR_FORMAT = readBundledMarkdown("ADR-FORMAT.md").trim();
 
 export default function piGrillMeExtension(pi: ExtensionAPI): void {
@@ -95,7 +95,7 @@ export default function piGrillMeExtension(pi: ExtensionAPI): void {
       [
         ctx.ui.theme.fg("accent", `🔥 Grill With Docs: ${topic || "active"}`),
         ctx.ui.theme.fg("muted", "Uses ask_user_question for grilling questions"),
-        ctx.ui.theme.fg("dim", "Updates CONTEXT.md and ADRs when decisions crystallise"),
+        ctx.ui.theme.fg("dim", "Updates SPEC.md and ADRs when decisions crystallise"),
       ],
       { placement: "belowEditor" },
     );
@@ -112,7 +112,7 @@ export default function piGrillMeExtension(pi: ExtensionAPI): void {
     persist();
     updateUi(ctx);
 
-    pi.sendUserMessage(`Start a grill-with-docs session for this plan/topic:\n\n${topic}\n\nUse the bundled grill-with-docs workflow. First inspect relevant code and documentation if that can answer setup questions. For user-facing grilling questions, use ask_user_question with one focused question, 2-4 options, and your recommended answer first.`);
+    pi.sendUserMessage(`Start a grill-with-docs session for this plan/topic:\n\n${topic}\n\nUse the bundled grill-with-docs workflow. Treat project-root SPEC.md as the only durable truth doc; route every SPEC.md mutation through cavekit-spec; never edit SPEC.md directly from grill-with-docs; never create or update CONTEXT.md. First inspect relevant code and documentation if that can answer setup questions. For user-facing grilling questions, use ask_user_question with one focused question, 2-4 options, and your recommended answer first.`);
   }
 
   async function resolveTopic(args: string, ctx: ExtensionContext): Promise<string | undefined> {
@@ -180,7 +180,12 @@ export default function piGrillMeExtension(pi: ExtensionAPI): void {
   pi.on("before_agent_start", async (event) => {
     if (!state.active) return;
 
-    const prompt = `\n\n[PI GRILL ME ACTIVE]\nTopic:\n${state.topic}\n\nBundled grill-with-docs workflow:\n${GRILL_WITH_DOCS_SKILL}\n\nQuestion delivery rules:\n- Use ask_user_question for every user-facing grilling question.\n- Ask one focused question per ask_user_question call.\n- Provide 2-4 concrete options.\n- Put your recommended answer first and include "(Recommended)" in that label.\n- Include short option descriptions with trade-offs.\n- Do not stack multiple ask_user_question calls back-to-back. Wait for the user's answer before continuing.\n- If ask_user_question is unavailable or returns no_ui, fall back to one plain text question and say structured question UI is unavailable.\n\nCode and docs discovery rules:\n- If a question can be answered by exploring the codebase or docs, inspect first instead of asking.\n- Prefer codebase-memory tools for codebase research when available. Start with codebase_memory_get_architecture for broad structure. Use codebase_memory_search_graph or codebase_memory_search_code for anchors. Use codebase_memory_trace_path for callers/callees/data-flow impact. Use codebase_memory_get_code_snippet for exact symbol source after graph search.\n- If codebase fact-finding would consume lots of context and subagent is available, call subagent { "action": "list" }, use executable/non-disabled cavecrew-investigator for read-only locator tasks, and keep decisions/docs in main thread.\n- Use exact file reads for docs, configs, non-code files, graph-insufficient cases, focused follow-up context after codebase-memory narrowing, or cavecrew-investigator unavailable.\n- If codebase-memory is unavailable or stale, say discovery is degraded before falling back to direct reads/search.\n- Look for CONTEXT-MAP.md, CONTEXT.md, and docs/adr/ before shaping domain-language questions.\n- When code contradicts the user's stated domain model, surface the contradiction and ask the user to resolve it.\n\nDocumentation update rules:\n- Update CONTEXT.md inline when a domain term is resolved. Do not batch resolved glossary terms.\n- Keep CONTEXT.md as glossary only: no implementation details, specs, scratch notes, or architectural decisions.\n- Offer ADRs sparingly and only when the decision is hard to reverse, surprising without context, and a real trade-off.\n- Create CONTEXT.md or docs/adr/ lazily only when needed.\n\nCONTEXT.md format reference:\n${CONTEXT_FORMAT}\n\nADR format reference:\n${ADR_FORMAT}\n[/PI GRILL ME ACTIVE]`;
+    const prompt = `\n\n[PI GRILL ME ACTIVE]\nTopic:\n${state.topic}\n\nBundled grill-with-docs workflow:\n${GRILL_WITH_DOCS_SKILL}\n\nQuestion delivery rules:\n- Use ask_user_question for every user-facing grilling question.\n- Ask one focused question per ask_user_question call.\n- Provide 2-4 concrete options.\n- Put your recommended answer first and include "(Recommended)" in that label.\n- Include short option descriptions with trade-offs.\n- Do not stack multiple ask_user_question calls back-to-back. Wait for the user's answer before continuing.\n- If ask_user_question is unavailable or returns no_ui, fall back to one plain text question and say structured question UI is unavailable.\n\nCode and docs discovery rules:\n- If a question can be answered by exploring the codebase or docs, inspect first instead of asking.\n- Prefer codebase-memory tools for codebase research when available. Start with codebase_memory_get_architecture for broad structure. Use codebase_memory_search_graph or codebase_memory_search_code for anchors. Use codebase_memory_trace_path for callers/callees/data-flow impact. Use codebase_memory_get_code_snippet for exact symbol source after graph search.\n- If codebase fact-finding would consume lots of context and subagent is available, call subagent { "action": "list" }, use executable/non-disabled cavecrew-investigator for read-only locator tasks, and keep decisions/docs in main thread.\n- Use exact file reads for docs, configs, non-code files, graph-insufficient cases, focused follow-up context after codebase-memory narrowing, or cavecrew-investigator unavailable.\n- If codebase-memory is unavailable or stale, say discovery is degraded before falling back to direct reads/search.\n- Look for SPEC.md, legacy CONTEXT.md/CONTEXT-MAP.md, and docs/adr/ before shaping domain-language questions.\n- When code contradicts the user's stated domain model, surface the contradiction and ask the user to resolve it.\n\nDocumentation update rules:\n- SPEC.md is always the canonical project document.
+- cavekit-spec is the only workflow that may mutate SPEC.md.
+- When a domain term or decision is resolved, immediately route the project-root SPEC.md change through cavekit-spec. Do not batch resolved terms.
+- Grill-with-docs may draft exact SPEC.md amendments, but must never edit SPEC.md directly.
+- Never create or update CONTEXT.md or CONTEXT-MAP.md. Existing CONTEXT files are read-only legacy input; propose relevant terms as cavekit-spec amendments, then ignore them.
+- Encode proposed domain terms/boundaries in §C CONSTRAINTS, external surfaces in §I INTERFACES, testable rules in §V INVARIANTS, and follow-up work in §T TASKS.\n- Offer ADRs sparingly and only when the decision is hard to reverse, surprising without context, and a real trade-off. If you create an ADR, route any matching SPEC.md amendment through cavekit-spec too.\n- Create docs/adr/ lazily only when needed. If SPEC.md is missing, invoke/use cavekit-spec to create SPEC.md; no fallback doc.\n\nSPEC.md routing reference:\n${SPEC_FORMAT}\n\nADR format reference:\n${ADR_FORMAT}\n[/PI GRILL ME ACTIVE]`;
 
     return { systemPrompt: event.systemPrompt + prompt };
   });

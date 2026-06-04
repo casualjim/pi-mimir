@@ -27,7 +27,7 @@ It packages the `grill-with-docs` workflow for Pi and instructs the agent to use
 - Prefers codebase-memory tools for codebase research before exact file reads.
 - Soft-delegates large code fact-finding to `cavecrew-investigator` when `subagent` lists it as executable; falls back to codebase-memory/direct reads when unavailable.
 - Instructs the agent to use `ask_user_question` for each user-facing grilling question when available.
-- Keeps Matt Pocock's documentation habits: update `CONTEXT.md` inline for resolved domain terms, and offer ADRs only for hard-to-reverse, surprising, real trade-off decisions.
+- Uses project-root `SPEC.md` as the only durable truth doc: routes every `SPEC.md` creation/amendment through `cavekit-spec`, treats existing `CONTEXT.md`/`CONTEXT-MAP.md` as read-only legacy import sources, and offers ADRs only for hard-to-reverse, surprising, real trade-off decisions.
 
 ## Attribution
 

@@ -20,10 +20,11 @@ function parseFrontmatter(markdown: string): Record<string, string> {
 }
 
 describe('grill-with-docs skill', () => {
-  it('bundles Matt Pocock grill-with-docs assets', async () => {
+  it('bundles grill-with-docs assets', async () => {
     await expect(stat(path.join(skillRoot, 'SKILL.md'))).resolves.toMatchObject({});
-    await expect(stat(path.join(skillRoot, 'CONTEXT-FORMAT.md'))).resolves.toMatchObject({});
+    await expect(stat(path.join(skillRoot, 'SPEC-FORMAT.md'))).resolves.toMatchObject({});
     await expect(stat(path.join(skillRoot, 'ADR-FORMAT.md'))).resolves.toMatchObject({});
+    await expect(stat(path.join(skillRoot, 'CONTEXT-FORMAT.md'))).rejects.toThrow();
   });
 
   it('has valid Pi skill frontmatter with attribution', async () => {
@@ -65,5 +66,29 @@ describe('grill-with-docs skill', () => {
     expect(markdown).toContain('fall back');
     expect(readme).toContain('Soft-delegates large code fact-finding');
     expect(extension).toContain('cavecrew-investigator');
+  });
+
+  it('uses SPEC.md as canonical docs and routes mutations through cavekit-spec', async () => {
+    const markdown = await readFile(path.join(skillRoot, 'SKILL.md'), 'utf8');
+    const specFormat = await readFile(path.join(skillRoot, 'SPEC-FORMAT.md'), 'utf8');
+    const readme = await readFile(path.join(root, 'README.md'), 'utf8');
+    const extension = await readFile(path.join(root, 'index.ts'), 'utf8');
+
+    for (const content of [markdown, specFormat, readme, extension]) {
+      expect(content).toContain('SPEC.md');
+      expect(content).toContain('cavekit-spec');
+      expect(content).not.toMatch(/Update CONTEXT\.md inline/i);
+      expect(content).not.toMatch(/Create CONTEXT\.md/i);
+      expect(content).not.toMatch(/CONTEXT\.md should/i);
+      expect(content).not.toMatch(/update project-root `SPEC\.md` right there/i);
+      expect(content).not.toMatch(/Always read\/write project-root `SPEC\.md`/i);
+    }
+
+    expect(markdown).toContain('read-only legacy input');
+    expect(specFormat).toContain('read-only legacy sources');
+    expect(extension).toContain('read-only legacy input');
+    expect(markdown).toContain('must not directly edit `SPEC.md`');
+    expect(specFormat).toContain('only workflow that may mutate it');
+    expect(extension).toContain('only workflow that may mutate SPEC.md');
   });
 });
