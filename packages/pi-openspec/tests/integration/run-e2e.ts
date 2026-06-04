@@ -7,8 +7,7 @@
  * package-owned workflow surface.
  *
  * Usage:
- *   cd packages/pi-openspec
- *   npm run test:e2e
+ *   pnpm --filter @casualjim/pi-openspec test:e2e
  *
  * Optional env:
  *   E2E_MODEL=zai/glm-5-turbo

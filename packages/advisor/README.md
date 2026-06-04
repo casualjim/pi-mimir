@@ -43,9 +43,9 @@ pi install ./packages/advisor
 
 ## Development
 
-Run tests from `packages/advisor`:
+Run tests from repository root:
 
 ```bash
-npm test
-npm run typecheck
+pnpm --filter @casualjim/pi-advisor test
+pnpm --filter @casualjim/pi-advisor typecheck
 ```

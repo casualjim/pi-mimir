@@ -31,7 +31,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "check:pack": "npm pack --dry-run",
+    "check:pack": "pnpm pack --dry-run",
     "test": "vitest run"
   },
   "pi": {

@@ -4,12 +4,12 @@ Standalone review package for Pi.
 
 ## Commands
 
-- `/review` — review staged, unstaged, and untracked changes with Codex-style JSON findings.
+- `/review` — review staged, unstaged, and untracked changes via `cavecrew-reviewer` with Codex-style bug rules.
 - `/review --base <branch>` — review diff from merge-base with `<branch>`.
 - `/review --commit <sha>` — review one commit.
 - `/review --custom <instructions>` — review arbitrary scope/instructions.
 
-`/review` sends a read-only prompt based on Codex `codex-rs/core/review_prompt.md`. Findings must overlap the reviewed diff and use the strict Codex JSON schema.
+`/review` sends a read-only delegation prompt: load `cavecrew`, list subagents, run executable `cavecrew-reviewer`, apply Codex `codex-rs/core/review_prompt.md` bug-selection rules without the Codex JSON output schema, map P0/P1→🔴, P2→🟡, P3→🔵, then return readable cavecrew-reviewer findings. Findings must overlap the reviewed diff.
 
 ## Skills
 

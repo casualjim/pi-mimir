@@ -4,7 +4,8 @@
 Pi workflow monorepo → review-gated OpenSpec planning/implementation, standalone Codex-style code review, codebase-memory support, forked advisor, Cavekit/Caveman/Pi Grill/Heimdall packages.
 
 ## §C CONSTRAINTS
-- npm workspaces `packages/*`; packages ESM; tests Vitest; typecheck `tsc --noEmit`.
+- pnpm primary package manager; workspace `packages/*`; packages ESM; tests Vitest; typecheck `tsc --noEmit`.
+- pnpm lockfile/workspace metadata ! source of dependency truth; npm lockfiles ⊥ unless explicit compatibility artifact.
 - Pi package metadata ! source of install surface: `pi.extensions`, `pi.skills`, `pi.prompts`, `files`.
 - `@casualjim/pi-mimir` bundled skills ! package/plugin-backed; OpenSpec role agents sync to `~/.pi/agent/agents` with `~/.pi/agent/mimir-managed.json`; project `.pi/agents` copy ⊥.
 - `@casualjim/pi-mimir` owns OpenSpec workflow orchestration; ! commit/push/PR/archive/finishing branch.
@@ -39,6 +40,9 @@ Pi workflow monorepo → review-gated OpenSpec planning/implementation, standalo
 - file: `.pi/advisor-managed.json` → legacy advisor copied-agent manifest; read/prune only; new writes ⊥.
 - pkg: `@casualjim/pi-cavekit` → skills `cavekit-spec`, `cavekit-build`, `cavekit-check`, `cavekit-backprop`; prompts `/ck:spec`, `/ck:build`, `/ck:check`; file `FORMAT.md`; ? soft-use `cavecrew-investigator` for read-only code archaeology when available.
 - file: project-root `SPEC.md` → Cavekit single durable spec artifact.
+- file: `package.json` → pnpm `packageManager`, workspace scripts use pnpm recursion.
+- file: `pnpm-workspace.yaml` → workspace packages `packages/*`.
+- file: `pnpm-lock.yaml` → dependency lock source of truth; `package-lock.json` ⊥.
 - pkg: `@casualjim/pi-caveman` → extension `extensions/caveman`, skills `caveman`, `caveman-commit`, `caveman-review`, `caveman-compress`, `caveman-help`, `caveman-stats`, `cavecrew`; agents `cavecrew-*`.
 - skill: `cavecrew` → decision guide for explicit subagent delegation via `subagent` tool; must list available agents before execution; no automatic agent spawning by extension hooks.
 - agent: `cavecrew-investigator` → Pi-subagents executable read-only locator; codebase-memory tools first, exact reads/shell fallback; no fixes/design.
@@ -74,13 +78,17 @@ V18: `@casualjim/pi-review` `review-implementation` + specialist review skills !
 V19: `@casualjim/pi-review` ! standalone Codex-style `/review` + implementation review skills; no `pi-openspec` deps, imports, or workflow coupling.
 V20: `/review` targets ! support uncommitted changes, base branch, commit SHA, custom instructions; empty custom/branch/SHA rejected.
 V21: `/review` prompt ! port Codex `core/review_prompt.md` semantics: actionable bugs only, all findings, priorities P0-P3, shortest diff-overlap line ranges, no PR fix.
-V22: `/review` output ! structured findings with `title`, `body`, `confidence_score`, `priority`, `code_location.absolute_file_path`, `code_location.line_range`, plus overall correctness/explanation/confidence.
+V22: `/review` output ! readable `cavecrew-reviewer` findings; preserve Codex bug-selection, priority, diff-overlap line-range semantics; raw ReviewOutput JSON ⊥.
 V23: `pi-review` discovery ! codebase-memory ladder first when tools available; stale/unavailable graph → degraded discovery stated; exact diff/file reads allowed.
 V24: `cavecrew-investigator` ! expose codebase-memory tools + `read`/`bash` fallback; read-only; compressed file:line output; fixes/design ⊥.
 V25: `grill-with-docs` ! may use `cavecrew-investigator` for codebase facts when available; no hard `pi-caveman` dep; unavailable agent → normal codebase-memory fallback.
 V26: `pi-caveman` Cavecrew ! remain explicit skill/agent delegation; extension hooks only manage Caveman mode state/injection, ⊥ auto-spawn subagents.
 V27: Cavecrew agent files ! Pi-subagents-compatible frontmatter/tool names; synced to `~/.pi/agent/agents` with content-hash manifest; user-modified agents preserved; Claude tool names `Read/Grep/Glob/Bash/Edit/Write` ⊥.
 V28: `packages/pi-heimdall` ! contain only workspace package source/tests/docs needed for package; copied standalone repo artifacts (`node_modules/`, `.pi/`, `openspec/`, `fnox.toml`, research/plan scratch docs, standalone lockfiles) ⊥.
+V29: workspace dependency state ! pnpm-owned: `packageManager` pins pnpm, `pnpm-workspace.yaml` declares packages, `pnpm-lock.yaml` exists, npm lockfiles ⊥.
+V30: workspace scripts/docs/CI ! prefer pnpm commands; npm commands only explicit compatibility notes.
+V31: `caveman-compress` ! Pi-native: helper/model calls route through Pi CLI/config; Anthropic SDK, `claude --print`, provider-specific auth/env assumptions ⊥.
+V32: `/review` cavecrew prompt ! include Codex bug rules, ⊥ include Codex JSON output schema; severity map P0/P1→🔴, P2→🟡, P3→🔵.
 
 ## §T TASKS
 id|status|task|cites
@@ -117,6 +125,15 @@ T30|x|sync `packages/pi-caveman/agents/cavecrew-*.md` into `~/.pi/agent/agents` 
 T31|x|convert Cavecrew agent frontmatter/instructions to Pi-subagents tool names and behavior: investigator codebase-memory-first, builder `read/edit/write`, reviewer non-mutating `read/bash`|V1,V24,V27
 T32|x|update `cavecrew` skill instructions/tests to invoke Pi `subagent` tool correctly: list first, execute only available non-disabled agents, use `agent: "cavecrew-*"` task contracts|V1,V26,V27
 T33|x|normalize `packages/pi-heimdall`: remove copied standalone repo artifacts, keep package source/tests/docs, update tests/package checks if needed|V1,V2,V28
+T34|x|add pnpm workspace metadata: root `packageManager`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`; remove `package-lock.json` if no compatibility need|V29
+T35|x|convert root workspace scripts/docs/CI from `npm --workspaces` to pnpm recursive equivalents|V30
+T36|x|verify pnpm install/test/typecheck/pack across workspace with new lockfile|V2,V29,V30
+T37|x|make `caveman-compress` workflow Pi-native: helper uses Pi CLI/model call + backup/validate loop; skill fallback uses Pi file tools|V31
+T38|x|replace `ANTHROPIC_API_KEY`, `anthropic`, `claude --print`, and Claude wording in helper/docs/security with Pi CLI/provider-neutral behavior|V2,V16,V31
+T39|x|add tests for `caveman-compress` Pi-native default: Pi CLI call path, no Claude/Anthropic assumptions, backup safety, protected code/inline/path/URL preservation|V1,V2,V31
+T40|x|strip Codex `OUTPUT FORMAT`/JSON schema before `/review` cavecrew delegation; add severity map + tests for no prompt/agent conflict|V22,V32
 
 ## §B BUGS
 id|date|cause|fix
+B1|2026-06-03|`caveman-compress` helper defaulted to Anthropic SDK/`claude --print`, breaking Pi-native package behavior|V31
+B2|2026-06-03|`pi-review` copied Codex JSON prompt but not Codex parse/render review-mode path ∴ `/review` shows raw JSON|V32

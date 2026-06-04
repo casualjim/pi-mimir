@@ -76,8 +76,8 @@ This package does not include:
 ## Development
 
 ```bash
-npm test --workspace @casualjim/pi-cavekit
-npm run typecheck --workspace @casualjim/pi-cavekit
+pnpm --filter @casualjim/pi-cavekit test
+pnpm --filter @casualjim/pi-cavekit typecheck
 ```
 
 ## Attribution

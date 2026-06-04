@@ -7,6 +7,6 @@ ENV PI_OFFLINE=1
 WORKDIR /workspace/pi-openspec-workflow
 COPY . /workspace/pi-openspec-workflow
 
-RUN npm install -g @earendil-works/pi-coding-agent
+RUN corepack enable && npm install -g @earendil-works/pi-coding-agent
 
-CMD ["npm", "run", "test:e2e", "--workspace", "@casualjim/pi-openspec"]
+CMD ["pnpm", "--filter", "@casualjim/pi-openspec", "test:e2e"]

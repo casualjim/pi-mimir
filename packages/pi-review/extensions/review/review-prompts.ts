@@ -30,10 +30,32 @@ export function parseReviewArgs(args: unknown): ReviewTarget {
 
 export function buildReviewPrompt(target: ReviewTarget, _cwd: string): string {
   return [
-    loadCodexReviewPrompt(),
+    'Use the `cavecrew` skill workflow for this request.',
     '',
-    '## Review target',
+    '## Mandatory delegation',
+    '- Load `cavecrew` before reviewing.',
+    '- Use the `subagent` tool; first list available agents.',
+    '- Delegate exactly one review task to executable `cavecrew-reviewer`.',
+    '- If `cavecrew-reviewer` is missing or disabled, report `cavecrew-reviewer unavailable` and stop.',
+    '- Do not review in the parent thread except to relay the reviewer result.',
+    '- Return the reviewer output in readable cavecrew-reviewer format; do not return raw JSON.',
+    '',
+    '## Reviewer task',
     targetInstructions(target),
+    '',
+    'Apply the Codex review rules below. Keep bug-selection, priority, and line-range rules.',
+    'Do not use Codex JSON output schema; it is intentionally removed to avoid conflicting with cavecrew-reviewer.',
+    '',
+    loadCodexReviewRules(),
+    '',
+    '## Severity mapping',
+    '- P0/P1 → 🔴 bug',
+    '- P2 → 🟡 risk',
+    '- P3 → 🔵 nit',
+    '',
+    '## Final output for Pi',
+    'Return only cavecrew-reviewer lines (`path:line: <emoji> <severity>: problem. fix.`) or `No issues.`.',
+    'Raw JSON is forbidden.',
   ].join('\n');
 }
 
@@ -87,9 +109,21 @@ function splitShellLike(input: string): string[] {
   return tokens.map((token) => token.replace(/^(['"])(.*)\1$/, '$2')).filter((token) => token.length > 0);
 }
 
-let cachedPrompt: string | undefined;
+let cachedRules: string | undefined;
 
-function loadCodexReviewPrompt(): string {
-  cachedPrompt ??= readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../prompts/review_prompt.md'), 'utf8').trim();
-  return cachedPrompt;
+function loadCodexReviewRules(): string {
+  cachedRules ??= stripCodexOutputFormat(
+    readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../prompts/review_prompt.md'), 'utf8').trim(),
+  );
+  return cachedRules;
+}
+
+function stripCodexOutputFormat(prompt: string): string {
+  const jsonPriorityStart = prompt.indexOf('Additionally, include a numeric priority field in the JSON output');
+  if (jsonPriorityStart >= 0) return prompt.slice(0, jsonPriorityStart).trim();
+
+  const outputFormatStart = prompt.indexOf('OUTPUT FORMAT:');
+  if (outputFormatStart >= 0) return prompt.slice(0, outputFormatStart).trim();
+
+  return prompt.trim();
 }

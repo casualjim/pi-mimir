@@ -32,7 +32,8 @@ describe('review command', () => {
     });
 
     expect(sentPrompts).toHaveLength(1);
-    expect(sentPrompts[0]).toContain('## Review target');
+    expect(sentPrompts[0]).toContain('## Mandatory delegation');
+    expect(sentPrompts[0]).toContain('cavecrew-reviewer');
     expect(sentPrompts[0]).toContain('Review changes against base branch `main`.');
     expect(sentPrompts[0]).not.toContain('## Pi exploration requirements');
     expect(notifications).toEqual([{ message: 'Starting /review --base main.', level: 'info' }]);

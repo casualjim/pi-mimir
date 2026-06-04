@@ -61,7 +61,7 @@ If codebase-memory tools are missing or stale, report degraded discovery and avo
 ## Development
 
 ```bash
-npm test --workspace @casualjim/pi-codebase-memory
-npm run typecheck --workspace @casualjim/pi-codebase-memory
-npm run check:pack --workspace @casualjim/pi-codebase-memory
+pnpm --filter @casualjim/pi-codebase-memory test
+pnpm --filter @casualjim/pi-codebase-memory typecheck
+pnpm --filter @casualjim/pi-codebase-memory check:pack
 ```

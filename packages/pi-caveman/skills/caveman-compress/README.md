@@ -42,7 +42,7 @@ For local development:
 pi install ./packages/pi-caveman
 ```
 
-**Requires for bundled helper:** Python 3.10+. The helper may use `ANTHROPIC_API_KEY`, the optional `anthropic` Python package, or an existing `claude` CLI. This Pi package does not install those dependencies or authenticate external services.
+**Requires for bundled helper:** Python 3.10+ and `pi` on `PATH`. The helper is Pi-native: it calls `pi --print` and uses the user's configured Pi model/provider. It does not call provider SDKs directly or invoke non-Pi model CLIs.
 
 ## Usage
 
@@ -83,7 +83,7 @@ validate headings, code blocks, URLs, file paths, bullets
 if validation fails: restore original or ask user before retry
 ```
 
-Manual Pi-tool fallback is allowed when helper dependencies are unavailable: read file, create backup, edit prose only, re-read both files, and verify protected content stayed exact.
+Manual Pi-tool fallback is allowed when Python or Pi CLI is unavailable: read file, create backup, edit prose only, re-read both files, and verify protected content stayed exact.
 
 ## What Is Preserved
 
@@ -101,7 +101,7 @@ Caveman compress natural language. It never touch:
 
 ## Security
 
-`caveman-compress` performs file I/O and may call external model tooling if the bundled helper is used. See [SECURITY.md](./SECURITY.md) for details.
+`caveman-compress` performs file I/O and may call `pi --print` if the bundled helper is used. See [SECURITY.md](./SECURITY.md) for details.
 
 The skill refuses unsupported code/config files and sensitive-looking paths such as credentials, secrets, tokens, keys, `.ssh`, `.aws`, `.gnupg`, `.kube`, and `.docker`.
 

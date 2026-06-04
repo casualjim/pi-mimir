@@ -87,22 +87,22 @@ It uses project-root `SPEC.md` as the durable spec artifact and bundles `FORMAT.
 Install workspace dependencies from the repository root:
 
 ```bash
-npm install
+pnpm install
 ```
 
 Run checks:
 
 ```bash
-npm test --workspaces --if-present
-npm run typecheck --workspaces --if-present
-npm run check:pack --workspaces --if-present
+pnpm test
+pnpm typecheck
+pnpm check:pack
 ```
 
 Run package-specific checks when working in one package, for example:
 
 ```bash
-npm test --workspace @casualjim/pi-openspec
-npm run typecheck --workspace @casualjim/pi-openspec
+pnpm --filter @casualjim/pi-openspec test
+pnpm --filter @casualjim/pi-openspec typecheck
 ```
 
 ## License

@@ -22,11 +22,11 @@ docker run --rm \
   -e E2E_MODEL \
   --workdir /workspace/pi-mimir-workflow \
   pi-mimir-workflow-e2e \
-  npm run test:e2e --workspace pi-mimir
+  pnpm --filter pi-mimir test:e2e
 docker run --rm \
   -e ZAI_API_KEY \
   -e E2E_MODEL \
   --workdir /workspace/pi-mimir-workflow \
   pi-mimir-workflow-e2e \
-  npm run test:e2e --workspace @casualjim/pi-caveman
+  pnpm --filter @casualjim/pi-caveman test:e2e
 """

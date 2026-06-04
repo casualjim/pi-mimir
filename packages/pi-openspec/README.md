@@ -123,17 +123,17 @@ Review findings use these severities:
 
 ## Development
 
-Run tests from `packages/pi-openspec`:
+Run tests from repository root:
 
 ```bash
-npm test
-npm run typecheck
+pnpm --filter @casualjim/pi-openspec test
+pnpm --filter @casualjim/pi-openspec typecheck
 ```
 
 Run the integration workflow test with:
 
 ```bash
-npm run test:e2e
+pnpm --filter @casualjim/pi-openspec test:e2e
 ```
 
 Set `E2E_MODEL` to choose the model used by the non-interactive Pi sessions.

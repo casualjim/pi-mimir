@@ -29,12 +29,29 @@ describe('review target parsing', () => {
 });
 
 describe('review prompt rendering', () => {
-  it('includes Codex review rubric and output schema', () => {
+  it('delegates through cavecrew-reviewer while preserving Codex review rules', () => {
     const prompt = buildReviewPrompt({ kind: 'uncommitted' }, '/repo');
 
+    expect(prompt).toContain('Use the `cavecrew` skill workflow');
+    expect(prompt).toContain('Delegate exactly one review task to executable `cavecrew-reviewer`');
+    expect(prompt).toContain('do not return raw JSON');
     expect(prompt).toContain('You are acting as a reviewer for a proposed code change');
-    expect(prompt).toContain('"overall_correctness": "patch is correct" | "patch is incorrect"');
+    expect(prompt).toContain('Output all findings that the original author would fix if they knew about it');
     expect(prompt).toContain('Review all uncommitted changes');
+  });
+
+  it('removes Codex JSON output schema before cavecrew delegation', () => {
+    const prompt = buildReviewPrompt({ kind: 'uncommitted' }, '/repo');
+
+    expect(prompt).toContain('## Severity mapping');
+    expect(prompt).toContain('P0/P1 → 🔴 bug');
+    expect(prompt).toContain('P2 → 🟡 risk');
+    expect(prompt).toContain('P3 → 🔵 nit');
+    expect(prompt).not.toContain('OUTPUT FORMAT:');
+    expect(prompt).not.toContain('"overall_correctness"');
+    expect(prompt).not.toContain('"findings"');
+    expect(prompt).not.toContain('numeric priority field in the JSON output');
+    expect(prompt).not.toContain('Do not wrap the JSON');
   });
 
   it('renders target-specific diff instructions', () => {
@@ -43,10 +60,10 @@ describe('review prompt rendering', () => {
     expect(targetInstructions({ kind: 'custom', instructions: 'focus security' })).toContain('focus security');
   });
 
-  it('keeps Pi integration guidance out of the review prompt', () => {
+  it('keeps old Pi integration guidance out of the review prompt', () => {
     const prompt = buildReviewPrompt({ kind: 'uncommitted' }, '/repo');
 
-    expect(prompt).toContain('## Review target');
+    expect(prompt).toContain('## Reviewer task');
     expect(prompt).not.toContain('## Pi /review target');
     expect(prompt).not.toContain('## Pi exploration requirements');
     expect(prompt).not.toContain('Repository root: /repo');

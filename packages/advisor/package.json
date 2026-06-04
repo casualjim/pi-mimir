@@ -22,7 +22,7 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "check:pack": "npm pack --dry-run"
+    "check:pack": "pnpm pack --dry-run"
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",

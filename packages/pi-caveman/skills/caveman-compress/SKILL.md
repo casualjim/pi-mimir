@@ -18,22 +18,23 @@ Compress natural language files (`.md`, `.txt`, `.typ`, `.typst`, `.tex`, extens
 
 1. Resolve user-provided file path to an absolute path.
 2. Read this skill's `SECURITY.md` if safety is uncertain.
-3. Prefer the bundled helper when available:
+3. Prefer the bundled Pi-native helper when available:
 
 ```bash
 cd <directory containing this SKILL.md>
 python3 -m scripts <absolute_filepath>
 ```
 
-4. If helper cannot run because Python/Claude/Anthropic dependencies are unavailable, do not invent statistics or silently modify files. Explain blocker and offer manual compression using Pi file tools.
-5. For manual compression:
+4. Helper uses `pi --print` with the user's configured Pi model/provider. It does not call provider SDKs directly and does not call non-Pi model CLIs.
+5. If helper cannot run because Python or Pi CLI is unavailable, do not invent statistics or silently modify files. Explain blocker and offer manual compression using Pi file tools.
+6. For manual compression:
    - Use `read` first.
    - Refuse unsupported or sensitive files.
    - Write backup as `<filename>.original.md` before changing original.
    - Compress only prose outside protected regions.
    - Re-read both files and verify protected content stayed exact.
 
-The bundled upstream helper may use `ANTHROPIC_API_KEY`, optional `anthropic` Python package, or the `claude` CLI. This Pi package does not install those dependencies or authenticate external services.
+The bundled helper is Pi-native: it shells out to `pi --print`, inheriting the user's Pi model/provider configuration. This package does not call provider SDKs directly, ship provider-specific auth logic, or invoke non-Pi model CLIs.
 
 ## Compression Rules
 

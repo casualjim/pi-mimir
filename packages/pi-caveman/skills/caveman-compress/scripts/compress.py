@@ -6,7 +6,6 @@ Usage:
     python scripts/compress.py <filepath>
 """
 
-import os
 import re
 import subprocess
 from pathlib import Path
@@ -16,11 +15,12 @@ OUTER_FENCE_REGEX = re.compile(
     r"\A\s*(`{3,}|~{3,})[^\n]*\n(.*)\n\1\s*\Z", re.DOTALL
 )
 
-# Filenames and paths that almost certainly hold secrets or PII. Compressing
-# them ships raw bytes to the Anthropic API — a third-party data boundary that
-# developers on sensitive codebases cannot cross. detect.py already skips .env
-# by extension, but credentials.md / secrets.txt / ~/.aws/credentials would
-# slip through the natural-language filter. This is a hard refuse before read.
+# Filenames and paths that almost certainly hold secrets or PII. Compression
+# sends raw bytes through the user's configured Pi model provider, a data
+# boundary that developers on sensitive codebases may not want to cross.
+# detect.py already skips .env by extension, but credentials.md / secrets.txt /
+# ~/.aws/credentials would slip through the natural-language filter. This is a
+# hard refuse before read.
 SENSITIVE_BASENAME_REGEX = re.compile(
     r"(?ix)^("
     r"\.env(\..+)?"
@@ -44,7 +44,7 @@ SENSITIVE_NAME_TOKENS = (
 
 
 def is_sensitive_path(filepath: Path) -> bool:
-    """Heuristic denylist for files that must never be shipped to a third-party API."""
+    """Heuristic denylist for files that must never be sent to a model provider."""
     name = filepath.name
     if SENSITIVE_BASENAME_REGEX.match(name):
         return True
@@ -69,36 +69,32 @@ from .validate import validate
 MAX_RETRIES = 2
 
 
-# ---------- Claude Calls ----------
+# ---------- Pi Calls ----------
 
 
-def call_claude(prompt: str) -> str:
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if api_key:
-        try:
-            import anthropic
-
-            client = anthropic.Anthropic(api_key=api_key)
-            msg = client.messages.create(
-                model=os.environ.get("CAVEMAN_MODEL", "claude-sonnet-4-5"),
-                max_tokens=8192,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            return strip_llm_wrapper(msg.content[0].text.strip())
-        except ImportError:
-            pass  # anthropic not installed, fall back to CLI
-    # Fallback: use claude CLI (handles desktop auth)
+def call_pi(prompt: str) -> str:
+    """Call the user's configured Pi CLI/model in print mode."""
     try:
         result = subprocess.run(
-            ["claude", "--print"],
+            [
+                "pi",
+                "--no-tools",
+                "--no-skills",
+                "--no-context-files",
+                "--no-session",
+                "--print",
+                "Follow instructions from stdin. Return only final text.",
+            ],
             input=prompt,
             text=True,
             capture_output=True,
             check=True,
         )
         return strip_llm_wrapper(result.stdout.strip())
+    except FileNotFoundError as e:
+        raise RuntimeError("Pi CLI not found on PATH") from e
     except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Claude call failed:\n{e.stderr}")
+        raise RuntimeError(f"Pi call failed:\n{e.stderr}") from e
 
 
 def build_compress_prompt(original: str) -> str:
@@ -161,15 +157,15 @@ def compress_file(filepath: Path) -> bool:
     if filepath.stat().st_size > MAX_FILE_SIZE:
         raise ValueError(f"File too large to compress safely (max 500KB): {filepath}")
 
-    # Refuse files that look like they contain secrets or PII. Compressing ships
-    # the raw bytes to the Anthropic API — a third-party boundary — so we fail
-    # loudly rather than silently exfiltrate credentials or keys. Override is
+    # Refuse files that look like they contain secrets or PII. Compression sends
+    # raw bytes through the user's configured Pi model provider, so we fail
+    # loudly rather than silently expose credentials or keys. Override is
     # intentional: the user must rename the file if the heuristic is wrong.
     if is_sensitive_path(filepath):
         raise ValueError(
             f"Refusing to compress {filepath}: filename looks sensitive "
             "(credentials, keys, secrets, or known private paths). "
-            "Compression sends file contents to the Anthropic API. "
+            "Compression sends file contents through the configured Pi model provider. "
             "Rename the file if this is a false positive."
         )
 
@@ -194,17 +190,17 @@ def compress_file(filepath: Path) -> bool:
         return False
 
     # Step 1: Compress
-    print("Compressing with Claude...")
-    compressed = call_claude(build_compress_prompt(original_text))
+    print("Compressing with Pi...")
+    compressed = call_pi(build_compress_prompt(original_text))
 
     if compressed is None or not compressed.strip():
-        print("❌ Compression aborted: Claude returned an empty response.")
+        print("❌ Compression aborted: Pi returned an empty response.")
         print("   Original file is untouched (no backup created).")
         return False
 
     if compressed.strip() == original_text.strip():
         print("❌ Compression aborted: output is identical to input.")
-        print("   Likely causes: Claude refused, returned the prompt verbatim, or the file is")
+        print("   Likely causes: Pi refused, returned the prompt verbatim, or the file is")
         print("   already in caveman form. Original file is untouched (no backup created).")
         return False
 
@@ -245,8 +241,8 @@ def compress_file(filepath: Path) -> bool:
             print("❌ Failed after retries — original restored")
             return False
 
-        print("Fixing with Claude...")
-        compressed = call_claude(
+        print("Fixing with Pi...")
+        compressed = call_pi(
             build_fix_prompt(original_text, compressed, result.errors)
         )
         filepath.write_text(compressed)

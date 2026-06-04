@@ -35,7 +35,7 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "check:pack": "npm pack --dry-run"
+    "check:pack": "pnpm pack --dry-run"
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "^0.78.0",

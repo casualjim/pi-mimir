@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '..');
 const skillsRoot = path.join(root, 'skills');
+const compressRoot = path.join(skillsRoot, 'caveman-compress');
 
 const requiredSkills = [
   'caveman',
@@ -77,5 +80,54 @@ describe('Caveman skill files', () => {
     expect(combined).not.toMatch(/skills-only package/i);
     expect(combined).toMatch(/Pi-native mode hooks/);
     expect(combined).toMatch(/No fake estimate/i);
+  });
+
+  it('keeps caveman-compress Pi-native instead of provider-specific helper calls', async () => {
+    const skill = await readFile(path.join(compressRoot, 'SKILL.md'), 'utf8');
+    const readme = await readFile(path.join(compressRoot, 'README.md'), 'utf8');
+    const security = await readFile(path.join(compressRoot, 'SECURITY.md'), 'utf8');
+    const compress = await readFile(path.join(compressRoot, 'scripts', 'compress.py'), 'utf8');
+    const combined = `${skill}\n${readme}\n${security}\n${compress}`;
+
+    expect(compress).toContain('"pi"');
+    expect(compress).toContain('"--print"');
+    const banned = [
+      new RegExp(['ANTHROPIC', 'API', 'KEY'].join('_')),
+      new RegExp(['import ', 'anthropic'].join('')),
+      new RegExp(['Anthropic', '\\s+(SDK|API)'].join(''), 'i'),
+      new RegExp(['claude', '\\s+--print'].join(''), 'i'),
+      new RegExp(['call', 'claude'].join('_')),
+      new RegExp(['Compressing with ', 'Claude'].join('')),
+    ];
+    for (const pattern of banned) expect(combined).not.toMatch(pattern);
+  });
+
+  it('validates caveman-compress protected regions and backup safety hooks', async () => {
+    const original = `# Title\n\nProse before.\n\nSee https://example.com and \`inline_code\` in /tmp/file.txt.\n\n\`\`\`ts\nconst x = 1;\n\`\`\`\n`;
+    const compressed = `# Title\n\nProse.\n\nSee https://example.com and \`inline_code\` in /tmp/file.txt.\n\n\`\`\`ts\nconst x = 1;\n\`\`\`\n`;
+    const bad = `# Title\n\nProse.\n\nSee https://example.com and \`changed_code\` in /tmp/file.txt.\n\n\`\`\`ts\nconst x = 2;\n\`\`\`\n`;
+    const dir = await mkdtemp(path.join(tmpdir(), 'caveman-compress-'));
+    const originalPath = path.join(dir, 'note.original.md');
+    const compressedPath = path.join(dir, 'note.md');
+    const badPath = path.join(dir, 'bad.md');
+    await writeFile(originalPath, original, 'utf8');
+    await writeFile(compressedPath, compressed, 'utf8');
+    await writeFile(badPath, bad, 'utf8');
+
+    const pythonEnv = { ...process.env, PYTHONDONTWRITEBYTECODE: '1' };
+    const ok = spawnSync('python3', ['-m', 'scripts.validate', originalPath, compressedPath], { cwd: compressRoot, encoding: 'utf8', env: pythonEnv });
+    expect(ok.status).toBe(0);
+    expect(ok.stdout).toContain('Valid: True');
+
+    const failed = spawnSync('python3', ['-m', 'scripts.validate', originalPath, badPath], { cwd: compressRoot, encoding: 'utf8', env: pythonEnv });
+    expect(failed.status).toBe(0);
+    expect(failed.stdout).toContain('Valid: False');
+    expect(failed.stdout).toContain('Code blocks not preserved exactly');
+    expect(failed.stdout).toContain('Inline code lost');
+
+    const compressSource = await readFile(path.join(compressRoot, 'scripts', 'compress.py'), 'utf8');
+    expect(compressSource).toContain('backup_path.exists()');
+    expect(compressSource).toContain('backup_readback != original_text');
+    expect(compressSource).toContain('filepath.write_text(original_text)');
   });
 });

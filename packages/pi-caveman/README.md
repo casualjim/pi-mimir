@@ -48,9 +48,9 @@ This package ports Caveman behavior to Pi. It activates only the Pi-native exten
 ## Development
 
 ```bash
-npm test --workspace @casualjim/pi-caveman
-npm run typecheck --workspace @casualjim/pi-caveman
-npm run test:e2e --workspace @casualjim/pi-caveman
+pnpm --filter @casualjim/pi-caveman test
+pnpm --filter @casualjim/pi-caveman typecheck
+pnpm --filter @casualjim/pi-caveman test:e2e
 ```
 
 The e2e test installs this package into an isolated Pi home and invokes representative skills through the real `pi` CLI.

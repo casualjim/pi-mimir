@@ -27,22 +27,25 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "24"
-          cache: npm
+          cache: pnpm
+
+      - name: Enable pnpm
+        run: corepack enable
 
       - name: Install OpenSpec CLI
         run: npm install --global @fission-ai/openspec@1.4.1
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Typecheck packages
-        run: npm run typecheck
+        run: pnpm typecheck
 
       - name: Test packages
-        run: npm test
+        run: pnpm test
 
       - name: Verify package contents
-        run: npm run check:pack
+        run: pnpm check:pack
 
       - name: Publish packages
         run: |
@@ -52,12 +55,12 @@ jobs:
             local version
             version=$(node -p "require('./${package_dir}/package.json').version")
 
-            if npm view "${workspace}@${version}" version >/dev/null 2>&1; then
+            if pnpm view "${workspace}@${version}" version >/dev/null 2>&1; then
               echo "${workspace}@${version} already published; skipping"
               return 0
             fi
 
-            npm publish --workspace "${workspace}" --provenance --access public
+            (cd "${package_dir}" && pnpm publish --provenance --access public --no-git-checks)
           }
 
           publish_if_missing @casualjim/pi-advisor packages/advisor
@@ -79,14 +82,15 @@ jobs:
 
       - name: Bump versions for next publish
         run: |
-          npm version ${{ steps.bump.outputs.level }} --workspaces --no-git-tag-version
-          npm install --package-lock-only --ignore-scripts
+          # npm version keeps package.json version-bump semantics; pnpm owns workspace install/lockfile.
+          pnpm -r exec npm version ${{ steps.bump.outputs.level }} --no-git-tag-version
+          pnpm install --lockfile-only --ignore-scripts
 
       - name: Commit version bump
         run: |
           NEXT_VERSION=$(node -p "require('./packages/pi-openspec/package.json').version")
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json packages/*/package.json
+          git add package.json pnpm-lock.yaml packages/*/package.json
           git commit -m "chore: bump package versions to ${NEXT_VERSION} [skip ci]"
           git push origin HEAD:main

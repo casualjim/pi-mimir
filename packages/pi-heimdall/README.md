@@ -498,9 +498,9 @@ loading plus sandbox/preflight helpers from `lib/`, but keep their runtime state
 ## Development
 
 ```bash
-npm install           # optional: only for editor tooling / type checks
-npm run typecheck     # type-check the extensions
-npm run check:pack    # verify the package tarball contents
+pnpm install          # optional: only for editor tooling / type checks
+pnpm typecheck        # type-check the extensions
+pnpm check:pack       # verify the package tarball contents
 ```
 
 GitHub Actions runs the same checks on pushes and pull requests to `main`.

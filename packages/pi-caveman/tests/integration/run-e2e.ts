@@ -7,8 +7,7 @@
  * package-owned skill surface.
  *
  * Usage:
- *   cd packages/pi-caveman
- *   npm run test:e2e
+ *   pnpm --filter @casualjim/pi-caveman test:e2e
  *
  * Optional env:
  *   E2E_MODEL=zai/glm-5-turbo
