@@ -22,6 +22,13 @@ export function resolveHeimdallSandboxBinary(configuredBinaryPath?: string): San
 		return { binaryPath: configuredBinaryPath.trim(), found: true, source: "config" };
 	}
 
+	try {
+		const candidate = fileURLToPath(import.meta.resolve("@casualjim/heimdall-sandbox/bin/heimdall-sandbox.js"));
+		if (existsSync(candidate)) return { binaryPath: candidate, found: true, source: "npm" };
+	} catch {
+		// Wrapper package not installed with this extension.
+	}
+
 	for (const pkg of [
 		"@casualjim/heimdall-sandbox-darwin-arm64",
 		"@casualjim/heimdall-sandbox-linux-x64",
@@ -31,7 +38,7 @@ export function resolveHeimdallSandboxBinary(configuredBinaryPath?: string): San
 			const candidate = fileURLToPath(import.meta.resolve(`${pkg}/bin/heimdall-sandbox`));
 			if (existsSync(candidate)) return { binaryPath: candidate, found: true, source: "npm" };
 		} catch {
-			// Package not installed on this platform
+			// Platform package not installed or not directly resolvable from this extension.
 		}
 	}
 
@@ -128,7 +135,6 @@ export async function launchSandboxProcess(
 		};
 		child.once("error", onError);
 		child.once("spawn", onSpawn);
-		queueMicrotask(onSpawn);
 	});
 
 	return { binaryPath, child, cwd: workDir, policy, policyJson };

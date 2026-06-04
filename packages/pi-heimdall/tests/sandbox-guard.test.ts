@@ -117,6 +117,13 @@ describe("sandbox-guard", () => {
 				source: "config",
 			});
 		});
+
+		it("resolves packaged sandbox wrapper before PATH fallback", () => {
+			const resolved = resolveHeimdallSandboxBinary();
+			expect(resolved.found).toBe(true);
+			expect(resolved.source).toBe("npm");
+			expect(resolved.binaryPath).toContain("@casualjim/heimdall-sandbox");
+		});
 	});
 
 	describe("createSandboxedBashOps", () => {
@@ -151,6 +158,7 @@ describe("sandbox-guard", () => {
 					},
 				};
 				child.kill = vi.fn();
+				queueMicrotask(() => child.emit("spawn"));
 				return child;
 			}) as unknown as typeof spawn;
 

@@ -26,6 +26,7 @@ vi.mock("node:child_process", async (importOriginal) => {
 			child.command = command;
 			child.args = [...args];
 			spawned.push(child);
+			queueMicrotask(() => child.emit("spawn"));
 			return child as unknown as ChildProcessWithoutNullStreams;
 		}),
 	};
@@ -76,7 +77,7 @@ describe("foreground bash regression with background extension enabled", () => {
 		expect(timeoutError?.message).toContain("Command timed out after 1 seconds");
 
 		expect(spawned).toHaveLength(1);
-		expect(spawned[0]?.command.endsWith("heimdall-sandbox")).toBe(true);
+		expect(spawned[0]?.command).toContain("heimdall-sandbox");
 		expect(spawned[0]?.args).toEqual(["exec", "--policy", "-"]);
 		expect(spawned[0]?.stdin.end).toHaveBeenCalledWith(expect.stringContaining('"command":["bash","-c","sleep 5"]'));
 
