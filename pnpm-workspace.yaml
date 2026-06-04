@@ -13,15 +13,6 @@ overrides:
   '@aws-sdk/middleware-websocket': 3.972.24
   '@aws-sdk/nested-clients': 3.997.14
   '@aws-sdk/token-providers': 3.1059.0
-supportedArchitectures:
-  os:
-    - current
-    - linux
-    - darwin
-  cpu:
-    - current
-    - x64
-    - arm64
 allowBuilds:
   '@google/genai': false
   codebase-memory-mcp: false
