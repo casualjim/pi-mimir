@@ -36,7 +36,10 @@ describe('review skill package', () => {
 
     expect(text).toContain('disable-model-invocation: true');
     expect(text).toContain('whole-tree implementation review');
-    expect(text).toContain('Do not restrict findings to changed lines');
+    expect(text).toContain('This is a whole-tree implementation review, not an active-changeset review');
+    expect(text).toContain('Diff or changed files are discovery seeds only, never review boundaries');
+    expect(text).toContain('Do not restrict findings to changed files or changed lines');
+    expect(text).toContain('Do not apply active-changeset or diff-overlap limits');
     expect(text).toContain('grouping findings with the same root cause');
     expect(text).toContain('caveman/cavecrew-reviewer-style terse format');
     expect(text).toContain('path/to/file.ts:42: 🔴 blocker');
@@ -75,7 +78,9 @@ describe('review skill package', () => {
 
     expect(text).toContain('name: implementation-reviewer');
     expect(text).toContain('skills: review-implementation, review-architecture, review-tests, review-data-flow, review-security');
-    expect(text).toContain('Inspect whole-tree context');
+    expect(text).toContain('Inspect whole-tree context; review acceptance scope, not active changeset');
+    expect(text).toContain('Treat diff/changed files as discovery seeds only, never boundaries');
+    expect(text).toContain('Do not restrict findings to changed files or changed lines; do not apply diff-overlap rules');
     expect(text.toLowerCase()).toContain('accepted exceptions');
     expect(text).toContain('path/to/file.ts:42: 🔴 blocker');
     expect(text).toContain('totals: 1🔴 1🟡 0🔵 1❓ 1✅');

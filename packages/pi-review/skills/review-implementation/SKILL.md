@@ -6,17 +6,17 @@ disable-model-invocation: true
 
 # review-implementation
 
-Review implementation work for a supplied review scope. This is a whole-tree implementation review: inspect surrounding code, tests, config, package surfaces, conventions, and integration points when needed. If the scope names an OpenSpec change or includes OpenSpec artifacts, use those artifacts as review context; otherwise review the supplied request, diff, evidence, and repository context.
+Review implementation work for a supplied review scope. This is a whole-tree implementation review, not an active-changeset review. Inspect surrounding code, tests, config, package surfaces, conventions, and integration points whenever needed. If the scope names an OpenSpec change or includes OpenSpec artifacts, use those artifacts as review context; otherwise review the supplied request, acceptance criteria, evidence, and repository context. Diff or changed files are discovery seeds only, never review boundaries.
 
 ## Inputs
 
 - Review scope or change name.
 - Optional OpenSpec proposal, specs, design, and tasks when available.
-- Code diff, changed config, generated assets, CI/test output, user request, acceptance notes, and relevant logs.
+- User request, acceptance notes/criteria, implementation evidence, CI/test output, generated assets, config, relevant logs, and optional diff/changed files as discovery seeds only.
 
 ## Workflow
 
-Define `<review-scope>` as the supplied OpenSpec change name when present; otherwise use the user-provided scope, branch/diff summary, or current implementation scope.
+Define `<review-scope>` as the supplied OpenSpec change name when present; otherwise use the user-provided acceptance scope or implementation goal. Never define `<review-scope>` as "active changeset" or limit it to branch/diff summary; diffs identify entrypoints, not boundaries.
 
 Invoke the `implementation-reviewer` agent as concurrent subagents for lower-level implementation review. Never set a subagent timeout for these review invocations. If a caller or harness requires a timeout field, express it in hours (`1 hour`, `2 hours`), never seconds or minutes. Each implementation-reviewer task prompt must start exactly with the skill invocation shown here:
 
@@ -25,9 +25,9 @@ Invoke the `implementation-reviewer` agent as concurrent subagents for lower-lev
 3. `/skill:review-data-flow <review-scope>`
 4. `/skill:review-security <review-scope>`
 
-Pass the review scope, optional OpenSpec proposal/specs/design/tasks when available, relevant implementation evidence, CI/test output, logs, user request or acceptance criteria, and enough repository context to ground findings. Tell every reviewer: do not invent new requirements or generic best-practice improvements; judge correctness, repo rules, and SPEC.md/artifact adherence only. Do not require `openspec/changes/...` to exist for non-OpenSpec review scopes. Do not restrict findings to changed lines: unchanged-code issues are reviewable when accepting the implementation would depend on, cement, expose, or worsen them.
+Pass the review scope, optional OpenSpec proposal/specs/design/tasks when available, relevant implementation evidence, CI/test output, logs, user request or acceptance criteria, and enough repository context to ground findings. Tell every reviewer: do not invent new requirements or generic best-practice improvements; judge correctness, repo rules, and SPEC.md/artifact adherence only. Do not require `openspec/changes/...` to exist for non-OpenSpec review scopes. Do not restrict findings to changed files or changed lines. Do not apply active-changeset or diff-overlap limits. Unchanged-code issues are reviewable when accepting the implementation would depend on, cement, expose, or worsen them.
 
-Treat the review as single-shot: inspect the full in-scope implementation evidence now, surface all actionable issues observable from the current evidence, and do not intentionally save findings for later rounds.
+Treat the review as single-shot: inspect the full acceptance scope now, including unchanged surrounding code when relevant. Surface all actionable issues observable from the current evidence, and do not intentionally save findings for later rounds.
 Collect findings, deduplicate them, and report the complete actionable issue list in one pass. Do not stop after the highest-severity class, the first few issues, or a representative sample. Avoid issue proliferation by grouping findings with the same root cause and suppressing broad doctrine findings without concrete evidence, consequence, and smallest repair.
 After the reported findings are addressed, a follow-up review over unchanged implementation material should ideally report only net new issues introduced by the changes or made newly reviewable by newly supplied evidence.
 If a later-round issue comes from previously reviewed material, explicitly state why it was not reliably reviewable earlier.
