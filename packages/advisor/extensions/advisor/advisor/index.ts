@@ -27,6 +27,7 @@ export { registerAdvisorCommand } from "./command";
 export { loadAdvisorConfig, saveAdvisorConfig } from "./config";
 export { ensureUserTailForAdvisor, stripInflightAdvisorCall } from "./context";
 export {
+	ADVISOR_TRIGGER_PROMPT,
 	registerAdvisorBeforeAgentStart,
 	registerModelSelectHandler,
 	registerThinkingLevelSelectHandler,

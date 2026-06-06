@@ -13,6 +13,7 @@ import {
 	ADVISOR_TOOL_NAME,
 	getAdvisorEffort,
 	getAdvisorModel,
+	ADVISOR_TRIGGER_PROMPT,
 	registerAdvisorBeforeAgentStart,
 	registerAdvisorCommand,
 	registerModelSelectHandler,
@@ -92,6 +93,14 @@ describe("advisor activation handlers", () => {
 		registerAdvisorBeforeAgentStart(harness.pi);
 		await harness.emit("before_agent_start");
 		expect(harness.activeTools).toEqual(["read"]);
+	});
+
+	it("injects trigger guidance when advisor is configured and unblocked", async () => {
+		setAdvisorModel(modelA);
+		const harness = createHarness({ currentModel: executorModel, toolNames: [ADVISOR_TOOL_NAME, "read"] });
+		registerAdvisorBeforeAgentStart(harness.pi);
+		const result = await harness.emit("before_agent_start", { systemPrompt: "base" });
+		expect((result as { systemPrompt?: string }).systemPrompt).toContain(ADVISOR_TRIGGER_PROMPT);
 	});
 
 	it("re-adds advisor when model switch unblocks it", async () => {

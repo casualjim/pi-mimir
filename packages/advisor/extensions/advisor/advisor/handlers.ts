@@ -11,6 +11,13 @@ import { ADVISOR_TOOL_NAME, MSG_ADVISOR_DISABLED, msgAdvisorRestored } from "./m
 import { isExecutorBlocked, isModelBlocked } from "./policy";
 import { getAdvisorEffort, getAdvisorModel } from "./state";
 
+export const ADVISOR_TRIGGER_PROMPT = [
+	"Advisor trigger protocol:",
+	"- If `advisor` is available, use it as the second-opinion lane for complex decisions, ambiguous failures, recurring errors, approach changes, and completion checks.",
+	"- Call `advisor` before substantive work on multi-step tasks and before declaring done; do not wait until after committing to an unreviewed interpretation.",
+	"- Orientation reads/searches may happen first, but writing/editing/answering based on a non-obvious plan should be preceded by advisor consultation.",
+].join("\n");
+
 interface ReconcileNotify {
 	/** Shown when the tool is stripped (executor became blocked). */
 	disabled: string;
@@ -38,7 +45,7 @@ export function reconcileAdvisorTool(
 }
 
 export function registerAdvisorBeforeAgentStart(pi: ExtensionAPI): void {
-	pi.on("before_agent_start", async (_event, ctx) => {
+	pi.on("before_agent_start", async (event, ctx) => {
 		const advisor = getAdvisorModel();
 		if (!advisor) {
 			const active = pi.getActiveTools();
@@ -47,7 +54,10 @@ export function registerAdvisorBeforeAgentStart(pi: ExtensionAPI): void {
 			}
 			return;
 		}
-		reconcileAdvisorTool(pi, ctx, { blocked: isExecutorBlocked(ctx, pi.getThinkingLevel()) });
+		const blocked = isExecutorBlocked(ctx, pi.getThinkingLevel());
+		reconcileAdvisorTool(pi, ctx, { blocked });
+		if (blocked) return;
+		return { systemPrompt: `${event.systemPrompt}\n\n${ADVISOR_TRIGGER_PROMPT}` };
 	});
 }
 
