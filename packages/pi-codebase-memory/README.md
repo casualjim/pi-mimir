@@ -8,7 +8,9 @@
 - Pi extension at `extensions/codebase-memory`.
 - Automatic `~/.pi/agent/mcp.json` setup when no codebase-memory server is present.
 - `directTools: true` MCP configuration so Pi exposes `codebase_memory_*` tools directly.
-- One-shot reminders when broad raw discovery tools (`grep`, `find`, `ls`, and equivalents) are used before codebase-memory discovery.
+- Pi-native SessionStart reminders on startup/resume/compact, matching Claude Code hook guidance but using `codebase_memory_*` tool names.
+- Non-blocking graph context augmentation for broad raw discovery (`rg`/`grep`/`find`/`ls` via `bash`, plus direct `grep`/`find`/`ls`/`Glob` tool calls when present).
+- One-shot reminders when broad raw discovery tools are used before codebase-memory discovery.
 - Public `codebase-memory` skill with graph query guidance.
 
 ## Install
