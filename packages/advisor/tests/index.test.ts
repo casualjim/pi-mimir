@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import extension from "../extensions/advisor/index.js";
-import { createHarness } from "./helpers/pi-harness.js";
+import extension from "../extensions/advisor/index";
+import { createHarness } from "./helpers/pi-harness";
 
 describe("advisor extension entry point", () => {
 	it("registers advisor tool and command", () => {

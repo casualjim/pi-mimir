@@ -8,7 +8,7 @@ describe("package registration", () => {
 
 	it("publishes advisor assets", () => {
 		expect(pkg.files).toContain("extensions/");
-		expect(pkg.files).toContain("agents/");
 		expect(pkg.files).toContain("prompts/");
+		expect(pkg.files).not.toContain("agents/");
 	});
 });
