@@ -39,7 +39,9 @@ Pi workflow monorepo → review-gated OpenSpec planning/implementation, standalo
 - pkg: `@casualjim/pi-heimdall` → extension `extensions/heimdall.ts`, optional `extensions/heimdall-bg-tasks.ts`, libs under `lib/`, tests under `tests/`; package workspace files only.
 - file: `.pi/advisor-managed.json` → legacy advisor copied-agent manifest; read/prune only; new writes ⊥.
 - pkg: `@casualjim/pi-cavekit` → skills `cavekit-spec`, `cavekit-build`, `cavekit-check`, `cavekit-backprop`; prompts `/ck:spec`, `/ck:build`, `/ck:check`; file `FORMAT.md`; ? soft-use `cavecrew-investigator` for read-only code archaeology when available.
+- target: `@casualjim/pi-cavekit` archive surface → skill `cavekit-archive`, prompt `/ck:archive` after T43.
 - file: project-root `SPEC.md` → Cavekit single durable spec artifact.
+- file: `.cavekit/archive/SPEC-<YYYY-MM-DD>[-2|-3|...].md` → exact pre-trim `SPEC.md` copy; archive comments in working spec link archived ranges.
 - file: `package.json` → pnpm `packageManager`, workspace scripts use pnpm recursion.
 - file: `pnpm-workspace.yaml` → workspace packages `packages/*`.
 - file: `pnpm-lock.yaml` → dependency lock source of truth; `package-lock.json` ⊥.
@@ -89,6 +91,9 @@ V29: workspace dependency state ! pnpm-owned: `packageManager` pins pnpm, `pnpm-
 V30: workspace scripts/docs/CI ! prefer pnpm commands; npm commands only explicit compatibility notes.
 V31: `caveman-compress` ! Pi-native: helper/model calls route through Pi CLI/config; Anthropic SDK, `claude --print`, provider-specific auth/env assumptions ⊥.
 V32: `/review` cavecrew prompt ! include Codex bug rules, ⊥ include Codex JSON output schema; severity map P0/P1→🔴, P2→🟡, P3→🔵.
+V33: `cavekit-archive` ! copy exact full `SPEC.md` to `.cavekit/archive/SPEC-<YYYY-MM-DD>[-2|-3|...].md` before trim; content loss ⊥.
+V34: `cavekit-archive` ! dry-run preview + explicit user OK before writes; missing `SPEC.md` or ≤500 lines → no write.
+V35: archive trim ! remove only completed §T, §B older than 90 days, and §C/§I/§V uncited by active §T; §G untouched; comments preserve ranges; new IDs continue max(current+archived).
 
 ## §T TASKS
 id|status|task|cites
@@ -134,6 +139,10 @@ T39|x|add tests for `caveman-compress` Pi-native default: Pi CLI call path, no C
 T40|x|strip Codex `OUTPUT FORMAT`/JSON schema before `/review` cavecrew delegation; add severity map + tests for no prompt/agent conflict|V22,V32
 T41|x|make `pi-grill-me` always target project-root `SPEC.md`; demote `CONTEXT.md`/`CONTEXT-MAP.md` to read-only legacy source|V25
 T42|x|route all `pi-grill-me` `SPEC.md` creation/amendment through `cavekit-spec`; forbid direct grill edits|V25
+T43|x|port upstream Cavekit archive surface: add `cavekit-archive` skill + `/ck:archive` prompt + package registration/docs|V1,V2,V10,V11,V33,V34
+T44|x|update bundled `packages/pi-cavekit/FORMAT.md` archive section + ID lookup rules; keep Pi command names consistent|V10,V33,V34,V35
+T45|x|teach `cavekit-spec`/`cavekit-build`/`cavekit-check` to parse archive comments and archived `SPEC.md` copies when resolving max IDs/cites|V10,V33,V35
+T46|x|add tests for archive no-write precheck, dry-run approval, full-copy before trim, trim rules, archived-ID monotonicity, package prompt/skill surface|V1,V2,V10,V33,V34,V35
 
 ## §B BUGS
 id|date|cause|fix

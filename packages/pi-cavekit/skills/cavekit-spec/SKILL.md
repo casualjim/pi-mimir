@@ -74,12 +74,24 @@ Input examples: `amend §V.3`, `amend §T`, `amend interfaces`.
 
 Never silently rewrite sections the user did not name.
 
+## Archive-aware ID lookup
+
+When assigning new §V, §T, or §B ids:
+
+1. Parse current `SPEC.md` table/line IDs.
+2. Parse archive comments like `<!-- archive: .cavekit/archive/SPEC-<date>.md §T T1-T12 -->` for archived ranges.
+3. Read referenced `.cavekit/archive/SPEC-*.md` files when comments exist or ranges/cites are ambiguous.
+4. Use max(current IDs + archive comment ranges + archived SPEC.md IDs) + 1.
+5. Never restart at `T1`, `V1`, or `B1` when archived IDs exist.
+
+Archived §V/§I refs remain valid cite targets when an archive comment points to the full text.
+
 ## Output rules
 
 - Follow bundled `../../FORMAT.md`.
 - Use caveman-style encoding for SPEC.md content only.
 - Preserve code, paths, identifiers, URLs, numbers, error strings, SQL, regex, JSON, and YAML verbatim.
-- Numbering is monotonic: never reuse §V, §T, or §B ids.
+- Numbering is monotonic: never reuse §V, §T, or §B ids; include archived IDs in max lookup.
 - Escape literal `|` in pipe-table cells as `\|`.
 - `§T` rows use `id|status|task|cites` and status values `.`, `~`, `x`.
 

@@ -17,13 +17,15 @@ Read bundled `../../FORMAT.md` before parsing task status or spec references. Th
    - `--next` → lowest-numbered row with status `.` or `~`
    - `--all` or no args → every `.` row in §T order
 3. Identify applicable §V invariants and §I interfaces for chosen task(s).
+4. If chosen task cites §V/§I refs not present in current sections, parse archive comments and read referenced `.cavekit/archive/SPEC-*.md` copies to resolve full archived text.
+5. For any new task/status reasoning, treat IDs as monotonic across current tables, archive comments, and archived `SPEC.md` copies.
 
 ## Plan
 
 For the chosen task(s), produce a concise plan before editing:
 
-1. Cite each §V invariant that applies.
-2. Cite each §I interface touched.
+1. Cite each §V invariant that applies, including archived invariant text when a task cites archived §V.
+2. Cite each §I interface touched, including archived interface text when a task cites archived §I.
 3. List files to create or edit.
 4. List tests to add or update, with at least one check per touched invariant when practical.
 5. Name verification commands.

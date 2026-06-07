@@ -104,16 +104,38 @@ Human skims fast too. Symbols unambiguous.
 ## ONE FILE RULE
 
 Big project → more sections, not more files. grep ceremony kills agent speed.
-If SPEC.md > 500 lines, compact §B (old bugs drop oldest) before splitting.
+If SPEC.md > 500 lines, invoke `/ck:archive`. Never split into multiple specs.
+
+## ARCHIVE
+
+When SPEC.md > 500 lines, `/ck:archive` skill handles it:
+
+1. Dry-run preview only. Missing `SPEC.md` or `≤500` lines → no write.
+2. User explicit OK required before any write.
+3. Copy exact full SPEC.md → `.cavekit/archive/SPEC-<YYYY-MM-DD>[-2|-3|...].md`
+4. In working SPEC.md only:
+   - §T: remove rows with status `x`. Add comment above table: `<!-- archive: .cavekit/archive/SPEC-<date>.md §T T1-T12 -->`
+   - §B: remove rows older than 90 days. Add comment above table: `<!-- archive: .cavekit/archive/SPEC-<date>.md §B B1-B5 -->`
+   - §V: remove invariants NOT cited by any active §T (status `.` or `~`). Add comment: `<!-- archive: .cavekit/archive/SPEC-<date>.md §V V1,V3-V5 -->`
+   - §I: remove interfaces NOT cited by any active §T. Add comment: `<!-- archive: .cavekit/archive/SPEC-<date>.md §I I.api,I.cli -->`
+   - §C: remove constraints NOT cited by any active §T. Add comment: `<!-- archive: .cavekit/archive/SPEC-<date>.md §C -->`
+   - §G: never touched
+5. Show diff/report after write.
+
+Archive dir: `.cavekit/archive/`. One file per run. Full copy = nothing lost.
+`cavekit-check` and `cavekit-build` read archive when needed.
+
+After archive, new IDs continue from max(current IDs + archive comment ranges + archived SPEC.md copies). Never reuse IDs. Archive comments carry ranges for ID lookup. New tasks may cite archived V/N or I/X; archive comment points to full text.
 
 ## WRITES
 
 | command | writes | section |
 |---|---|---|
-| `/spec new` | creates | all |
-| `/spec amend` | edits | chosen |
-| `/spec bug` | appends | §B + §V |
-| `/build` | flips | §T status cell `.` → `~` → `x` |
-| `/check` | — | read only |
+| `/ck:spec new` | creates | all |
+| `/ck:spec amend` | edits | chosen |
+| `/ck:spec bug` | appends | §B + §V |
+| `/ck:archive` | archives + trims | §T done, §B old, uncited §C/§I/§V |
+| `/ck:build` | flips | §T status cell `.` → `~` → `x` |
+| `/ck:check` | — | read only |
 
 That is whole format.

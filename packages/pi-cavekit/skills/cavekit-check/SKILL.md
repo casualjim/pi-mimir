@@ -17,6 +17,8 @@ Read bundled `../../FORMAT.md` before interpreting `SPEC.md` structure and addre
    - `§I` → check interfaces
    - `§T` → audit task status against code evidence
    - `--all` → check §V, §I, and §T
+3. Parse archive comments like `<!-- archive: .cavekit/archive/SPEC-<date>.md §T T1-T12 -->`.
+4. Read referenced `.cavekit/archive/SPEC-*.md` copies when needed to resolve archived §V/§I cites, archived §T rows, or max-ID/range questions.
 
 ## Optional Cavecrew investigation
 
@@ -24,7 +26,7 @@ When evidence lookup needs code archaeology and `cavecrew-investigator` is avail
 
 ## Check §V — invariants
 
-For each `V<n>`:
+For each `V<n>` in current `SPEC.md`; with `--all`, include archived `V<n>` ranges referenced by archive comments:
 
 1. Translate invariant into a verifiable claim about code/tests/config.
 2. Search and read relevant files.
@@ -33,7 +35,7 @@ For each `V<n>`:
 
 ## Check §I — interfaces
 
-For each interface item:
+For each interface item in current `SPEC.md`; with `--all`, include archived §I refs referenced by archive comments:
 
 1. Locate implementation.
 2. Classify:
@@ -45,7 +47,7 @@ For each interface item:
 
 ## Check §T — tasks
 
-For each task row:
+For each task row in current `SPEC.md`; with `--all`, include archived §T rows referenced by archive comments:
 
 1. If status `x`, verify claimed work appears present.
 2. If status `~`, note as in-progress.
