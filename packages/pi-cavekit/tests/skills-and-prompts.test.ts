@@ -82,6 +82,25 @@ describe('Cavekit skill files', () => {
       expect(markdown).toContain('If unavailable');
     }
   });
+
+  it('uses ask_user_question for Cavekit decisions instead of prose-only choice lists', async () => {
+    const spec = await readFile(path.join(skillsRoot, 'cavekit-spec', 'SKILL.md'), 'utf8');
+    const build = await readFile(path.join(skillsRoot, 'cavekit-build', 'SKILL.md'), 'utf8');
+    const archive = await readFile(path.join(skillsRoot, 'cavekit-archive', 'SKILL.md'), 'utf8');
+    const backprop = await readFile(path.join(skillsRoot, 'cavekit-backprop', 'SKILL.md'), 'utf8');
+
+    expect(spec).toContain('## Question protocol');
+    expect(spec).toContain('Use `ask_user_question` whenever Cavekit needs a decision from the user');
+    expect(spec).toContain('missing AMEND target or replacement text');
+    expect(spec).toContain('Do not print prose-only choice lists and wait');
+
+    expect(build).toContain('Use `ask_user_question` for plan approval');
+    expect(build).toContain('Classify cause with the user when needed via `ask_user_question`');
+    expect(archive).toContain('Ask approval with `ask_user_question` after preview');
+    expect(archive).toContain('Do not use a prose-only `Proceed?` prompt');
+    expect(backprop).toContain('use `ask_user_question` when classification is unclear');
+    expect(backprop).toContain('Use `ask_user_question` for approval');
+  });
 });
 
 describe('Cavekit prompt templates', () => {

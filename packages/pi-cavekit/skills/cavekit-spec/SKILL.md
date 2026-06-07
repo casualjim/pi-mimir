@@ -17,7 +17,44 @@ Inspect the user's request and project state:
 2. No `SPEC.md` at project root AND request includes `from-code` → **DISTILL**
 3. `SPEC.md` exists AND request starts with or clearly means `bug:` → **BACKPROP**
 4. `SPEC.md` exists AND request starts with or clearly means `amend` → **AMEND**
-5. `SPEC.md` exists and no mode is clear → ask which mode
+5. `SPEC.md` exists and no mode is clear → use `ask_user_question` to choose mode before proceeding
+
+## Question protocol
+
+Use `ask_user_question` whenever Cavekit needs a decision from the user. Do not print prose-only choice lists and wait.
+
+Required cases:
+
+- unclear dispatch mode;
+- missing AMEND target or replacement text;
+- choosing between multiple plausible edits;
+- approving `SPEC.md` mutation after a proposed diff;
+- deciding whether BACKPROP should add only §B, add §B+§V, or add §B+§V+§T.
+
+Rules:
+
+1. Ask 1-4 grouped questions in one tool call.
+2. Use 2-4 concrete options per question.
+3. Put recommended option first and suffix label with `(Recommended)` when applicable.
+4. Keep option labels ≤60 chars and headers ≤16 chars.
+5. Include exact § refs and proposed replacement text in option descriptions when practical.
+6. If user must supply arbitrary text, ask with concise options and let built-in `Type something.` handle custom input; do not invent an `Other` option.
+
+Example for missing amend target/change:
+
+```text
+ask_user_question({
+  questions: [{
+    header: "Amend target",
+    question: "Which SPEC.md amendment should apply?",
+    options: [
+      { label: "Amend V149 (Recommended)", description: "Replace stale AgentTool text with tin_reactor::Error::Tool(#[from] tin_tools::Error); AgentTool variant ⊥." },
+      { label: "Amend + task", description: "Amend V149 and add guard task/test for no AgentTool variant." },
+      { label: "Different target", description: "Use typed custom answer for exact §V, §I, §T, or text." }
+    ]
+  }]
+})
+```
 
 ## NEW — idea → spec
 
@@ -32,7 +69,7 @@ Steps:
 5. Break goal into ordered tasks → §T pipe table with status `.`, ids `T1...`, and `cites` entries for relevant §V/§I refs.
 6. Create §B with only header row: `id|date|cause|fix`.
 
-Write `SPEC.md` at project root. Show the full file and ask: `spec OK? suggest edits or invoke /ck:build.`
+Write `SPEC.md` at project root. Show the full file and use `ask_user_question` for `spec OK?` with options like accept, amend, or stop.
 
 ## DISTILL — code → spec
 
@@ -68,7 +105,7 @@ Input examples: `amend §V.3`, `amend §T`, `amend interfaces`.
 
 1. Read the named section or item.
 2. Show current content.
-3. Ask for the desired change if not already specified.
+3. Use `ask_user_question` for desired change if target or replacement is not already specified.
 4. Edit only the named section or item.
 5. Show diff.
 

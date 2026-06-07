@@ -46,13 +46,17 @@ archive target: .cavekit/archive/SPEC-<YYYY-MM-DD>.md
 
 lines before: 533
 lines after: 100
-
-Proceed? (yes / no / amend)
 ```
 
-If user says `yes`, continue to ARCHIVE + TRIM.
-If user says `no`, stop. Nothing written.
-If user says `amend`, incorporate requested include/exclude changes and rerun dry-run preview.
+Ask approval with `ask_user_question` after preview. Do not use a prose-only `Proceed?` prompt. Offer 2-4 options:
+
+- `Proceed (Recommended)` → continue to ARCHIVE + TRIM.
+- `Amend preview` → user changes include/exclude choices, then rerun dry-run preview.
+- `Stop` → stop with no writes.
+
+If user approves, continue to ARCHIVE + TRIM.
+If user stops, write nothing.
+If user amends, incorporate requested include/exclude changes and rerun dry-run preview.
 
 ## ARCHIVE
 
@@ -142,7 +146,7 @@ lines after: 218
 ## RULES
 
 - Archive = exact full pre-trim copy. Content loss ⊥.
-- No writes before dry-run preview and explicit user OK.
+- No writes before dry-run preview and explicit user OK through `ask_user_question`.
 - Missing `SPEC.md` or `≤500` lines → no write.
 - One archive file per run. If same-day archive exists, suffix `-2`, `-3`, etc.
 - §G never removed or changed.

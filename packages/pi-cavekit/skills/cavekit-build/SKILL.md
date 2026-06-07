@@ -30,7 +30,7 @@ For the chosen task(s), produce a concise plan before editing:
 4. List tests to add or update, with at least one check per touched invariant when practical.
 5. Name verification commands.
 
-Wait for user approval unless the user explicitly asked for autonomous execution.
+Use `ask_user_question` for plan approval unless the user explicitly asked for autonomous execution. Do not print a prose-only approval prompt. Offer 2-4 options such as approve, revise plan, or stop; include verification commands and touched §V/§I refs in descriptions.
 
 ## Execute
 
@@ -47,7 +47,7 @@ Per task in order:
 On test/build failure:
 
 1. Read the failure output.
-2. Classify cause with the user when needed:
+2. Classify cause with the user when needed via `ask_user_question`:
    - code bug in current implementation
    - spec is wrong
    - edge case missing from spec

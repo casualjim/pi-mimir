@@ -28,16 +28,20 @@ Find exact file:line or behavior boundary. Name root cause in one concise senten
 
 ### 2. Analyze
 
-Ask:
+Analyze and use `ask_user_question` when classification is unclear. Do not print prose-only choice lists and wait.
+
+Questions to resolve when needed:
 
 - Would a new §V invariant catch this class of bug?
 - Is §I wrong because the spec claimed the wrong external shape?
 - Is §T wrong because the task built the wrong work?
 - Is this a one-off mechanical typo or external dependency issue where §V would add noise?
 
+Offer 2-4 concrete options, for example: `§B only`, `§B + §V (Recommended)`, `§B + §V + §T`, or `No spec change`.
+
 ### 3. Propose spec change
 
-Draft changes. Do not silently apply unless the user explicitly requested direct mutation.
+Draft changes. Use `ask_user_question` for approval unless the user explicitly requested direct mutation.
 
 Template:
 
@@ -65,7 +69,7 @@ If implementation work is in scope, fix code and run the targeted test plus appr
 
 ### 6. Log
 
-Use `cavekit-spec` to append §B and §V/§T changes after user approval. `cavekit-backprop` and `cavecrew-investigator` do not mutate `SPEC.md`. Do not commit automatically; commit only when explicitly requested by the user in this session.
+Use `cavekit-spec` to append §B and §V/§T changes after user approval gathered through `ask_user_question`. `cavekit-backprop` and `cavecrew-investigator` do not mutate `SPEC.md`. Do not commit automatically; commit only when explicitly requested by the user in this session.
 
 ## Good invariant qualities
 

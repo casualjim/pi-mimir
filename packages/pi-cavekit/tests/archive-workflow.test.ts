@@ -42,7 +42,8 @@ describe('Cavekit archive safety workflow', () => {
 
     expect(skill).toContain('DRY-RUN PREVIEW — no writes');
     expect(skill).toContain('Do not create directories, archive files, or edit `SPEC.md` during preview');
-    expect(skill).toContain('Proceed? (yes / no / amend)');
+    expect(skill).toContain('Ask approval with `ask_user_question` after preview');
+    expect(skill).toContain('Do not use a prose-only `Proceed?` prompt');
     expect(skill).toContain('No writes before dry-run preview and explicit user OK');
     expect(prompt).toContain('write only after explicit user approval');
   });
