@@ -33,24 +33,40 @@ Required cases:
 
 Rules:
 
-1. Ask 1-4 grouped questions in one tool call.
-2. Use 2-4 concrete options per question.
-3. Put recommended option first and suffix label with `(Recommended)` when applicable.
-4. Keep option labels ≤60 chars and headers ≤16 chars.
-5. Include exact § refs and proposed replacement text in option descriptions when practical.
-6. If user must supply arbitrary text, ask with concise options and let built-in `Type something.` handle custom input; do not invent an `Other` option.
+1. Present needed context before calling `ask_user_question`: current § item, evidence, proposed diff/plan, tradeoffs, and recommendation.
+2. Do not put full plan, diff, evidence, or nuanced rationale inside question option descriptions. Options are decision controls, not context transport.
+3. Ask 1-4 grouped questions in one tool call.
+4. Use 2-4 concrete options per question.
+5. Put recommended option first and suffix label with `(Recommended)` when applicable.
+6. Keep option labels ≤60 chars and headers ≤16 chars.
+7. Keep option descriptions concise: identify action and key consequence only. Exact § refs are OK; long replacement text belongs in pre-question context.
+8. If user must supply arbitrary text, ask with concise options and let built-in `Type something.` handle custom input; do not invent an `Other` option.
 
 Example for missing amend target/change:
 
 ```text
+Need amend target/change missing.
+
+Current evidence:
+- §V.149 still names prohibited `AgentTool` collapse.
+- Code now uses `tin_reactor::Error::Tool(#[from] tin_tools::Error)`.
+- `AgentTool` variant should remain forbidden.
+
+Proposed amendment:
+- Amend §V.149 to: `V149: tin_reactor::Error::Tool(#[from] tin_tools::Error); AgentTool variant ⊥.`
+
+Tradeoff:
+- V149-only fixes spec drift.
+- V149 + task adds explicit regression guard if tests do not already cover it.
+
 ask_user_question({
   questions: [{
     header: "Amend target",
     question: "Which SPEC.md amendment should apply?",
     options: [
-      { label: "Amend V149 (Recommended)", description: "Replace stale AgentTool text with tin_reactor::Error::Tool(#[from] tin_tools::Error); AgentTool variant ⊥." },
-      { label: "Amend + task", description: "Amend V149 and add guard task/test for no AgentTool variant." },
-      { label: "Different target", description: "Use typed custom answer for exact §V, §I, §T, or text." }
+      { label: "Amend V149 (Recommended)", description: "Update invariant only; no new task." },
+      { label: "Amend + task", description: "Update invariant and add guard task/test." },
+      { label: "Different target", description: "Use typed custom answer with exact § ref or text." }
     ]
   }]
 })

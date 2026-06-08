@@ -93,6 +93,9 @@ describe('Cavekit skill files', () => {
     expect(spec).toContain('Use `ask_user_question` whenever Cavekit needs a decision from the user');
     expect(spec).toContain('missing AMEND target or replacement text');
     expect(spec).toContain('Do not print prose-only choice lists and wait');
+    expect(spec).toContain('Present needed context before calling `ask_user_question`');
+    expect(spec).toContain('Options are decision controls, not context transport');
+    expect(spec).toContain('long replacement text belongs in pre-question context');
 
     expect(build).toContain('Use `ask_user_question` for plan approval');
     expect(build).toContain('Classify cause with the user when needed via `ask_user_question`');
@@ -119,5 +122,12 @@ describe('Cavekit prompt templates', () => {
       expect(frontmatter['argument-hint'], `${prompt} argument hint`).toBeTruthy();
       expect(markdown, `${prompt} routes to ${expectedSkill}`).toContain(expectedSkill);
     }
+  });
+
+  it('tells /ck:spec to explain plan context outside question options', async () => {
+    const markdown = await readFile(path.join(promptsRoot, 'ck:spec.md'), 'utf8');
+
+    expect(markdown).toContain('explain context/plan/diff/tradeoffs before calling `ask_user_question`');
+    expect(markdown).toContain('do not hide the plan in option descriptions');
   });
 });
