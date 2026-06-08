@@ -33,14 +33,17 @@ Required cases:
 
 Rules:
 
-1. Present needed context before calling `ask_user_question`: current § item, evidence, proposed diff/plan, tradeoffs, and recommendation.
-2. Do not put full plan, diff, evidence, or nuanced rationale inside question option descriptions. Options are decision controls, not context transport.
-3. Ask 1-4 grouped questions in one tool call.
-4. Use 2-4 concrete options per question.
-5. Put recommended option first and suffix label with `(Recommended)` when applicable.
-6. Keep option labels ≤60 chars and headers ≤16 chars.
-7. Keep option descriptions concise: identify action and key consequence only. Exact § refs are OK; long replacement text belongs in pre-question context.
-8. If user must supply arbitrary text, ask with concise options and let built-in `Type something.` handle custom input; do not invent an `Other` option.
+1. Share needed context in normal assistant text before invoking `ask_user_question`: current § item, evidence, proposed diff/plan, tradeoffs, and recommendation.
+2. Invoke `ask_user_question` only after that context is already visible to the user. The question UI must be a decision step, not the place where the plan is explained.
+3. Do not put full plan, diff, evidence, nuanced rationale, or long replacement text in the question string, option descriptions, or previews.
+4. Keep the `question` field short: ask only for the decision.
+5. Options are decision controls, not context transport.
+6. Ask 1-4 grouped questions in one tool call.
+7. Use 2-4 concrete options per question.
+8. Put recommended option first and suffix label with `(Recommended)` when applicable.
+9. Keep option labels ≤60 chars and headers ≤16 chars.
+10. Keep option descriptions concise: identify action and key consequence only. Exact § refs are OK; long replacement text belongs in pre-question context.
+11. If user must supply arbitrary text, ask with concise options and let built-in `Type something.` handle custom input; do not invent an `Other` option.
 
 Example for missing amend target/change:
 
@@ -59,10 +62,12 @@ Tradeoff:
 - V149-only fixes spec drift.
 - V149 + task adds explicit regression guard if tests do not already cover it.
 
+Then invoke `ask_user_question` separately:
+
 ask_user_question({
   questions: [{
     header: "Amend target",
-    question: "Which SPEC.md amendment should apply?",
+    question: "Which amendment should apply?",
     options: [
       { label: "Amend V149 (Recommended)", description: "Update invariant only; no new task." },
       { label: "Amend + task", description: "Update invariant and add guard task/test." },

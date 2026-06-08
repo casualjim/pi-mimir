@@ -30,7 +30,7 @@ For the chosen task(s), produce a concise plan before editing:
 4. List tests to add or update, with at least one check per touched invariant when practical.
 5. Name verification commands.
 
-Use `ask_user_question` for plan approval unless the user explicitly asked for autonomous execution. Do not print a prose-only approval prompt. Offer 2-4 options such as approve, revise plan, or stop; include verification commands and touched §V/§I refs in descriptions.
+Share the full plan in normal assistant text first: cited §V/§I, files, tests, verification commands, tradeoffs, and recommendation. Then use `ask_user_question` for approval unless the user explicitly asked for autonomous execution. Do not put the plan in the question field, option descriptions, or previews. The question UI is only for concise decision controls such as approve, revise plan, or stop.
 
 ## Execute
 

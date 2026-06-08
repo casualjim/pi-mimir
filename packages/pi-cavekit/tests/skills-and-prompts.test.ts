@@ -93,11 +93,13 @@ describe('Cavekit skill files', () => {
     expect(spec).toContain('Use `ask_user_question` whenever Cavekit needs a decision from the user');
     expect(spec).toContain('missing AMEND target or replacement text');
     expect(spec).toContain('Do not print prose-only choice lists and wait');
-    expect(spec).toContain('Present needed context before calling `ask_user_question`');
+    expect(spec).toContain('Share needed context in normal assistant text before invoking `ask_user_question`');
+    expect(spec).toContain('The question UI must be a decision step, not the place where the plan is explained');
+    expect(spec).toContain('Do not put full plan, diff, evidence, nuanced rationale, or long replacement text in the question string');
     expect(spec).toContain('Options are decision controls, not context transport');
-    expect(spec).toContain('long replacement text belongs in pre-question context');
 
-    expect(build).toContain('Use `ask_user_question` for plan approval');
+    expect(build).toContain('Share the full plan in normal assistant text first');
+    expect(build).toContain('Do not put the plan in the question field, option descriptions, or previews');
     expect(build).toContain('Classify cause with the user when needed via `ask_user_question`');
     expect(archive).toContain('Ask approval with `ask_user_question` after preview');
     expect(archive).toContain('Do not use a prose-only `Proceed?` prompt');
@@ -124,10 +126,11 @@ describe('Cavekit prompt templates', () => {
     }
   });
 
-  it('tells /ck:spec to explain plan context outside question options', async () => {
+  it('tells /ck:spec to share plan before asking concise decision question', async () => {
     const markdown = await readFile(path.join(promptsRoot, 'ck:spec.md'), 'utf8');
 
-    expect(markdown).toContain('explain context/plan/diff/tradeoffs before calling `ask_user_question`');
-    expect(markdown).toContain('do not hide the plan in option descriptions');
+    expect(markdown).toContain('first share context/plan/diff/tradeoffs in normal assistant text');
+    expect(markdown).toContain('Then invoke `ask_user_question` separately');
+    expect(markdown).toContain('Do not put the plan in the question field, option descriptions, or previews');
   });
 });
