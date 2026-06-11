@@ -126,11 +126,20 @@ describe('Cavekit prompt templates', () => {
     }
   });
 
-  it('tells /ck:spec to share plan before asking concise decision question', async () => {
-    const markdown = await readFile(path.join(promptsRoot, 'ck:spec.md'), 'utf8');
+  it('tells /ck:build to share the plan before asking a concise decision question', async () => {
+    const markdown = await readFile(path.join(promptsRoot, 'ck:build.md'), 'utf8');
 
-    expect(markdown).toContain('first share context/plan/diff/tradeoffs in normal assistant text');
+    expect(markdown).toContain('Before asking for approval, share the full plan in normal assistant text');
+    expect(markdown).toContain('selected tasks, cited §V/§I, files to edit/create, tests, verification commands');
     expect(markdown).toContain('Then invoke `ask_user_question` separately');
     expect(markdown).toContain('Do not put the plan in the question field, option descriptions, or previews');
+  });
+
+  it('keeps /ck:spec question guidance focused on spec context and diffs', async () => {
+    const markdown = await readFile(path.join(promptsRoot, 'ck:spec.md'), 'utf8');
+
+    expect(markdown).toContain('first share relevant context, proposed SPEC.md text or diff, tradeoffs, and recommendation');
+    expect(markdown).toContain('Then invoke `ask_user_question` separately');
+    expect(markdown).toContain('Do not put context or diff details in the question field, option descriptions, or previews');
   });
 });
