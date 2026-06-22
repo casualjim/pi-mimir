@@ -76,8 +76,23 @@ importers:
   packages/pi-codebase-memory:
     dependencies:
       codebase-memory-mcp:
-        specifier: ^0.7.0
-        version: 0.7.0
+        specifier: ^0.8.0
+        version: 0.8.1
+    devDependencies:
+      '@earendil-works/pi-coding-agent':
+        specifier: ^0.78.0
+        version: 0.78.0(ws@8.21.0)(zod@4.4.3)
+      '@types/node':
+        specifier: ^22.19.19
+        version: 22.19.19
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.8
+        version: 4.1.8(@types/node@22.19.19)(vite@8.0.16(@types/node@22.19.19)(jiti@2.7.0)(yaml@2.9.0))
+
+  packages/pi-crumbs:
     devDependencies:
       '@earendil-works/pi-coding-agent':
         specifier: ^0.78.0
@@ -700,8 +715,8 @@ packages:
     resolution: {integrity: sha512-7NzBL0rN6fMUW+f7A6Io4h40qQlG+xGmtMxfbnH/K7TAtt8JQWVQK+6g0UXKMeVJoyV5EkkNsErQ8pVD3bLHbA==}
     engines: {node: ^12.17.0 || ^14.13 || >=16.0.0}
 
-  codebase-memory-mcp@0.7.0:
-    resolution: {integrity: sha512-vkE5zoHKxiiE2m8tPqM7fuT7tIq6eKTlx+YIPoNnj8mveIrzqB1X8R7J6QPXVIOuRAq0C1vyVWCmAyuCaSGmWQ==}
+  codebase-memory-mcp@0.8.1:
+    resolution: {integrity: sha512-QUUqUL1CLT1euLQ2eI6kft+tZmIoC0wZxpCt2B844znzOk90fmDZJbT8z7ec3665imshNzAg7Szdl9vYNoxn+w==}
     engines: {node: '>=18'}
     cpu: [x64, arm64]
     os: [linux, darwin, win32]
@@ -1847,7 +1862,7 @@ snapshots:
 
   chalk@5.6.2: {}
 
-  codebase-memory-mcp@0.7.0: {}
+  codebase-memory-mcp@0.8.1: {}
 
   convert-source-map@2.0.0: {}
 

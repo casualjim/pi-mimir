@@ -7,6 +7,7 @@
 - `packages/pi-openspec` — `@casualjim/pi-openspec`; OpenSpec extension, workflow skills, role agents, review-gated schema assets, and tests.
 - `packages/pi-review` — `@casualjim/pi-review`; Codex-style `/review` command plus whole-tree implementation review skills.
 - `packages/pi-codebase-memory` — `@casualjim/pi-codebase-memory`; standalone codebase-memory MCP setup plugin, raw-discovery reminders, and public `codebase-memory` skill.
+- `packages/pi-crumbs` — `@casualjim/pi-crumbs`; Crumbs CLI discovery guidance plugin, raw-discovery reminders, graph augmentation, and public `crumbs` skill. Assumes `crumbs` on `$PATH`; disables gracefully when missing.
 - `packages/advisor` — `@casualjim/pi-advisor`; forked child advisor extension, `/advisor` command, `advisor` tool, and packaged `advisor-child` agent.
 - `packages/pi-cavekit` — `@casualjim/pi-cavekit`; Pi prompt templates and skills for root `SPEC.md` workflows.
 - `packages/pi-caveman` — `@casualjim/pi-caveman`; terse-mode skills, Cavecrew guidance, and Pi-native Caveman extension hooks.
@@ -20,6 +21,7 @@ Install whichever packages you need:
 pi install npm:@casualjim/pi-openspec
 pi install npm:@casualjim/pi-review
 pi install npm:@casualjim/pi-codebase-memory
+pi install npm:@casualjim/pi-crumbs
 pi install npm:@casualjim/pi-advisor
 pi install npm:@casualjim/pi-cavekit
 pi install npm:@casualjim/pi-caveman
@@ -32,6 +34,7 @@ For local development from this checkout, install package paths instead:
 pi install ./packages/pi-openspec
 pi install ./packages/pi-review
 pi install ./packages/pi-codebase-memory
+pi install ./packages/pi-crumbs
 pi install ./packages/advisor
 pi install ./packages/pi-cavekit
 pi install ./packages/pi-caveman

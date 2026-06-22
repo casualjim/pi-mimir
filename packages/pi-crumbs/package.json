@@ -1,8 +1,8 @@
 {
-  "name": "@casualjim/pi-codebase-memory",
-  "version": "0.1.3",
+  "name": "@casualjim/pi-crumbs",
+  "version": "0.1.0",
   "license": "MIT",
-  "description": "Codebase-memory MCP wiring and guidance plugin for Pi",
+  "description": "Crumbs CLI discovery guidance plugin for Pi",
   "keywords": [
     "pi-package"
   ],
@@ -15,14 +15,11 @@
   ],
   "pi": {
     "extensions": [
-      "extensions/codebase-memory"
+      "extensions/crumbs"
     ],
     "skills": [
       "skills"
     ]
-  },
-  "dependencies": {
-    "codebase-memory-mcp": "^0.8.0"
   },
   "scripts": {
     "test": "vitest run",
