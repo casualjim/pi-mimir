@@ -10,6 +10,8 @@ export interface CommandPolicy {
 	name: string;
 	blocked: string[];
 	message: string;
+	/** When true, block matched command only if its shell segment is not bare (has a pipe or redirect). Absent → unconditional block. */
+	bare?: boolean;
 }
 
 /** Guards that can be disabled via the `disabled` array in heimdall.json. */

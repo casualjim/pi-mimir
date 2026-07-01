@@ -380,6 +380,30 @@ Each policy has three fields:
   Prefix matching is used, so `["cargo", "test"]` blocks `cargo test`,
   `cargo test --lib`, `cargo test foo::bar`, etc.
 - **`message`** — the explanation shown to the model when a command is blocked.
+- **`bare`** *(optional, default `false`)* — when `true`, the matched command is
+  blocked **only** if it is not bare, i.e. it is piped (`|`) or redirected
+  (`>`, `>>`, `<`, `>&`, `2>&1`, etc.). A bare command (no pipe or redirect into
+  anything) is allowed. Use this to enforce that a command runs directly
+  without its output captured or fed by a pipe, e.g. require `kubectl apply` to
+  run bare:
+
+```json
+{
+  "commandPolicies": [
+    {
+      "name": "bare-kubectl-apply",
+      "blocked": ["kubectl", "apply"],
+      "bare": true,
+      "message": "kubectl apply must run bare; no pipe or redirect."
+    }
+  ]
+}
+```
+
+  This blocks `kubectl apply -f x.yaml | tee`, `kubectl apply > out`, and
+  `echo hi | kubectl apply -f x.yaml`, but allows `kubectl apply -f x.yaml` and
+  `kubectl apply -f x.yaml && echo done` (sequencing with `;`, `&&`, `||` keeps
+  the command bare).
 
 The command line is properly tokenized (respecting single quotes, double quotes,
 and backslash escapes) and each shell segment (commands separated by `;`, `|`,

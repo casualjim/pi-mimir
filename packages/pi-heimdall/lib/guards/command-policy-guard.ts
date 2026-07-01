@@ -35,14 +35,33 @@ function isStringToken(t: ParseEntry): t is string {
 	return typeof t === "string";
 }
 
+interface Segment {
+	tokens: string[];
+	piped: boolean;
+	redirected: boolean;
+}
+
 function isOp(t: ParseEntry, op: string): boolean {
 	return typeof t === "object" && "op" in t && t.op === op;
 }
 
-function splitCommandSegments(tokens: ParseEntry[]): string[][] {
-	const segments: string[][] = [];
+function splitCommandSegments(tokens: ParseEntry[]): Segment[] {
+	const segments: Segment[] = [];
 	let current: string[] = [];
+	let redirected = false;
+	let piped = false;
+	let pendingPipeIn = false;
 	let heredocDelim: string | null = null;
+
+	const close = () => {
+		if (current.length > 0) {
+			segments.push({ tokens: current, piped: piped || pendingPipeIn, redirected });
+		}
+		current = [];
+		redirected = false;
+		piped = false;
+		pendingPipeIn = false;
+	};
 
 	for (let i = 0; i < tokens.length; i++) {
 		const t = tokens[i]!;
@@ -56,6 +75,7 @@ function splitCommandSegments(tokens: ParseEntry[]): string[][] {
 
 		if (isOp(t, "<") && i + 1 < tokens.length && isOp(tokens[i + 1]!, "<")) {
 			i++;
+			redirected = true;
 			if (i + 1 < tokens.length && isStringToken(tokens[i + 1]!)) {
 				i++;
 				heredocDelim = (tokens[i]! as string).replace(/^['"]|['"]$/g, "");
@@ -64,14 +84,18 @@ function splitCommandSegments(tokens: ParseEntry[]): string[][] {
 		}
 
 		if (typeof t === "object" && "op" in t && COMMAND_SEPARATORS.has(t.op)) {
-			if (current.length > 0) {
-				segments.push(current);
-				current = [];
+			if (t.op === "|") {
+				piped = true;
+				close();
+				pendingPipeIn = true;
+			} else {
+				close();
 			}
 			continue;
 		}
 
 		if (typeof t === "object" && "op" in t && REDIRECT_OPS.has(t.op)) {
+			redirected = true;
 			if (i + 1 < tokens.length && isStringToken(tokens[i + 1]!)) {
 				i++;
 			}
@@ -83,18 +107,19 @@ function splitCommandSegments(tokens: ParseEntry[]): string[][] {
 		}
 	}
 
-	if (current.length > 0) {
-		segments.push(current);
-	}
+	close();
 
 	return segments;
 }
 
 function matchSegment(
-	tokens: string[],
+	segment: Segment,
 	policies: CommandPolicy[],
-	checkRecursive: (cmd: string) => CommandPolicy | null,
+	checkRecursive: (cmd: string, nonBare: boolean) => CommandPolicy | null,
+	inheritedNonBare: boolean,
 ): CommandPolicy | null {
+	const tokens = segment.tokens;
+	const segmentNonBare = segment.piped || segment.redirected || inheritedNonBare;
 	let pos = 0;
 
 	while (pos < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[pos]!)) {
@@ -114,7 +139,7 @@ function matchSegment(
 		tokens[pos + 1] === "-c" &&
 		tokens[pos + 2] !== undefined
 	) {
-		const subResult = checkRecursive(tokens[pos + 2]!);
+		const subResult = checkRecursive(tokens[pos + 2]!, segmentNonBare);
 		if (subResult) return subResult;
 	}
 
@@ -140,19 +165,22 @@ function matchSegment(
 			}
 		}
 
-		if (match) return policy;
+		if (!match) continue;
+		// bare policy: allow when the command actually runs bare
+		if (policy.bare && !segmentNonBare) continue;
+		return policy;
 	}
 
 	return null;
 }
 
-export function checkCommand(command: string, policies: CommandPolicy[]): CommandPolicy | null {
+export function checkCommand(command: string, policies: CommandPolicy[], nonBare = false): CommandPolicy | null {
 	const parsed = shellParse(command);
 	const segments = splitCommandSegments(parsed);
-	const check = (cmd: string): CommandPolicy | null => checkCommand(cmd, policies);
+	const check = (cmd: string, inheritNonBare: boolean): CommandPolicy | null => checkCommand(cmd, policies, inheritNonBare);
 
 	for (const segment of segments) {
-		const policy = matchSegment(segment, policies, check);
+		const policy = matchSegment(segment, policies, check, nonBare);
 		if (policy) return policy;
 	}
 

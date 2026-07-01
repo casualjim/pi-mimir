@@ -11,6 +11,7 @@ interface CommandPolicy {
 	name: string;
 	blocked: string[];
 	message: string;
+	bare?: boolean;
 }
 
 type ParseEntry = string | { op: string } | { op: "glob"; pattern: string } | { comment: string };
@@ -41,14 +42,33 @@ function isStringToken(t: ParseEntry): t is string {
 	return typeof t === "string";
 }
 
+interface Segment {
+	tokens: string[];
+	piped: boolean;
+	redirected: boolean;
+}
+
 function isOp(t: ParseEntry, op: string): boolean {
 	return typeof t === "object" && "op" in t && t.op === op;
 }
 
-function splitCommandSegments(tokens: ParseEntry[]): string[][] {
-	const segments: string[][] = [];
+function splitCommandSegments(tokens: ParseEntry[]): Segment[] {
+	const segments: Segment[] = [];
 	let current: string[] = [];
+	let redirected = false;
+	let piped = false;
+	let pendingPipeIn = false;
 	let heredocDelim: string | null = null;
+
+	const close = () => {
+		if (current.length > 0) {
+			segments.push({ tokens: current, piped: piped || pendingPipeIn, redirected });
+		}
+		current = [];
+		redirected = false;
+		piped = false;
+		pendingPipeIn = false;
+	};
 
 	for (let i = 0; i < tokens.length; i++) {
 		const t = tokens[i]!;
@@ -66,6 +86,7 @@ function splitCommandSegments(tokens: ParseEntry[]): string[][] {
 			isOp(tokens[i + 1]!, "<")
 		) {
 			i++;
+			redirected = true;
 			if (i + 1 < tokens.length && isStringToken(tokens[i + 1]!)) {
 				i++;
 				heredocDelim = (tokens[i]! as string).replace(/^['"]|['"]$/g, "");
@@ -74,14 +95,18 @@ function splitCommandSegments(tokens: ParseEntry[]): string[][] {
 		}
 
 		if (typeof t === "object" && "op" in t && COMMAND_SEPARATORS.has(t.op)) {
-			if (current.length > 0) {
-				segments.push(current);
-				current = [];
+			if (t.op === "|") {
+				piped = true;
+				close();
+				pendingPipeIn = true;
+			} else {
+				close();
 			}
 			continue;
 		}
 
 		if (typeof t === "object" && "op" in t && REDIRECT_OPS.has(t.op)) {
+			redirected = true;
 			if (i + 1 < tokens.length && isStringToken(tokens[i + 1]!)) {
 				i++;
 			}
@@ -93,18 +118,19 @@ function splitCommandSegments(tokens: ParseEntry[]): string[][] {
 		}
 	}
 
-	if (current.length > 0) {
-		segments.push(current);
-	}
+	close();
 
 	return segments;
 }
 
 function matchSegment(
-	tokens: string[],
+	segment: Segment,
 	policies: CommandPolicy[],
-	checkRecursive: (cmd: string) => CommandPolicy | null,
+	checkRecursive: (cmd: string, nonBare: boolean) => CommandPolicy | null,
+	inheritedNonBare: boolean,
 ): CommandPolicy | null {
+	const tokens = segment.tokens;
+	const segmentNonBare = segment.piped || segment.redirected || inheritedNonBare;
 	let pos = 0;
 
 	while (pos < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[pos]!)) {
@@ -126,7 +152,7 @@ function matchSegment(
 		tokens[pos + 2] !== undefined
 	) {
 		const cmdString = tokens[pos + 2]!;
-		const subResult = checkRecursive(cmdString);
+		const subResult = checkRecursive(cmdString, segmentNonBare);
 		if (subResult) return subResult;
 	}
 
@@ -152,7 +178,9 @@ function matchSegment(
 			}
 		}
 
-		if (match) return policy;
+		if (!match) continue;
+		if (policy.bare && !segmentNonBare) continue;
+		return policy;
 	}
 
 	return null;
@@ -161,13 +189,14 @@ function matchSegment(
 function checkCommand(
 	command: string,
 	policies: CommandPolicy[],
+	nonBare = false,
 ): CommandPolicy | null {
 	const parsed: ParseEntry[] = shellParse(command);
 	const segments = splitCommandSegments(parsed);
-	const check = (cmd: string): CommandPolicy | null => checkCommand(cmd, policies);
+	const check = (cmd: string, inheritNonBare: boolean): CommandPolicy | null => checkCommand(cmd, policies, inheritNonBare);
 
 	for (const segment of segments) {
-		const policy = matchSegment(segment, policies, check);
+		const policy = matchSegment(segment, policies, check, nonBare);
 		if (policy) return policy;
 	}
 
@@ -186,6 +215,12 @@ const policies: CommandPolicy[] = [
 		name: "no-cargo-nextest",
 		blocked: ["cargo", "nextest"],
 		message: "Use mise test instead.",
+	},
+	{
+		name: "bare-kubectl-apply",
+		blocked: ["kubectl", "apply"],
+		bare: true,
+		message: "kubectl apply must run bare; no pipe or redirect.",
 	},
 ];
 
@@ -396,6 +431,18 @@ const cases: TestCase[] = [
 		shouldBlock: false,
 		note: "sed replacement content",
 	},
+
+	// ── Bare requirement (bare: true policy) ──
+	{ cmd: "kubectl apply -f foo.yaml", shouldBlock: false, note: "bare policy: bare invocation allowed" },
+	{ cmd: "kubectl apply -f foo.yaml | tee out", shouldBlock: true, note: "bare policy: piped blocked" },
+	{ cmd: "kubectl apply -f foo.yaml > out", shouldBlock: true, note: "bare policy: stdout redirect blocked" },
+	{ cmd: "kubectl apply -f foo.yaml 2>&1", shouldBlock: true, note: "bare policy: stderr redirect blocked" },
+	{ cmd: "kubectl apply -f foo.yaml 2>/dev/null", shouldBlock: true, note: "bare policy: stderr suppress blocked" },
+	{ cmd: "echo hi | kubectl apply -f foo.yaml", shouldBlock: true, note: "bare policy: pipe input blocked" },
+	{ cmd: "kubectl apply -f foo.yaml; echo hi", shouldBlock: false, note: "bare policy: semicolon keeps bare" },
+	{ cmd: "kubectl apply -f foo.yaml && echo hi", shouldBlock: false, note: "bare policy: && keeps bare" },
+	{ cmd: "bash -c 'kubectl apply -f foo.yaml | tee'", shouldBlock: true, note: "bare policy: pipe inside bash -c blocked" },
+	{ cmd: "bash -c 'kubectl apply -f foo.yaml' | tee", shouldBlock: true, note: "bare policy: outer pipe via bash -c blocked" },
 
 	// ── Known gaps (indirect execution — not caught, acceptable) ──
 	{

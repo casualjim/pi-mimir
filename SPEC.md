@@ -39,6 +39,7 @@ Pi workflow monorepo → review-gated OpenSpec planning/implementation, standalo
 - agent: `@casualjim/pi-review` bundled `agents/implementation-reviewer.md` synced into `~/.pi/agent/agents`; ownership tracked in `~/.pi/agent/pi-review-managed.json`.
 - pkg: `@casualjim/pi-advisor` → extension `extensions/advisor`, command `/advisor`, tool `advisor`, packaged agent `advisor-child.md`; copied agent file ⊥.
 - pkg: `@casualjim/pi-heimdall` → extension `extensions/heimdall.ts`, optional `extensions/heimdall-bg-tasks.ts`, libs under `lib/`, tests under `tests/`; package workspace files only.
+- file: `.pi/heimdall.jsonc` → `commandPolicies[]` policy `bare: true` ! enforce matched command run bare: ⊥ pipe (`|`) & redirect (`>`/`>>`/`<`/`>&`/`<&`/`>|`/`&>`/`&>>`/`<<<`) ops.
 - file: `.pi/advisor-managed.json` → legacy advisor copied-agent manifest; read/prune only; new writes ⊥.
 - pkg: `@casualjim/pi-cavekit` → skills `cavekit-spec`, `cavekit-build`, `cavekit-check`, `cavekit-backprop`, `cavekit-archive`, `cavekit-grill`, `cavekit-research`, `cavekit-review`, `cavekit-deepen`; prompts `/ck:spec`, `/ck:build`, `/ck:check`, `/ck:archive`, `/ck:grill`, `/ck:research`, `/ck:review`, `/ck:deepen`; file `FORMAT.md`; ? soft-use `cavecrew-investigator` for read-only code archaeology when available.
 - cmd: `/ck:grill` → interrogate fuzzy idea into `§G`/`§C` before spec; one question at a time, recommend answer, hand off to `cavekit-spec`; ⊥ write `SPEC.md`.
@@ -102,6 +103,7 @@ V35: archive trim ! remove only completed §T, §B older than 90 days, and §C/�
 V36: ported cavekit verbs ! rewrite upstream internal refs (`skills/<verb>/SKILL.md`, repo-root `FORMAT.md`) to Pi plugin layout (`cavekit-<verb>`, bundled `../../FORMAT.md`); `/ck:<verb>` names kept; ⊥ leak upstream `skills/<verb>/SKILL.md` paths into packaged skills/prompts.
 V37: cavekit `§R` writes & reach-for-verb handoffs (grill/research/review/deepen) ! route through `cavekit-spec`; verbs propose handoff blocks, ⊥ write `SPEC.md` directly; sectioned ownership honored — each verb touches only owned sections.
 V38: bundled `packages/pi-cavekit/FORMAT.md` ! mirror upstream §R + sectioned-ownership + right-size sections; cavekit archive section preserved.
+V39: command-policy-guard `bare` policy ! block matched command when its shell segment contains pipe (`|`) or redirect op; `bare` absent → unconditional block (current behavior preserved).
 
 ## §T TASKS
 id|status|task|cites
@@ -157,6 +159,7 @@ T49|x|sync bundled `packages/pi-cavekit/FORMAT.md` with upstream §R RESEARCH + 
 T50|x|teach `cavekit-spec`/`cavekit-check`/`cavekit-build` to handle optional §R + sectioned-ownership handoffs (grill §G/§C, research §R, review §V, deepen §I/§V/§T)|V10,V37,V38
 T51|x|update §I cavekit interface line + package registration (`pi.skills`/`pi.prompts` auto-cover new dirs) + README for new skills/prompts|V1,V2,V36
 T52|x|add tests: no upstream `skills/<verb>/SKILL.md` path leak, §R routes through `cavekit-spec`, sectioned ownership, new prompt/skill surface registered|V1,V2,V10,V36,V37
+T53|x|extend `CommandPolicy` + `command-policy-guard` with `bare` requirement: block matched cmd when segment has pipe/redirect; add tests + README docs|V39
 
 ## §B BUGS
 id|date|cause|fix
