@@ -23,6 +23,13 @@ external surface. what world sees.
 - file: `config.yaml` schema …
 - env: `FOO_KEY` required
 
+## §R RESEARCH
+optional. external-knowledge log. pipe table. present only if `/ck:research` ran.
+durable ∴ build never re-derives & never hallucinates lib facts.
+id|topic|finding|src
+R1|jwt lib|`jose` > `jsonwebtoken` — maintained, ESM, 0 deps|github.com/panva/jose
+R2|rate limit|token bucket ok @ our scale|<url>
+
 ## §V INVARIANTS
 numbered. testable. each ! MUST hold.
 V1: ∀ req → auth check before handler
@@ -127,15 +134,37 @@ Archive dir: `.cavekit/archive/`. One file per run. Full copy = nothing lost.
 
 After archive, new IDs continue from max(current IDs + archive comment ranges + archived SPEC.md copies). Never reuse IDs. Archive comments carry ranges for ID lookup. New tasks may cite archived V/N or I/X; archive comment points to full text.
 
-## WRITES
+## WRITES — SECTIONED OWNERSHIP
+
+Each verb owns specific sections. No verb rewrites a section it does not own.
+That rule alone kills the "tool deleted my spec" failure mode. Reach-for verbs
+(`/ck:grill`, `/ck:research`, `/ck:review`, `/ck:deepen`) produce handoff blocks
+and propose; `cavekit-spec` is the sole general mutator that writes them on OK.
 
 | command | writes | section |
 |---|---|---|
+| `/ck:grill` | sharpens | §G + §C (proposes; `/ck:spec` writes on OK) |
 | `/ck:spec new` | creates | all |
-| `/ck:spec amend` | edits | chosen |
+| `/ck:spec amend` | edits | named only |
 | `/ck:spec bug` | appends | §B + §V |
+| `/ck:research` | appends | §R (proposes; `/ck:spec` writes on OK) |
+| `/ck:review` | hardens | §V (+ risk report, no silent rewrite; proposes via `/ck:spec`) |
+| `/ck:deepen` | proposes | §I + §V + §T (writes on OK via `/ck:spec`) |
 | `/ck:archive` | archives + trims | §T done, §B old, uncited §C/§I/§V |
 | `/ck:build` | flips | §T status cell `.` → `~` → `x` |
 | `/ck:check` | — | read only |
+
+`spec` is the general editor — any cross-cutting edit routes through it. Every
+other verb shows a diff and touches only its own sections. Compaction (dropping
+oldest §B rows when SPEC.md > 500 lines, per ONE FILE RULE) is the one sanctioned
+§B rewrite — route it through `spec`, which shows the diff before dropping rows.
+
+## RIGHT-SIZE
+
+Ceremony scales to blast radius, never to ego. One-line fix → just `/ck:build`.
+New feature in a shared module → `/ck:grill` then `/ck:review` first. The full
+grill → spec → research → review → build chain is for genuinely uncertain or
+high-blast-radius work, ⊥ for a typo. Skip any verb that would cost more
+attention than the change is worth.
 
 That is whole format.

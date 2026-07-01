@@ -3,9 +3,9 @@ name: cavekit-check
 description: Read-only Cavekit drift detector. Use when users invoke /ck:check, ask whether code matches SPEC.md, check invariants, audit interfaces, or inspect §T status evidence.
 ---
 
-# cavekit-check — drift report
+# cavekit-check — drift detector
 
-Pure diagnostic workflow. Read `SPEC.md`, compare it to code, report evidence. Write nothing.
+Pure diagnostic workflow. Read `SPEC.md`, compare it to code, report evidence. Write nothing. Run after each `/ck:build` and before each ship — drift caught here is a diff; drift caught in prod is a §B.
 
 Read bundled `../../FORMAT.md` before interpreting `SPEC.md` structure and addresses.
 

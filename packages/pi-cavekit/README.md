@@ -30,8 +30,14 @@ This package exposes Pi prompt templates with upstream Cavekit command names:
 - `/ck:build [§T.n | --next | --all]` — plan and execute selected §T tasks from `SPEC.md`.
 - `/ck:check [§V | §I | §T | --all]` — read-only drift report comparing `SPEC.md` to current code.
 - `/ck:archive` — dry-run archive preview, explicit approval, exact full-copy to `.cavekit/archive/`, then trim long `SPEC.md`.
+- `/ck:grill [idea | "grill me"]` — interrogate a fuzzy idea into §G/§C before spec; one question at a time.
+- `/ck:research [topic | "best lib for X"]` — gather external knowledge into §R; every finding cites a source.
+- `/ck:review [§T.n | --all]` — adversarial senior review of the spec before build; ends in a go/no-go gate.
+- `/ck:deepen [module/path | "improve the design"]` — spare-budget design pass; make one shallow module deep.
 
-Pi prompt template filenames preserve the command names: `prompts/ck:spec.md`, `prompts/ck:build.md`, `prompts/ck:check.md`, and `prompts/ck:archive.md`.
+Pi prompt template filenames preserve the command names: `prompts/ck:spec.md`, `prompts/ck:build.md`, `prompts/ck:check.md`, `prompts/ck:archive.md`, `prompts/ck:grill.md`, `prompts/ck:research.md`, `prompts/ck:review.md`, and `prompts/ck:deepen.md`.
+
+The core loop is `spec → build → check`. `/ck:grill`, `/ck:research`, `/ck:review`, and `/ck:deepen` are reach-for verbs — opt-in, right-sized to blast radius. Each proposes a handoff block; `cavekit-spec` is the sole `SPEC.md` mutator.
 
 ## Included skills
 
@@ -40,6 +46,10 @@ Pi prompt template filenames preserve the command names: `prompts/ck:spec.md`, `
 - `cavekit-check` — read-only drift detection for §V invariants, §I interfaces, and §T task status.
 - `cavekit-archive` — safe `SPEC.md` compaction: no-write precheck, dry-run preview, full archive copy, then trim.
 - `cavekit-backprop` — bug-to-spec analysis that proposes §B and §V updates.
+- `cavekit-grill` — calibrated interrogation of a fuzzy idea into §G/§C before spec.
+- `cavekit-research` — external knowledge into the optional §R research log; findings cite sources.
+- `cavekit-review` — adversarial senior review of the spec before build; refutes, hardens §V, go/no-go gate.
+- `cavekit-deepen` — spare-budget design pass; make one shallow module deep, behavior held.
 
 Pi also registers skills as `/skill:<name>` commands when skill commands are enabled. The `/ck:*` prompt templates are the primary Cavekit UX.
 
@@ -51,6 +61,7 @@ Pi also registers skills as `/skill:<name>` commands when skill commands are ena
   - §G goal
   - §C constraints
   - §I interfaces
+  - §R research (optional, present only if `/ck:research` ran)
   - §V invariants
   - §T tasks
   - §B bugs

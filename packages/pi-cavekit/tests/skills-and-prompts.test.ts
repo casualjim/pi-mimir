@@ -7,8 +7,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const skillsRoot = path.join(root, 'skills');
 const promptsRoot = path.join(root, 'prompts');
 
-const requiredSkills = ['cavekit-spec', 'cavekit-build', 'cavekit-check', 'cavekit-archive', 'cavekit-backprop'];
-const requiredPrompts = ['ck:spec.md', 'ck:build.md', 'ck:check.md', 'ck:archive.md'];
+const requiredSkills = ['cavekit-spec', 'cavekit-build', 'cavekit-check', 'cavekit-archive', 'cavekit-backprop', 'cavekit-grill', 'cavekit-research', 'cavekit-review', 'cavekit-deepen'];
+const requiredPrompts = ['ck:spec.md', 'ck:build.md', 'ck:check.md', 'ck:archive.md', 'ck:grill.md', 'ck:research.md', 'ck:review.md', 'ck:deepen.md'];
 
 function parseFrontmatter(markdown: string): Record<string, string> {
   const match = markdown.match(/^---\n([\s\S]*?)\n---/);

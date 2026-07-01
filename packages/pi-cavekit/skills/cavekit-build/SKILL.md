@@ -18,6 +18,8 @@ Read bundled `../../FORMAT.md` before parsing task status or spec references. Th
    - `--all` or no args → every `.` row in §T order
 3. Identify applicable §V invariants and §I interfaces for chosen task(s).
 4. If chosen task cites §V/§I refs not present in current sections, parse archive comments and read referenced `.cavekit/archive/SPEC-*.md` copies to resolve full archived text.
+5. Read §R if present — external facts the build ! honor, ⊥ re-derive or contradict.
+6. High blast radius (shared module, auth, data, money, public §I)? Suggest `/ck:review` first. Trivial & reversible? Skip planning ceremony.
 5. For any new task/status reasoning, treat IDs as monotonic across current tables, archive comments, and archived `SPEC.md` copies.
 
 ## Plan
@@ -27,7 +29,7 @@ For the chosen task(s), produce a concise plan before editing:
 1. Cite each §V invariant that applies, including archived invariant text when a task cites archived §V.
 2. Cite each §I interface touched, including archived interface text when a task cites archived §I.
 3. List files to create or edit.
-4. List tests to add or update, with at least one check per touched invariant when practical.
+4. **Verification contract** — name the EXACT test(s) / acceptance criteria that prove each §V touched. Which test, not "add tests". "Do TDD" alone backfires; the spec says *what to check*. Each §V touched → a named test that fails first.
 5. Name verification commands.
 
 Share the full plan in normal assistant text first: cited §V/§I, files, tests, verification commands, tradeoffs, and recommendation. Then use `ask_user_question` for approval unless the user explicitly asked for autonomous execution. Do not put the plan in the question field, option descriptions, or previews. The question UI is only for concise decision controls such as approve, revise plan, or stop.

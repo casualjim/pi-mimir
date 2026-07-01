@@ -13,6 +13,8 @@ Pi workflow monorepo → review-gated OpenSpec planning/implementation, standalo
 - OpenSpec state lives under `openspec/`; review-gated schema ! valid OpenSpec `name/version/description/artifacts/apply` shape.
 - Managed assets content-addressed; user-modified managed files ! overwritten silently.
 - `pi-cavekit` skills/prompts only; bundles `FORMAT.md`; no extension, hooks, installer, managed config, `pi-caveman` dep; `cavecrew-investigator` ? optional read-only delegation.
+- upstream cavekit v4.1 verbs ! ported with Pi plugin path mapping: skill `<verb>` → `cavekit-<verb>`; skill dir `skills/<verb>/SKILL.md` → `skills/cavekit-<verb>/SKILL.md`; repo-root `FORMAT.md` ref → bundled `../../FORMAT.md`; command `/ck:<verb>` names kept; internal cross-skill path literals rewritten to `cavekit-<verb>`.
+- cavekit `§R RESEARCH` optional; `SPEC.md` sectioned ownership — each verb writes only owned sections, `cavekit-spec` sole general mutator; right-size rule (ceremony scales to blast radius).
 - `pi-caveman` ships Pi-native extension hooks equivalent to upstream Claude `SessionStart`/`UserPromptSubmit`; no `~/.claude` mutation or non-Pi plugin install; Cavecrew agents ! Pi-subagents executable when package installed; use is skill/workflow-steered, not hook-auto-spawned.
 - `advisor` off by default; configured model/effort persisted; child lane read-only; output only `PLAN`/`CORRECTION`/`STOP`.
 - `@casualjim/pi-review` standalone; OpenSpec integration/dependency ⊥; `/review` behavior mirrors Codex `/review` task.
@@ -38,9 +40,12 @@ Pi workflow monorepo → review-gated OpenSpec planning/implementation, standalo
 - pkg: `@casualjim/pi-advisor` → extension `extensions/advisor`, command `/advisor`, tool `advisor`, packaged agent `advisor-child.md`; copied agent file ⊥.
 - pkg: `@casualjim/pi-heimdall` → extension `extensions/heimdall.ts`, optional `extensions/heimdall-bg-tasks.ts`, libs under `lib/`, tests under `tests/`; package workspace files only.
 - file: `.pi/advisor-managed.json` → legacy advisor copied-agent manifest; read/prune only; new writes ⊥.
-- pkg: `@casualjim/pi-cavekit` → skills `cavekit-spec`, `cavekit-build`, `cavekit-check`, `cavekit-backprop`; prompts `/ck:spec`, `/ck:build`, `/ck:check`; file `FORMAT.md`; ? soft-use `cavecrew-investigator` for read-only code archaeology when available.
-- target: `@casualjim/pi-cavekit` archive surface → skill `cavekit-archive`, prompt `/ck:archive` after T43.
-- file: project-root `SPEC.md` → Cavekit single durable spec artifact.
+- pkg: `@casualjim/pi-cavekit` → skills `cavekit-spec`, `cavekit-build`, `cavekit-check`, `cavekit-backprop`, `cavekit-archive`, `cavekit-grill`, `cavekit-research`, `cavekit-review`, `cavekit-deepen`; prompts `/ck:spec`, `/ck:build`, `/ck:check`, `/ck:archive`, `/ck:grill`, `/ck:research`, `/ck:review`, `/ck:deepen`; file `FORMAT.md`; ? soft-use `cavecrew-investigator` for read-only code archaeology when available.
+- cmd: `/ck:grill` → interrogate fuzzy idea into `§G`/`§C` before spec; one question at a time, recommend answer, hand off to `cavekit-spec`; ⊥ write `SPEC.md`.
+- cmd: `/ck:research` → gather external knowledge into `§R`; every finding cites source, unverified flagged `?`; hand rows to `cavekit-spec`.
+- cmd: `/ck:review` → adversarial senior review of spec before build; refute not rubber-stamp; draft `§V` for HARDEN; end GO/NO-GO gate; hand to `cavekit-spec`.
+- cmd: `/ck:deepen` → spare-budget design pass; pick one shallow module, propose deeper `§I`/`§V`/`§T`; behavior held, tests green before & after; hand to `cavekit-spec`.
+- file: project-root `SPEC.md` → Cavekit single durable spec artifact; optional `§R RESEARCH` section `id|topic|finding|src`.
 - file: `.cavekit/archive/SPEC-<YYYY-MM-DD>[-2|-3|...].md` → exact pre-trim `SPEC.md` copy; archive comments in working spec link archived ranges.
 - file: `package.json` → pnpm `packageManager`, workspace scripts use pnpm recursion.
 - file: `pnpm-workspace.yaml` → workspace packages `packages/*`.
@@ -94,6 +99,9 @@ V32: `/review` cavecrew prompt ! include Codex bug rules, ⊥ include Codex JSON
 V33: `cavekit-archive` ! copy exact full `SPEC.md` to `.cavekit/archive/SPEC-<YYYY-MM-DD>[-2|-3|...].md` before trim; content loss ⊥.
 V34: `cavekit-archive` ! dry-run preview + explicit user OK before writes; missing `SPEC.md` or ≤500 lines → no write.
 V35: archive trim ! remove only completed §T, §B older than 90 days, and §C/§I/§V uncited by active §T; §G untouched; comments preserve ranges; new IDs continue max(current+archived).
+V36: ported cavekit verbs ! rewrite upstream internal refs (`skills/<verb>/SKILL.md`, repo-root `FORMAT.md`) to Pi plugin layout (`cavekit-<verb>`, bundled `../../FORMAT.md`); `/ck:<verb>` names kept; ⊥ leak upstream `skills/<verb>/SKILL.md` paths into packaged skills/prompts.
+V37: cavekit `§R` writes & reach-for-verb handoffs (grill/research/review/deepen) ! route through `cavekit-spec`; verbs propose handoff blocks, ⊥ write `SPEC.md` directly; sectioned ownership honored — each verb touches only owned sections.
+V38: bundled `packages/pi-cavekit/FORMAT.md` ! mirror upstream §R + sectioned-ownership + right-size sections; cavekit archive section preserved.
 
 ## §T TASKS
 id|status|task|cites
@@ -143,6 +151,12 @@ T43|x|port upstream Cavekit archive surface: add `cavekit-archive` skill + `/ck:
 T44|x|update bundled `packages/pi-cavekit/FORMAT.md` archive section + ID lookup rules; keep Pi command names consistent|V10,V33,V34,V35
 T45|x|teach `cavekit-spec`/`cavekit-build`/`cavekit-check` to parse archive comments and archived `SPEC.md` copies when resolving max IDs/cites|V10,V33,V35
 T46|x|add tests for archive no-write precheck, dry-run approval, full-copy before trim, trim rules, archived-ID monotonicity, package prompt/skill surface|V1,V2,V10,V33,V34,V35
+T47|x|port upstream cavekit `grill`/`research`/`review`/`deepen` skills into `packages/pi-cavekit/skills/cavekit-<verb>` with Pi path adaptation (`cavekit-<verb>` names, `../../FORMAT.md`, no `skills/<verb>/SKILL.md` literals)|V1,V2,V36
+T48|x|add `/ck:grill`/`/ck:research`/`/ck:review`/`/ck:deepen` prompts mirroring existing `ck:*` prompt shape (`Use the cavekit-<verb> skill workflow`)|V1,V36
+T49|x|sync bundled `packages/pi-cavekit/FORMAT.md` with upstream §R RESEARCH + sectioned ownership + right-size; preserve cavekit archive section & ID-lookup rules|V10,V33,V34,V35,V38
+T50|x|teach `cavekit-spec`/`cavekit-check`/`cavekit-build` to handle optional §R + sectioned-ownership handoffs (grill §G/§C, research §R, review §V, deepen §I/§V/§T)|V10,V37,V38
+T51|x|update §I cavekit interface line + package registration (`pi.skills`/`pi.prompts` auto-cover new dirs) + README for new skills/prompts|V1,V2,V36
+T52|x|add tests: no upstream `skills/<verb>/SKILL.md` path leak, §R routes through `cavekit-spec`, sectioned ownership, new prompt/skill surface registered|V1,V2,V10,V36,V37
 
 ## §B BUGS
 id|date|cause|fix

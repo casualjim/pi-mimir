@@ -19,6 +19,20 @@ Inspect the user's request and project state:
 4. `SPEC.md` exists AND request starts with or clearly means `amend` → **AMEND**
 5. `SPEC.md` exists and no mode is clear → use `ask_user_question` to choose mode before proceeding
 
+## INPUTS — spec is the sole mutator
+
+The reach-for verbs produce material; `cavekit-spec` writes it. Sectioned
+ownership: ingest each handoff block into the section that verb owns, show a
+diff, write on OK. ⊥ rewrite a section the handoff did not name.
+
+- **cavekit-grill** → sharpened §G + §C
+- **cavekit-research** → §R rows (add the §R section if absent)
+- **cavekit-review** → drafted §V lines + the risk verdict
+- **cavekit-deepen** → §I/§V/§T amendments
+
+`§R RESEARCH` is optional — create the section only when a research handoff
+arrives; omit it otherwise (right-size).
+
 ## Question protocol
 
 Use `ask_user_question` whenever Cavekit needs a decision from the user. Do not print prose-only choice lists and wait.
