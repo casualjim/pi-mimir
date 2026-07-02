@@ -157,26 +157,35 @@ function matchSegment(
 	const effective = tokens.slice(pos);
 
 	for (const policy of policies) {
-		if (effective.length < policy.blocked.length) continue;
+		const bl = policy.blocked;
+		if (bl.length === 0 || effective.length < bl.length) continue;
 
-		let match = true;
-		for (let i = 0; i < policy.blocked.length; i++) {
-			const got = effective[i]!;
-			const want = policy.blocked[i]!;
-			if (i === 0) {
-				if (got !== want && tokenBasename(got) !== want) {
-					match = false;
-					break;
-				}
-			} else {
-				if (got !== want) {
-					match = false;
+		// bare policies: blocked tokens may appear anywhere in the segment
+		// (e.g. after wrapper args like `timeout 900`); what matters is only
+		// what follows — pipe/redirect flips segmentNonBare and blocks.
+		// non-bare policies keep prefix match to avoid matching blocked tokens
+		// when they appear as data (echo "cargo test", grep, git commit -m, ...).
+		const sEnd = policy.bare ? effective.length - bl.length : 0;
+		let matched = false;
+		for (let s = 0; s <= sEnd && !matched; s++) {
+			let ok = true;
+			for (let i = 0; i < bl.length; i++) {
+				const got = effective[s + i]!;
+				const want = bl[i]!;
+				if (i === 0) {
+					if (got !== want && tokenBasename(got) !== want) {
+						ok = false;
+						break;
+					}
+				} else if (got !== want) {
+					ok = false;
 					break;
 				}
 			}
+			if (ok) matched = true;
 		}
 
-		if (!match) continue;
+		if (!matched) continue;
 		if (policy.bare && !segmentNonBare) continue;
 		return policy;
 	}
@@ -442,6 +451,13 @@ const cases: TestCase[] = [
 	{ cmd: "kubectl apply -f foo.yaml && echo hi", shouldBlock: false, note: "bare policy: && keeps bare" },
 	{ cmd: "bash -c 'kubectl apply -f foo.yaml | tee'", shouldBlock: true, note: "bare policy: pipe inside bash -c blocked" },
 	{ cmd: "bash -c 'kubectl apply -f foo.yaml' | tee", shouldBlock: true, note: "bare policy: outer pipe via bash -c blocked" },
+
+	// ── Bare policy: blocked tokens after wrapper args (subsequence) ──
+	{ cmd: "timeout 900 kubectl apply -f foo.yaml", shouldBlock: false, note: "bare policy: wrapper args, still bare → allowed" },
+	{ cmd: "timeout 900 kubectl apply -f foo.yaml | tee out", shouldBlock: true, note: "bare policy: wrapper args + pipe blocked" },
+	{ cmd: "timeout 900 kubectl apply -f foo.yaml 2>&1 | tail -15", shouldBlock: true, note: "bare policy: wrapper args + redirect+pipe blocked" },
+	{ cmd: "cd /x && timeout 900 kubectl apply -f foo.yaml 2>&1 | tail -15", shouldBlock: true, note: "bare policy: cd prefix + wrapper args + pipe blocked" },
+	{ cmd: "echo kubectl apply", shouldBlock: false, note: "bare policy: as echo data, bare → allowed" },
 
 	// ── Known gaps (indirect execution — not caught, acceptable) ──
 	{

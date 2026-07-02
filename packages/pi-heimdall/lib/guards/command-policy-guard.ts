@@ -147,26 +147,35 @@ function matchSegment(
 	const effective = tokens.slice(pos);
 
 	for (const policy of policies) {
-		if (effective.length < policy.blocked.length) continue;
+		const bl = policy.blocked;
+		if (bl.length === 0 || effective.length < bl.length) continue;
 
-		let match = true;
-		for (let i = 0; i < policy.blocked.length; i++) {
-			const got = effective[i]!;
-			const want = policy.blocked[i]!;
-			if (i === 0) {
-				if (got !== want && tokenBasename(got) !== want) {
-					match = false;
-					break;
-				}
-			} else {
-				if (got !== want) {
-					match = false;
+		// bare policies: blocked tokens may appear anywhere in the segment
+		// (e.g. after wrapper args like `timeout 900`); what matters is only
+		// what follows — pipe/redirect flips segmentNonBare and blocks.
+		// non-bare policies keep prefix match to avoid matching blocked tokens
+		// when they appear as data (echo "cargo test", grep, git commit -m, ...).
+		const sEnd = policy.bare ? effective.length - bl.length : 0;
+		let matched = false;
+		for (let s = 0; s <= sEnd && !matched; s++) {
+			let ok = true;
+			for (let i = 0; i < bl.length; i++) {
+				const got = effective[s + i]!;
+				const want = bl[i]!;
+				if (i === 0) {
+					if (got !== want && tokenBasename(got) !== want) {
+						ok = false;
+						break;
+					}
+				} else if (got !== want) {
+					ok = false;
 					break;
 				}
 			}
+			if (ok) matched = true;
 		}
 
-		if (!match) continue;
+		if (!matched) continue;
 		// bare policy: allow when the command actually runs bare
 		if (policy.bare && !segmentNonBare) continue;
 		return policy;
