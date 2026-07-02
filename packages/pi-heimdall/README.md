@@ -381,11 +381,13 @@ Each policy has three fields:
   `cargo test --lib`, `cargo test foo::bar`, etc.
 - **`message`** — the explanation shown to the model when a command is blocked.
 - **`bare`** *(optional, default `false`)* — when `true`, the matched command is
-  blocked **only** if it is not bare, i.e. it is piped (`|`) or redirected
-  (`>`, `>>`, `<`, `>&`, `2>&1`, etc.). A bare command (no pipe or redirect into
-  anything) is allowed. Use this to enforce that a command runs directly
-  without its output captured or fed by a pipe, e.g. require `kubectl apply` to
-  run bare:
+  blocked **only** if its output leaves the segment: piped after (`|`) or
+  output-redirected (`>`, `>>`, `>&`, `2>&1`, `&>`, etc.). A bare command (output
+  stays in the terminal) is allowed. Pipe-input (`echo hi | cmd`) and input
+  redirects (`cmd < file`) are allowed, since only the command's output side is
+  constrained. Sequencing with `;`, `&&`, `||` also keeps a command bare. Use
+  this to enforce that a command runs directly without its output captured or
+  piped elsewhere, e.g. require `kubectl apply` to run bare:
 
 ```json
 {
@@ -401,9 +403,9 @@ Each policy has three fields:
 ```
 
   This blocks `kubectl apply -f x.yaml | tee`, `kubectl apply > out`, and
-  `echo hi | kubectl apply -f x.yaml`, but allows `kubectl apply -f x.yaml` and
-  `kubectl apply -f x.yaml && echo done` (sequencing with `;`, `&&`, `||` keeps
-  the command bare).
+  `kubectl apply -f x.yaml 2>&1`, but allows `kubectl apply -f x.yaml`,
+  `echo hi | kubectl apply -f x.yaml`, `kubectl apply < input.txt`, and
+  `kubectl apply -f x.yaml && echo done`.
 
 The command line is properly tokenized (respecting single quotes, double quotes,
 and backslash escapes) and each shell segment (commands separated by `;`, `|`,

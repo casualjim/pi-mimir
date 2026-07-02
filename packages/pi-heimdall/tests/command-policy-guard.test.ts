@@ -31,6 +31,7 @@ const SHELL_COMMANDS = new Set([
 const SHELL_PREFIX_TOKENS = new Set(["{", "("]);
 
 const REDIRECT_OPS = new Set([">", ">>", "<", ">&", "<&", ">|", "&>", "&>>", "<<<"]);
+const OUTPUT_REDIRECT_OPS = new Set([">", ">>", ">&", ">|", "&>", "&>>"]);
 
 function tokenBasename(token: string): string {
 	if (!token.includes("/")) return token;
@@ -44,8 +45,8 @@ function isStringToken(t: ParseEntry): t is string {
 
 interface Segment {
 	tokens: string[];
-	piped: boolean;
-	redirected: boolean;
+	pipedOut: boolean;
+	outputRedirected: boolean;
 }
 
 function isOp(t: ParseEntry, op: string): boolean {
@@ -55,19 +56,17 @@ function isOp(t: ParseEntry, op: string): boolean {
 function splitCommandSegments(tokens: ParseEntry[]): Segment[] {
 	const segments: Segment[] = [];
 	let current: string[] = [];
-	let redirected = false;
-	let piped = false;
-	let pendingPipeIn = false;
+	let outputRedirected = false;
+	let pipedOut = false;
 	let heredocDelim: string | null = null;
 
 	const close = () => {
 		if (current.length > 0) {
-			segments.push({ tokens: current, piped: piped || pendingPipeIn, redirected });
+			segments.push({ tokens: current, pipedOut, outputRedirected });
 		}
 		current = [];
-		redirected = false;
-		piped = false;
-		pendingPipeIn = false;
+		outputRedirected = false;
+		pipedOut = false;
 	};
 
 	for (let i = 0; i < tokens.length; i++) {
@@ -86,7 +85,7 @@ function splitCommandSegments(tokens: ParseEntry[]): Segment[] {
 			isOp(tokens[i + 1]!, "<")
 		) {
 			i++;
-			redirected = true;
+			// heredoc — input side, not output
 			if (i + 1 < tokens.length && isStringToken(tokens[i + 1]!)) {
 				i++;
 				heredocDelim = (tokens[i]! as string).replace(/^['"]|['"]$/g, "");
@@ -96,9 +95,8 @@ function splitCommandSegments(tokens: ParseEntry[]): Segment[] {
 
 		if (typeof t === "object" && "op" in t && COMMAND_SEPARATORS.has(t.op)) {
 			if (t.op === "|") {
-				piped = true;
+				pipedOut = true;
 				close();
-				pendingPipeIn = true;
 			} else {
 				close();
 			}
@@ -106,7 +104,7 @@ function splitCommandSegments(tokens: ParseEntry[]): Segment[] {
 		}
 
 		if (typeof t === "object" && "op" in t && REDIRECT_OPS.has(t.op)) {
-			redirected = true;
+			if (OUTPUT_REDIRECT_OPS.has(t.op)) outputRedirected = true;
 			if (i + 1 < tokens.length && isStringToken(tokens[i + 1]!)) {
 				i++;
 			}
@@ -130,7 +128,7 @@ function matchSegment(
 	inheritedNonBare: boolean,
 ): CommandPolicy | null {
 	const tokens = segment.tokens;
-	const segmentNonBare = segment.piped || segment.redirected || inheritedNonBare;
+	const segmentNonBare = segment.pipedOut || segment.outputRedirected || inheritedNonBare;
 	let pos = 0;
 
 	while (pos < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[pos]!)) {
@@ -438,7 +436,8 @@ const cases: TestCase[] = [
 	{ cmd: "kubectl apply -f foo.yaml > out", shouldBlock: true, note: "bare policy: stdout redirect blocked" },
 	{ cmd: "kubectl apply -f foo.yaml 2>&1", shouldBlock: true, note: "bare policy: stderr redirect blocked" },
 	{ cmd: "kubectl apply -f foo.yaml 2>/dev/null", shouldBlock: true, note: "bare policy: stderr suppress blocked" },
-	{ cmd: "echo hi | kubectl apply -f foo.yaml", shouldBlock: true, note: "bare policy: pipe input blocked" },
+	{ cmd: "echo hi | kubectl apply -f foo.yaml", shouldBlock: false, note: "bare policy: pipe-input allowed (output-side only)" },
+	{ cmd: "kubectl apply -f foo.yaml < input.txt", shouldBlock: false, note: "bare policy: input redirect allowed" },
 	{ cmd: "kubectl apply -f foo.yaml; echo hi", shouldBlock: false, note: "bare policy: semicolon keeps bare" },
 	{ cmd: "kubectl apply -f foo.yaml && echo hi", shouldBlock: false, note: "bare policy: && keeps bare" },
 	{ cmd: "bash -c 'kubectl apply -f foo.yaml | tee'", shouldBlock: true, note: "bare policy: pipe inside bash -c blocked" },
