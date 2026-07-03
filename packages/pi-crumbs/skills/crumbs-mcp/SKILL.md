@@ -27,6 +27,8 @@ description: "Use the codebase knowledge graph for structural code queries. Trig
 | Source grep + graph metadata | `code_crumbs_search_code(pattern="...")` |
 | Risk-classified trace | `code_crumbs_trace_path(risk_labels=true)` |
 | Text/semantic search | `code_crumbs_search_unified` |
+| Pi session message chunks | `code_crumbs_search_sessions` (snippet + message pointer + token estimate) |
+| Push one session message | `code_crumbs_session_ingest` |
 | List projects | `code_crumbs_list_projects` |
 | Project readiness | `code_crumbs_project_status` |
 
@@ -49,16 +51,17 @@ description: "Use the codebase knowledge graph for structural code queries. Trig
 - Hot paths: `code_crumbs_graph_hotspots`
 - Cycles: `code_crumbs_graph_cycles`
 
-## 20 MCP Tools
+## 22 MCP Tools
 Discovery (verb-first, match old `codebase_memory_*`): `config_doctor`, `index`, `search_unified`, `search_code`, `context`,
 `search_graph`, `query_graph`, `trace_path`, `get_code_snippet`, `get_graph_schema`, `get_architecture`.
 Project admin: `list_projects`, `project_status` (`delete_project` ⊥ MCP — CLI-only destructive, V135).
+Sessions (Crumbs-exclusive): `session_ingest` (push one finalized message), `search_sessions` (chunk-snippet search; distinct root from `search_unified`/`search_code`/`search_graph`, V121).
 Topology (Crumbs-exclusive): `graph_stats`, `graph_cycles`, `graph_hotspots`,
 `graph_star`, `graph_path`, `graph_volumes`, `graph_refactor`.
 `graph_export`/`graph_snapshot`/`graph_diff` ⊥ MCP (CLI-only JSON file contracts, V137).
 
 ## Per-call Project Selection (V138)
-18 of 20 tools accept an optional `project` selector (name | slug | path) overriding the cwd-resolved project — applies to every discovery/read/index/context/graph/topology/search tool plus `project_status` and `graph_stats`. Omit it (or `None`) to target the cwd-resolved project. Resolve order: exact path → config-name (`[projects.<name>]`) → registry slug.
+20 of 22 tools accept an optional `project` selector (name | slug | path) overriding the cwd-resolved project — applies to every discovery/read/index/context/graph/topology/search/session tool plus `project_status` and `graph_stats`. Omit it (or `None`) to target the cwd-resolved project. Resolve order: exact path → config-name (`[projects.<name>]`) → registry slug.
 - `list_projects` and `config_doctor` do NOT take `project` — they operate on the whole config (global user-scope XOR per-project config file), not one project.
 - Discover project names with `code_crumbs_list_projects`, then pass `project="name"` to scope any graph/search/topology call.
 
@@ -84,6 +87,11 @@ Use for natural-language questions over docs/code where name patterns miss.
 ## Source Search (crumbs-exclusive)
 `code_crumbs_search_code` with `pattern`, `mode` (`compact`|`full`|`files`), `file_pattern`, `path_filter`, `regex`, `limit`.
 Graph-augmented on-disk grep: enriches textual matches with indexed node metadata (qualified name, label, file, line range, call degrees). Distinct from `search_unified` (retrieval over chunks) and `search_graph` (structural query).
+
+## Session Search (crumbs-exclusive)
+`code_crumbs_search_sessions` with `query`, `mode` (`hybrid`|`lexical`|`semantic`), `limit`; optional `role`, `since`, `session_id`.
+Searches pi session message chunks (chunk-granular hybrid). Returns chunk snippets carrying a message pointer + message token estimate — never full transcripts. Distinct root from `search_unified`/`search_code`/`search_graph` (V121).
+`code_crumbs_session_ingest` pushes one finalized message (`session` + `message` with extracted text); chunk+embed+persist is idempotent (V143). Bulk session indexing runs as a concurrent phase of `code_crumbs_index` when `[sessions] enabled = true` (off by default).
 
 ## Anchored Context (crumbs-exclusive)
 `code_crumbs_context` with `prompt` + >=1 `anchor` (file, symbol/key/section, or line). Resolves anchors, pulls related files, selects source regions within a token budget. Knobs: `max_related_files`, `max_regions_per_file`, `token_budget`, `chars_per_token`.
