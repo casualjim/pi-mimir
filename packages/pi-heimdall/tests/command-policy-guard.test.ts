@@ -18,11 +18,21 @@ type ParseEntry = string | { op: string } | { op: "glob"; pattern: string } | { 
 
 const COMMAND_SEPARATORS = new Set([";", "&&", "||", "|", "(", ")"]);
 
-const WRAPPER_COMMANDS = new Set([
-	"sudo", "doas", "pkexec", "env", "exec", "nice", "ionice", "chrt",
-	"taskset", "command", "time", "timeout", "strace", "gdb", "lldb",
-	"valgrind", "eval",
-]);
+const WRAPPER_COMMANDS: readonly string[][] = [
+	["sudo"], ["doas"], ["pkexec"], ["env"], ["exec"], ["nice"], ["ionice"], ["chrt"],
+	["taskset"], ["command"], ["time"], ["timeout"], ["strace"], ["gdb"], ["lldb"],
+	["valgrind"], ["eval"],
+	["mise", "exec"], ["mise", "x"],
+];
+
+function matchWrapperAt(tokens: string[], pos: number): number {
+	let best = 0;
+	for (const seq of WRAPPER_COMMANDS) {
+		if (seq.length <= best) continue;
+		if (seq.every((t, i) => tokens[pos + i] === t)) best = seq.length;
+	}
+	return best;
+}
 
 const SHELL_COMMANDS = new Set([
 	"bash", "sh", "zsh", "dash", "ksh", "ash", "fish",
@@ -135,12 +145,18 @@ function matchSegment(
 		pos++;
 	}
 
-	while (
-		pos < tokens.length &&
-		(WRAPPER_COMMANDS.has(tokens[pos]!) ||
-			SHELL_PREFIX_TOKENS.has(tokens[pos]!))
-	) {
-		pos++;
+	while (pos < tokens.length) {
+		if (SHELL_PREFIX_TOKENS.has(tokens[pos]!)) {
+			pos++;
+			continue;
+		}
+		const wrapperLen = matchWrapperAt(tokens, pos);
+		if (wrapperLen > 0) {
+			pos += wrapperLen;
+			if (tokens[pos] === "--") pos++;
+			continue;
+		}
+		break;
 	}
 
 	if (
@@ -397,6 +413,23 @@ const cases: TestCase[] = [
 		cmd: "mise run test -- cargo test",
 		shouldBlock: false,
 		note: "after -- end-of-options",
+	},
+
+	// ── mise exec/x passthrough ──
+	{
+		cmd: "mise exec -- cargo test -p crumbs-indexer -- stages::aggregate::tests 2>&1 | tail -15",
+		shouldBlock: true,
+		note: "mise exec -- unwraps to real cargo test",
+	},
+	{
+		cmd: "mise x -- cargo test",
+		shouldBlock: true,
+		note: "mise x -- alias unwraps too",
+	},
+	{
+		cmd: "mise exec cargo test",
+		shouldBlock: true,
+		note: "mise exec without -- still unwraps",
 	},
 	{
 		cmd: "printf 'cargo test'",

@@ -11,11 +11,23 @@ import type { CommandPolicy, HeimdallConfig } from "../types.js";
 
 const COMMAND_SEPARATORS = new Set([";", "&&", "||", "|", "(", ")"]);
 
-const WRAPPER_COMMANDS = new Set([
-	"sudo", "doas", "pkexec", "env", "exec", "nice", "ionice", "chrt",
-	"taskset", "command", "time", "timeout", "strace", "gdb", "lldb",
-	"valgrind", "eval",
-]);
+// token sequences that forward to another command; longest match at a position wins.
+// A trailing `--` right after a match is swallowed too (`sudo -- rm`, `mise exec -- cargo test`).
+const WRAPPER_COMMANDS: readonly string[][] = [
+	["sudo"], ["doas"], ["pkexec"], ["env"], ["exec"], ["nice"], ["ionice"], ["chrt"],
+	["taskset"], ["command"], ["time"], ["timeout"], ["strace"], ["gdb"], ["lldb"],
+	["valgrind"], ["eval"],
+	["mise", "exec"], ["mise", "x"],
+];
+
+function matchWrapperAt(tokens: string[], pos: number): number {
+	let best = 0;
+	for (const seq of WRAPPER_COMMANDS) {
+		if (seq.length <= best) continue;
+		if (seq.every((t, i) => tokens[pos + i] === t)) best = seq.length;
+	}
+	return best;
+}
 
 const SHELL_COMMANDS = new Set([
 	"bash", "sh", "zsh", "dash", "ksh", "ash", "fish",
@@ -127,11 +139,18 @@ function matchSegment(
 		pos++;
 	}
 
-	while (
-		pos < tokens.length &&
-		(WRAPPER_COMMANDS.has(tokens[pos]!) || SHELL_PREFIX_TOKENS.has(tokens[pos]!))
-	) {
-		pos++;
+	while (pos < tokens.length) {
+		if (SHELL_PREFIX_TOKENS.has(tokens[pos]!)) {
+			pos++;
+			continue;
+		}
+		const wrapperLen = matchWrapperAt(tokens, pos);
+		if (wrapperLen > 0) {
+			pos += wrapperLen;
+			if (tokens[pos] === "--") pos++;
+			continue;
+		}
+		break;
 	}
 
 	if (
