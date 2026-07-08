@@ -4,15 +4,16 @@ const DEFAULT_GATE_SCOPE = "__default__";
 const advisedScopes = new Set<string>();
 
 export const CRUMBS_SESSION_REMINDER = [
-	"CRITICAL - Crumbs Code Discovery Protocol:",
-	"1. ALWAYS use Crumbs MCP tools FIRST for ANY code exploration:",
+	"CRITICAL - Crumbs Discovery Protocol:",
+	"1. ALWAYS use Crumbs MCP tools FIRST for ANY discovery — code, markdown docs, sessions, memory:",
 	"   - code_crumbs_search_graph (name_pattern/label/qn_pattern) to find functions/classes/routes",
 	"   - code_crumbs_trace_path (function_name, mode=calls|data_flow|cross_service) for call chains",
 	"   - code_crumbs_get_code_snippet (qualified_name) for exact symbol source",
 	"   - code_crumbs_query_graph (query) for complex Cypher patterns",
 	"   - code_crumbs_get_architecture (aspects) for project structure",
-	"   - code_crumbs_search_unified (query, mode=hybrid|lexical|semantic) for text/semantic search (graph-augmented)",
-	"2. Use bash/read freely for text, configs, non-code files, and always read files before editing them.",
+	"   - code_crumbs_search_unified (query, mode=hybrid|lexical|semantic, target=documents|code|all) for markdown docs AND code — NOT grep. target=documents for README/ROADMAP/PLAN/TASKS/.md; lexical for keywords/identifiers, hybrid for concepts.",
+	"   - code_crumbs_search_sessions (query) for past conversations / session context",
+	"2. Use bash/read freely for raw configs, non-markdown assets, and always read files before editing them. Do NOT grep/read whole markdown docs to find a section — use code_crumbs_search_unified target=documents.",
 	"3. If a project is not indexed yet, run code_crumbs_index FIRST.",
 ].join("\n");
 
@@ -26,9 +27,9 @@ export function handleCrumbsDiscoveryGate(event: { toolName?: unknown; input?: u
 	advisedScopes.add(scopeKey);
 	return {
 		content: [
-			"code_crumbs reminder: for broad code discovery, prefer Crumbs MCP tools first.",
-			"If the current project is not indexed yet, run code_crumbs_index on the project root first. Then use code_crumbs_get_architecture for overview, code_crumbs_search_graph for symbols or code search, code_crumbs_trace_path for call chains, and code_crumbs_get_code_snippet to read exact symbol source.",
-			"Raw bash/read remain available for text, configs, non-code files, graph-insufficient cases, and exact follow-up discovery. Read is never gated; always read files before editing.",
+			"code_crumbs reminder: for broad discovery (code, markdown docs, or sessions), prefer Crumbs MCP tools first.",
+			"If the current project is not indexed yet, run code_crumbs_index on the project root first. Then use code_crumbs_get_architecture for overview, code_crumbs_search_graph for symbols or code search, code_crumbs_trace_path for call chains, code_crumbs_get_code_snippet to read exact symbol source, code_crumbs_search_unified (target=documents|code|all) for markdown docs and code, and code_crumbs_search_sessions for past conversations.",
+			"Raw bash/read remain available for raw configs, non-markdown assets, graph-insufficient cases, and exact follow-up discovery. Do NOT grep/read whole markdown docs to find a section — use code_crumbs_search_unified target=documents. Read is never gated; always read files before editing.",
 		].join(" "),
 	};
 }

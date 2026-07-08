@@ -65,14 +65,16 @@ On session start the extension resolves the Crumbs binary in this order:
 
 ## Discovery guidance
 
-Agents should use this ladder for code discovery:
+Agents should use this ladder for discovery (code, markdown docs, sessions):
 
 1. Index the current repository if needed with `code_crumbs_index`.
 2. Start with `code_crumbs_get_architecture`.
 3. Search symbols or code with `code_crumbs_search_graph` or `code_crumbs_search_unified`.
-4. Trace callers, callees, or data flow with `code_crumbs_trace_path`.
-5. Read exact symbol source with `code_crumbs_get_code_snippet` (or raw `read` from node `file_path` + `start_line`/`end_line`).
-6. Use exact file reads or shell inspection for configs, text files, non-code assets, graph-insufficient cases, and follow-up verification.
+4. **Search markdown docs** (README/ROADMAP/PLAN/TASKS/`.md`) with `code_crumbs_search_unified` (`target=documents`, `mode=lexical` for keywords/identifiers or `hybrid` for concepts) — do NOT `grep`/`read` whole docs to find a section.
+5. **Search past sessions** with `code_crumbs_search_sessions`.
+6. Trace callers, callees, or data flow with `code_crumbs_trace_path`.
+7. Read exact symbol source with `code_crumbs_get_code_snippet` (or raw `read` from node `file_path` + `start_line`/`end_line`).
+8. Use exact file reads or shell inspection for raw configs, non-markdown assets, graph-insufficient cases, and follow-up verification.
 
 Crumbs-exclusive capabilities beyond the baseline ladder:
 

@@ -1,22 +1,26 @@
 ---
 name: crumbs-mcp
-description: "Use the codebase knowledge graph for structural code queries. Triggers on: explore the codebase, understand the architecture, what functions exist, show me the structure, who calls this function, what does X call, trace the call chain, find callers of, show dependencies, impact analysis, dead code, unused functions, high fan-out, refactor candidates, code quality audit, graph query syntax, Cypher query examples, edge types, how to use code_crumbs_search_graph. Ex-codebase-memory users: search_graph/trace_path/query_graph/get_architecture/get_code_snippet map directly to the old codebase_memory_* names (verb-first); search_unified is the text/semantic/hybrid search."
+description: "Use the crumbs knowledge substrate for ALL discovery — code graph + markdown docs + sessions + anchored context. Triggers on: explore the codebase, understand the architecture, what functions exist, show me the structure, who calls this function, what does X call, trace the call chain, find callers of, show dependencies, impact analysis, dead code, unused functions, high fan-out, refactor candidates, code quality audit, graph query syntax, Cypher query examples, edge types, how to use code_crumbs_search_graph. ALSO: find a section in README/ROADMAP/PLAN/TASKS, search markdown docs, search past sessions, what did we discuss, find in docs. Ex-codebase-memory users: search_graph/trace_path/query_graph/get_architecture/get_code_snippet map directly to the old codebase_memory_* names (verb-first); search_unified is the text/semantic/hybrid search over docs+code; search_sessions searches past conversations."
 ---
 
-# Crumbs MCP — Knowledge Graph Tools
+# Crumbs MCP — Knowledge & Memory Tools
 
-**Default to these tools for any code discovery.** Do NOT reflexively `grep`/`rg`/`read` source files — they are fallbacks for non-code text, reading a file you are about to edit, or graph-insufficient cases only. Graph tools return precise structural results in ~500 tokens vs ~80K for a grep flood, and carry call-graph facts (callers, callees, edges, ranges) that grep cannot.
+**Default for ALL discovery — code + markdown docs + sessions + memory.** Not just code. Crumbs is a memory substrate: code graph + markdown doc index + session index + anchored context. Do NOT reflexively `grep`/`rg`/`read` source files or docs — they are fallbacks for raw configs, reading a file you are about to edit, or graph-insufficient cases only. Crumbs tools return precise structural results in ~500 tokens vs ~80K for a grep flood, and carry facts (callers, callees, edges, ranges, doc relevance) that grep cannot.
 
 ## Anti-patterns (WRONG → RIGHT)
 - `rg "fn parse"` → `code_crumbs_search_graph(name_pattern="parse", label="Function")` + `code_crumbs_get_code_snippet`
 - `grep -r callers` → `code_crumbs_trace_path(direction="inbound")`
 - `read` whole file to find one fn → `code_crumbs_get_code_snippet(qualified_name=...)` (single call, returns file+range+source)
 - `ls crates/*/src` → `code_crumbs_get_architecture`
+- `grep README.md` / `read` whole doc to find a section → `code_crumbs_search_unified(target="documents", mode="lexical")`
+- `read` ROADMAP/PLAN/TASKS to find a feature → `code_crumbs_search_unified(target="documents")`
 
 ## Quick Decision Matrix
 
 | Question | Tool call |
 |----------|----------|
+| **Markdown docs** (README/ROADMAP/PLAN/TASKS/`.md`) | `code_crumbs_search_unified(target="documents")` — lexical for keywords, hybrid for concepts |
+| **Past conversations** / "what did we discuss" | `code_crumbs_search_sessions` |
 | Who calls X? | `code_crumbs_trace_path(direction="inbound")` |
 | What does X call? | `code_crumbs_trace_path(direction="outbound")` |
 | Full call context | `code_crumbs_trace_path(direction="both")` |
@@ -26,8 +30,7 @@ description: "Use the codebase knowledge graph for structural code queries. Trig
 | Cross-service edges | `code_crumbs_query_graph` with Cypher |
 | Source grep + graph metadata | `code_crumbs_search_code(pattern="...")` |
 | Risk-classified trace | `code_crumbs_trace_path(risk_labels=true)` |
-| Text/semantic search | `code_crumbs_search_unified` |
-| Pi session message chunks | `code_crumbs_search_sessions` (snippet + message pointer + token estimate) |
+| Text/semantic search over docs+code | `code_crumbs_search_unified(target="all")` |
 | Push one session message | `code_crumbs_session_ingest` |
 | List projects | `code_crumbs_list_projects` |
 | Project readiness | `code_crumbs_project_status` |

@@ -40,7 +40,7 @@ describe("crumbs discovery guidance", () => {
 	});
 
 	it("exports a session reminder pointing at crumbs MCP tools", () => {
-		expect(CRUMBS_SESSION_REMINDER).toContain("CRITICAL - Crumbs Code Discovery Protocol");
+		expect(CRUMBS_SESSION_REMINDER).toContain("CRITICAL - Crumbs Discovery Protocol");
 		expect(CRUMBS_SESSION_REMINDER).toContain("code_crumbs_search_graph");
 		expect(CRUMBS_SESSION_REMINDER).toContain("code_crumbs_index");
 		expect(CRUMBS_SESSION_REMINDER).not.toMatch(/crumbs_graph_search/);
