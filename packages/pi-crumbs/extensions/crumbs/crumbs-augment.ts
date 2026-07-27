@@ -7,7 +7,6 @@ import { getCrumbsBin } from "./bin-resolve.js";
 const execFileAsync = promisify(execFile);
 const AUGMENT_LIMIT = 5;
 const AUGMENT_TIMEOUT_MS = 300;
-const MAX_WALKUP = 8;
 
 export interface PendingGraphAugment {
 	token: string;
@@ -25,33 +24,32 @@ export function getPendingGraphAugment(event: { toolName?: unknown; input?: unkn
 export async function buildGraphAugmentation(cwd: string, pending: PendingGraphAugment): Promise<string | undefined> {
 	const bin = getCrumbsBin();
 	if (!bin) return undefined;
-	for (const project of projectCandidates(cwd)) {
-		const result = await searchGraph(bin, cwd, project, pending.token);
-		if (result === "project-error") continue;
-		if (!result?.results?.length) return undefined;
-		return formatAugmentation(pending.token, result.results);
-	}
-	return undefined;
+	const result = await searchGraph(bin, cwd, pending.token);
+	return result?.results?.length ? formatAugmentation(pending.token, result.results) : undefined;
 }
 
 export function prependGraphAugmentation<T extends unknown[]>(content: T, augmentation: string): T {
 	return [{ type: "text", text: augmentation }, ...content] as T;
 }
 
-async function searchGraph(bin: string, cwd: string, project: string, token: string): Promise<SearchGraphResult | "project-error" | undefined> {
+/* Project resolution lives in the binary: `ProjectResolver` (crumbs
+ * crates/crumbs/src/api/project_resolve.rs) accepts a repo-root path, a
+ * [projects.*] config name, or a registry slug, and does workspace-root
+ * discovery for the path form. Passing the cwd path is one call; guessing slug
+ * and basename candidates here was up to 9 sequential process spawns inside a
+ * 300ms budget, nearly all of them misses. */
+async function searchGraph(bin: string, cwd: string, token: string): Promise<SearchGraphResult | undefined> {
 	try {
-		const { stdout, stderr } = await execFileAsync(bin, ["graph", "--project", project, "search", "--name-pattern", `.*${token}.*`, "--limit", String(AUGMENT_LIMIT), "--format", "json"], {
+		const { stdout, stderr } = await execFileAsync(bin, ["graph", "--project", path.resolve(cwd), "search", "--name-pattern", `.*${token}.*`, "--limit", String(AUGMENT_LIMIT), "--format", "json"], {
 			cwd,
 			timeout: AUGMENT_TIMEOUT_MS,
 			maxBuffer: 256 * 1024,
 		});
 		const text = stdout.trim() || stderr.trim();
 		if (!text) return undefined;
-		if (/project .*not found|not indexed|unknown project|no such project/i.test(text)) return "project-error";
 		return parseSearchGraphOutput(text);
-	} catch (error) {
-		const text = error instanceof Error ? error.message : String(error);
-		return /project .*not found|not indexed|unknown project|no such project/i.test(text) ? "project-error" : undefined;
+	} catch {
+		return undefined;
 	}
 }
 
@@ -80,25 +78,3 @@ function stringProp(value: unknown): string | undefined {
 	return typeof value === "string" && value.trim() ? value : undefined;
 }
 
-function projectCandidates(cwd: string): string[] {
-	const candidates: string[] = [];
-	let current = path.resolve(cwd);
-	for (let i = 0; i < MAX_WALKUP; i++) {
-		addCandidate(candidates, path.basename(current));
-		const parent = path.dirname(current);
-		if (parent === current) break;
-		current = parent;
-	}
-	addCandidate(candidates, projectNameFromCwd(cwd));
-	return candidates;
-}
-
-function addCandidate(candidates: string[], value: string): void {
-	const normalized = value.trim();
-	if (normalized && !candidates.includes(normalized)) candidates.push(normalized);
-}
-
-function projectNameFromCwd(cwd: string): string {
-	const normalized = path.resolve(cwd).replace(/^[A-Za-z]:/, "").replace(/^[/\\]+/, "");
-	return normalized.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-}
