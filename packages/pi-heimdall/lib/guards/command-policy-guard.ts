@@ -35,6 +35,12 @@ const SHELL_COMMANDS = new Set([
 
 const SHELL_PREFIX_TOKENS = new Set(["{", "("]);
 
+// control keywords that start a command list at a segment head:
+// `for i in x; do cargo test; done`, `if true; then cargo test; fi`, `! cmd`
+const SHELL_KEYWORD_PREFIXES = new Set([
+	"if", "while", "until", "do", "then", "else", "elif", "!",
+]);
+
 const REDIRECT_OPS = new Set([">", ">>", "<", ">&", "<&", ">|", "&>", "&>>", "<<<"]);
 // redirects that send output elsewhere — bare policy blocks on these (not input `<`/`<<<`/`<&`)
 const OUTPUT_REDIRECT_OPS = new Set([">", ">>", ">&", ">|", "&>", "&>>"]);
@@ -140,7 +146,7 @@ function matchSegment(
 	}
 
 	while (pos < tokens.length) {
-		if (SHELL_PREFIX_TOKENS.has(tokens[pos]!)) {
+		if (SHELL_PREFIX_TOKENS.has(tokens[pos]!) || SHELL_KEYWORD_PREFIXES.has(tokens[pos]!)) {
 			pos++;
 			continue;
 		}
@@ -203,8 +209,161 @@ function matchSegment(
 	return null;
 }
 
+/**
+ * shell-quote treats newlines as plain whitespace and lets `#` comments run
+ * to the end of the string. Multi-line commands then collapse into one
+ * segment and hide a blocked command behind a harmless prefix
+ * (`cd /x\ncargo test`), and anything after a comment disappears entirely.
+ * Bash instead treats unquoted newlines as command separators and comments
+ * as line-scoped. Rewrite the command to match: separator newlines become
+ * `;`, comments are cut at their line, and quoted newlines and heredoc
+ * bodies pass through untouched.
+ */
+export function splitShellLines(command: string): string {
+	const META_CHARS = " \t|&;()<>";
+	let out = "";
+	let i = 0;
+	const n = command.length;
+	// heredocs opened on the current line; bodies start at the next newline
+	const heredocs: { delim: string; stripTabs: boolean }[] = [];
+	let inBody = false;
+
+	while (i < n) {
+		const c = command[i]!;
+
+		if (inBody) {
+			// heredoc body is data, not commands — pass lines through verbatim;
+			// when the last heredoc closes, end the command with `;` so tokens
+			// after the delimiter start a fresh segment
+			const eol = command.indexOf("\n", i);
+			const line = eol === -1 ? command.slice(i) : command.slice(i, eol);
+			const { delim, stripTabs } = heredocs[0]!;
+			const candidate = stripTabs ? line.replace(/^\t+/, "") : line;
+			out += line;
+			if (eol !== -1) {
+				if (candidate === delim) {
+					heredocs.shift();
+					if (heredocs.length === 0) {
+						inBody = false;
+						out += ";";
+					} else {
+						out += "\n";
+					}
+				} else {
+					out += "\n";
+				}
+			}
+			i = eol === -1 ? n : eol + 1;
+			continue;
+		}
+
+		if (c === "\\") {
+			// keep escape pair; also covers line continuation (backslash + newline)
+			out += command.slice(i, i + 2);
+			i += 2;
+			continue;
+		}
+
+		if (c === "'") {
+			const end = command.indexOf("'", i + 1);
+			const stop = end === -1 ? n : end + 1;
+			out += command.slice(i, stop);
+			i = stop;
+			continue;
+		}
+
+		if (c === '"') {
+			let j = i + 1;
+			while (j < n && command[j] !== '"') {
+				if (command[j] === "\\") j++;
+				j++;
+			}
+			if (j < n) j++; // include closing quote
+			out += command.slice(i, j);
+			i = j;
+			continue;
+		}
+
+		if (c === "#") {
+			const prev = i === 0 ? "" : command[i - 1]!;
+			if (prev === "" || prev === "\n" || META_CHARS.includes(prev)) {
+				// line comment: drop it; the newline still ends the command
+				const eol = command.indexOf("\n", i);
+				i = eol === -1 ? n : eol;
+				continue;
+			}
+			// mid-word `#` (e.g. `x#y`, `$#`): quote it so shell-quote does
+			// not start a comment here
+			out += "'#'";
+			i++;
+			continue;
+		}
+
+		if (c === "<" && command[i + 1] === "<") {
+			if (command[i + 2] === "<") {
+				out += "<<<";
+				i += 3;
+				continue;
+			}
+			out += "<<";
+			i += 2;
+			let stripTabs = false;
+			if (command[i] === "-") {
+				stripTabs = true;
+				out += "-";
+				i++;
+			}
+			while (i < n && (command[i] === " " || command[i] === "\t")) {
+				out += command[i];
+				i++;
+			}
+			let delim = "";
+			if (command[i] === "'" || command[i] === '"') {
+				const q = command[i];
+				out += q;
+				i++;
+				while (i < n && command[i] !== q) {
+					delim += command[i];
+					out += command[i];
+					i++;
+				}
+				if (i < n) {
+					out += command[i];
+					i++;
+				}
+			} else {
+				while (i < n) {
+					const d = command[i]!;
+					if (d === "\n" || d === "\\" || META_CHARS.includes(d)) break;
+					delim += d;
+					out += d;
+					i++;
+				}
+			}
+			if (delim.length > 0) heredocs.push({ delim, stripTabs });
+			continue;
+		}
+
+		if (c === "\n") {
+			if (heredocs.length > 0) {
+				out += "\n";
+				inBody = true;
+			} else {
+				out += ";";
+			}
+			i++;
+			continue;
+		}
+
+		out += c;
+		i++;
+	}
+
+	return out;
+}
+
 export function checkCommand(command: string, policies: CommandPolicy[], nonBare = false): CommandPolicy | null {
-	const parsed = shellParse(command);
+	const parsed = shellParse(splitShellLines(command));
 	const segments = splitCommandSegments(parsed);
 	const check = (cmd: string, inheritNonBare: boolean): CommandPolicy | null => checkCommand(cmd, policies, inheritNonBare);
 

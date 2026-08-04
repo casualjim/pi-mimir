@@ -431,6 +431,12 @@ The guard handles several patterns a motivated LLM might try:
   stripped during tokenization.
 - **Heredocs**: `cat <<EOF\ncargo test\nEOF` — heredoc bodies are excluded
   from matching to avoid false positives.
+- **Multiline scripts**: `cd /x\ncargo test` — newlines outside quotes and
+  heredoc bodies are command separators, so each line is checked on its own.
+- **Line-scoped comments**: `echo hi # note\ncargo test` — comments end at the
+  newline instead of hiding the rest of the script.
+- **Control keywords**: `for i in x; do cargo test; done`, `if true; then
+  cargo test; fi`, `! cargo test` — keywords at a segment head are skipped.
 
 ### Known acceptable gaps
 

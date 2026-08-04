@@ -1,230 +1,10 @@
 /**
  * Test harness for command-policy-guard.
- * Run with: npx tsx tests/command-policy-guard.test.ts
+ * Run with: bun tests/command-policy-guard.test.ts
  */
 
-import { parse as shellParse } from "shell-quote";
-
-// ── Inline copies of extension logic for standalone testing ──
-
-interface CommandPolicy {
-	name: string;
-	blocked: string[];
-	message: string;
-	bare?: boolean;
-}
-
-type ParseEntry = string | { op: string } | { op: "glob"; pattern: string } | { comment: string };
-
-const COMMAND_SEPARATORS = new Set([";", "&&", "||", "|", "(", ")"]);
-
-const WRAPPER_COMMANDS: readonly string[][] = [
-	["sudo"], ["doas"], ["pkexec"], ["env"], ["exec"], ["nice"], ["ionice"], ["chrt"],
-	["taskset"], ["command"], ["time"], ["timeout"], ["strace"], ["gdb"], ["lldb"],
-	["valgrind"], ["eval"],
-	["mise", "exec"], ["mise", "x"],
-];
-
-function matchWrapperAt(tokens: string[], pos: number): number {
-	let best = 0;
-	for (const seq of WRAPPER_COMMANDS) {
-		if (seq.length <= best) continue;
-		if (seq.every((t, i) => tokens[pos + i] === t)) best = seq.length;
-	}
-	return best;
-}
-
-const SHELL_COMMANDS = new Set([
-	"bash", "sh", "zsh", "dash", "ksh", "ash", "fish",
-]);
-
-const SHELL_PREFIX_TOKENS = new Set(["{", "("]);
-
-const REDIRECT_OPS = new Set([">", ">>", "<", ">&", "<&", ">|", "&>", "&>>", "<<<"]);
-const OUTPUT_REDIRECT_OPS = new Set([">", ">>", ">&", ">|", "&>", "&>>"]);
-
-function tokenBasename(token: string): string {
-	if (!token.includes("/")) return token;
-	const lastSlash = token.lastIndexOf("/");
-	return lastSlash >= 0 ? token.substring(lastSlash + 1) : token;
-}
-
-function isStringToken(t: ParseEntry): t is string {
-	return typeof t === "string";
-}
-
-interface Segment {
-	tokens: string[];
-	pipedOut: boolean;
-	outputRedirected: boolean;
-}
-
-function isOp(t: ParseEntry, op: string): boolean {
-	return typeof t === "object" && "op" in t && t.op === op;
-}
-
-function splitCommandSegments(tokens: ParseEntry[]): Segment[] {
-	const segments: Segment[] = [];
-	let current: string[] = [];
-	let outputRedirected = false;
-	let pipedOut = false;
-	let heredocDelim: string | null = null;
-
-	const close = () => {
-		if (current.length > 0) {
-			segments.push({ tokens: current, pipedOut, outputRedirected });
-		}
-		current = [];
-		outputRedirected = false;
-		pipedOut = false;
-	};
-
-	for (let i = 0; i < tokens.length; i++) {
-		const t = tokens[i]!;
-
-		if (heredocDelim !== null) {
-			if (isStringToken(t) && t === heredocDelim) {
-				heredocDelim = null;
-			}
-			continue;
-		}
-
-		if (
-			isOp(t, "<") &&
-			i + 1 < tokens.length &&
-			isOp(tokens[i + 1]!, "<")
-		) {
-			i++;
-			// heredoc — input side, not output
-			if (i + 1 < tokens.length && isStringToken(tokens[i + 1]!)) {
-				i++;
-				heredocDelim = (tokens[i]! as string).replace(/^['"]|['"]$/g, "");
-			}
-			continue;
-		}
-
-		if (typeof t === "object" && "op" in t && COMMAND_SEPARATORS.has(t.op)) {
-			if (t.op === "|") {
-				pipedOut = true;
-				close();
-			} else {
-				close();
-			}
-			continue;
-		}
-
-		if (typeof t === "object" && "op" in t && REDIRECT_OPS.has(t.op)) {
-			if (OUTPUT_REDIRECT_OPS.has(t.op)) outputRedirected = true;
-			if (i + 1 < tokens.length && isStringToken(tokens[i + 1]!)) {
-				i++;
-			}
-			continue;
-		}
-
-		if (isStringToken(t)) {
-			current.push(t);
-		}
-	}
-
-	close();
-
-	return segments;
-}
-
-function matchSegment(
-	segment: Segment,
-	policies: CommandPolicy[],
-	checkRecursive: (cmd: string, nonBare: boolean) => CommandPolicy | null,
-	inheritedNonBare: boolean,
-): CommandPolicy | null {
-	const tokens = segment.tokens;
-	const segmentNonBare = segment.pipedOut || segment.outputRedirected || inheritedNonBare;
-	let pos = 0;
-
-	while (pos < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[pos]!)) {
-		pos++;
-	}
-
-	while (pos < tokens.length) {
-		if (SHELL_PREFIX_TOKENS.has(tokens[pos]!)) {
-			pos++;
-			continue;
-		}
-		const wrapperLen = matchWrapperAt(tokens, pos);
-		if (wrapperLen > 0) {
-			pos += wrapperLen;
-			if (tokens[pos] === "--") pos++;
-			continue;
-		}
-		break;
-	}
-
-	if (
-		pos + 2 < tokens.length &&
-		SHELL_COMMANDS.has(tokens[pos]!) &&
-		tokens[pos + 1] === "-c" &&
-		tokens[pos + 2] !== undefined
-	) {
-		const cmdString = tokens[pos + 2]!;
-		const subResult = checkRecursive(cmdString, segmentNonBare);
-		if (subResult) return subResult;
-	}
-
-	const effective = tokens.slice(pos);
-
-	for (const policy of policies) {
-		const bl = policy.blocked;
-		if (bl.length === 0 || effective.length < bl.length) continue;
-
-		// bare policies: blocked tokens may appear anywhere in the segment
-		// (e.g. after wrapper args like `timeout 900`); what matters is only
-		// what follows — pipe/redirect flips segmentNonBare and blocks.
-		// non-bare policies keep prefix match to avoid matching blocked tokens
-		// when they appear as data (echo "cargo test", grep, git commit -m, ...).
-		const sEnd = policy.bare ? effective.length - bl.length : 0;
-		let matched = false;
-		for (let s = 0; s <= sEnd && !matched; s++) {
-			let ok = true;
-			for (let i = 0; i < bl.length; i++) {
-				const got = effective[s + i]!;
-				const want = bl[i]!;
-				if (i === 0) {
-					if (got !== want && tokenBasename(got) !== want) {
-						ok = false;
-						break;
-					}
-				} else if (got !== want) {
-					ok = false;
-					break;
-				}
-			}
-			if (ok) matched = true;
-		}
-
-		if (!matched) continue;
-		if (policy.bare && !segmentNonBare) continue;
-		return policy;
-	}
-
-	return null;
-}
-
-function checkCommand(
-	command: string,
-	policies: CommandPolicy[],
-	nonBare = false,
-): CommandPolicy | null {
-	const parsed: ParseEntry[] = shellParse(command);
-	const segments = splitCommandSegments(parsed);
-	const check = (cmd: string, inheritNonBare: boolean): CommandPolicy | null => checkCommand(cmd, policies, inheritNonBare);
-
-	for (const segment of segments) {
-		const policy = matchSegment(segment, policies, check, nonBare);
-		if (policy) return policy;
-	}
-
-	return null;
-}
+import { checkCommand } from "../lib/guards/command-policy-guard.js";
+import type { CommandPolicy } from "../lib/types.js";
 
 // ── Test data ──
 
@@ -265,9 +45,37 @@ const cases: TestCase[] = [
 	{ cmd: "echo foo && cargo test", shouldBlock: true, note: "after &&" },
 	{ cmd: "echo foo || cargo test", shouldBlock: true, note: "after ||" },
 	{ cmd: "echo foo | cargo test", shouldBlock: true, note: "after pipe" },
-	// shell-parse flattens bare newlines into whitespace.
-	// `echo foo\ncargo test` → ["echo","foo","cargo","test"] → prefix echo, no match.
-	{ cmd: "echo foo\ncargo test", shouldBlock: false, note: "newline flattened (acceptable gap)" },
+
+	// ── Newlines are command separators ──
+	{ cmd: "echo foo\ncargo test", shouldBlock: true, note: "newline separates commands" },
+	{ cmd: "cd /repo/base/root\ncargo test -p some-project", shouldBlock: true, note: "newline after cd (reported bypass)" },
+	{ cmd: "echo hi &&\ncargo test", shouldBlock: true, note: "newline after && continuation" },
+	{ cmd: "cargo test\necho done", shouldBlock: true, note: "blocked command on first line" },
+	{ cmd: "cargo\ntest", shouldBlock: false, note: "newline splits the sequence: `cargo` then `test` builtin, cargo test never runs" },
+
+	// ── Comments are line-scoped ──
+	{ cmd: "echo hi # note\ncargo test", shouldBlock: true, note: "command hidden after a comment line" },
+	{ cmd: "echo hi\ncargo test # trailing comment", shouldBlock: true, note: "blocked command with trailing comment" },
+	{ cmd: "# cargo test\necho hi", shouldBlock: false, note: "blocked tokens inside a full-line comment" },
+	{ cmd: "echo $#\ncargo test", shouldBlock: true, note: "mid-word # ($#) does not start a comment" },
+
+	// ── Shell control keywords ──
+	{ cmd: "for i in 1; do cargo test; done", shouldBlock: true, note: "for loop body on one line" },
+	{ cmd: "for i in 1\ndo\n  cargo test\ndone", shouldBlock: true, note: "multiline for loop" },
+	{ cmd: "if true; then cargo test; fi", shouldBlock: true, note: "if-then body" },
+	{ cmd: "! cargo test", shouldBlock: true, note: "negation prefix" },
+	{ cmd: "while false; do cargo test; done", shouldBlock: true, note: "while loop body" },
+
+	// ── Quoted newlines stay data ──
+	{ cmd: "echo \"foo\ncargo test\"", shouldBlock: false, note: "newline inside double quotes" },
+	{ cmd: "printf 'cargo test\n'", shouldBlock: false, note: "newline inside single quotes" },
+	{ cmd: "cd /x \\\n&& cargo test", shouldBlock: true, note: "line continuation then &&" },
+
+	// ── Heredoc bodies stay data ──
+	{ cmd: "cat <<EOF\ncargo test\nEOF", shouldBlock: false, note: "heredoc content" },
+	{ cmd: "cat > script.sh <<'EOF'\ncargo test\nEOF", shouldBlock: false, note: "heredoc to file" },
+	{ cmd: "cat <<EOF\ncargo test\nEOF\ncargo test", shouldBlock: true, note: "blocked command after heredoc ends" },
+	{ cmd: "cat <<-EOF\n\tcargo test\n\tEOF", shouldBlock: false, note: "<<- heredoc with tab indent" },
 
 	// ── Redirections ──
 	{ cmd: "cargo test 2>&1", shouldBlock: true, note: "with stderr redirect" },
@@ -319,6 +127,11 @@ const cases: TestCase[] = [
 		shouldBlock: true,
 		note: "bash -c with compound command",
 	},
+	{
+		cmd: "bash -c \"cd /x\ncargo test\"",
+		shouldBlock: true,
+		note: "newline bypass inside bash -c string",
+	},
 
 	// ── Path-qualified commands (basename matching) ──
 	{
@@ -364,18 +177,6 @@ const cases: TestCase[] = [
 		cmd: "c'a'rgo test",
 		shouldBlock: true,
 		note: "single-quoted char spliced",
-	},
-
-	// ── Heredoc (should NOT block) ──
-	{
-		cmd: "cat <<EOF\ncargo test\nEOF",
-		shouldBlock: false,
-		note: "heredoc content",
-	},
-	{
-		cmd: "cat > script.sh <<'EOF'\ncargo test\nEOF",
-		shouldBlock: false,
-		note: "heredoc to file",
 	},
 
 	// ── Not commands (should NOT block) ──
@@ -482,6 +283,8 @@ const cases: TestCase[] = [
 	{ cmd: "kubectl apply -f foo.yaml < input.txt", shouldBlock: false, note: "bare policy: input redirect allowed" },
 	{ cmd: "kubectl apply -f foo.yaml; echo hi", shouldBlock: false, note: "bare policy: semicolon keeps bare" },
 	{ cmd: "kubectl apply -f foo.yaml && echo hi", shouldBlock: false, note: "bare policy: && keeps bare" },
+	{ cmd: "kubectl apply -f foo.yaml\necho hi", shouldBlock: false, note: "bare policy: newline keeps bare" },
+	{ cmd: "kubectl apply -f foo.yaml | tee\necho hi", shouldBlock: true, note: "bare policy: pipe on first line blocked" },
 	{ cmd: "bash -c 'kubectl apply -f foo.yaml | tee'", shouldBlock: true, note: "bare policy: pipe inside bash -c blocked" },
 	{ cmd: "bash -c 'kubectl apply -f foo.yaml' | tee", shouldBlock: true, note: "bare policy: outer pipe via bash -c blocked" },
 
@@ -518,10 +321,6 @@ const cases: TestCase[] = [
 		shouldBlock: false,
 		note: "nix (indirect, acceptable gap)",
 	},
-
-	// ── newline = separate commands ──
-	// shell-parse flattens bare newlines, so cargo\ntest becomes ["cargo","test"] → matches.
-	{ cmd: "cargo\ntest", shouldBlock: true, note: "newline flattened into one token stream" },
 ];
 
 // ── Runner ──
