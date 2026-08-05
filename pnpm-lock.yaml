@@ -107,25 +107,6 @@ importers:
         specifier: ^4.1.8
         version: 4.1.8(@types/node@22.19.19)(vite@8.0.16(@types/node@22.19.19)(jiti@2.7.0)(yaml@2.9.0))
 
-  packages/pi-headroom:
-    dependencies:
-      '@earendil-works/pi-ai':
-        specifier: '*'
-        version: 0.78.0(ws@8.21.0)(zod@4.4.3)
-      '@earendil-works/pi-tui':
-        specifier: '*'
-        version: 0.78.0
-    devDependencies:
-      '@earendil-works/pi-coding-agent':
-        specifier: ^0.78.0
-        version: 0.78.0(ws@8.21.0)(zod@4.4.3)
-      '@types/node':
-        specifier: ^22.19.19
-        version: 22.19.19
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
   packages/pi-heimdall:
     dependencies:
       '@casualjim/heimdall-sandbox':
@@ -165,28 +146,6 @@ importers:
       vitest:
         specifier: ^4.1.8
         version: 4.1.8(@types/node@22.19.19)(vite@8.0.16(@types/node@22.19.19)(jiti@2.7.0)(yaml@2.9.0))
-
-  packages/pi-openspec:
-    dependencies:
-      '@earendil-works/pi-tui':
-        specifier: ^0.78.0
-        version: 0.78.0
-    devDependencies:
-      '@earendil-works/pi-coding-agent':
-        specifier: ^0.78.0
-        version: 0.78.0(ws@8.21.0)(zod@4.4.3)
-      '@types/node':
-        specifier: ^22.19.19
-        version: 22.19.19
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.8
-        version: 4.1.8(@types/node@22.19.19)(vite@8.0.16(@types/node@22.19.19)(jiti@2.7.0)(yaml@2.9.0))
-      yaml:
-        specifier: ^2.9.0
-        version: 2.9.0
 
 packages:
 

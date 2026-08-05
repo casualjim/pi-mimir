@@ -1,6 +1,6 @@
 {
   "name": "@casualjim/pi-heimdall",
-  "version": "0.2.11",
+  "version": "0.3.0",
   "description": "Guardian extension for pi — security guards that block accidental secret exposure, enforce command policies, protect .env files, and sandbox bash commands",
   "keywords": [
     "pi-package",
