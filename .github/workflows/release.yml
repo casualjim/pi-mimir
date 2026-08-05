@@ -80,8 +80,21 @@ jobs:
 
       - name: Bump versions for next publish
         run: |
-          # npm version keeps package.json version-bump semantics; pnpm owns workspace install/lockfile.
-          pnpm -r exec npm version ${{ steps.bump.outputs.level }} --no-git-tag-version
+          # Deterministic bump; npm version is unreliable on CI (npm regression).
+          node -e '
+            const fs = require("fs");
+            const path = require("path");
+            const level = process.argv[1] === "minor" ? "minor" : "patch";
+            for (const d of fs.readdirSync("packages")) {
+              const f = path.join("packages", d, "package.json");
+              if (!fs.existsSync(f)) continue;
+              const pkg = JSON.parse(fs.readFileSync(f, "utf8"));
+              if (!pkg.version) continue;
+              const [maj, min, pat] = pkg.version.split(".").map(Number);
+              pkg.version = level === "minor" ? `${maj}.${min + 1}.0` : `${maj}.${min}.${pat + 1}`;
+              fs.writeFileSync(f, JSON.stringify(pkg, null, 2) + "\n");
+            }
+          ' "${{ steps.bump.outputs.level }}"
           pnpm install --lockfile-only --ignore-scripts
 
       - name: Commit version bump
