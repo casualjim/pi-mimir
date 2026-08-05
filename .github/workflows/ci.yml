@@ -22,9 +22,7 @@ jobs:
         with:
           node-version: "24"
           cache: pnpm
-
-      - name: Enable pnpm
-        run: corepack enable
+          corepack: true
 
       - name: Install OpenSpec CLI
         run: npm install --global @fission-ai/openspec@1.4.1
