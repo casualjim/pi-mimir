@@ -17,3 +17,8 @@ allowBuilds:
   '@google/genai': false
   codebase-memory-mcp: false
   protobufjs: false
+minimumReleaseAgeExclude:
+  - '@casualjim/heimdall-sandbox-darwin-arm64@0.1.44'
+  - '@casualjim/heimdall-sandbox-linux-arm64@0.1.44'
+  - '@casualjim/heimdall-sandbox-linux-x64@0.1.44'
+  - '@casualjim/heimdall-sandbox@0.1.44'
