@@ -1,5 +1,9 @@
 packages:
   - "packages/*"
+  - "!packages/pi-grill-me"
+  - "!packages/pi-headroom"
+  - "!packages/pi-openspec"
+  - "!packages/pi-review"
 overrides:
   '@aws-sdk/core': 3.974.16
   '@aws-sdk/credential-provider-env': 3.972.42

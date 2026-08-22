@@ -7,7 +7,8 @@
  */
 
 import type { StopReason, Usage } from "@earendil-works/pi-ai";
-import { completeSimple, type Message, type ThinkingLevel } from "@earendil-works/pi-ai";
+import type { Message, ThinkingLevel } from "@earendil-works/pi-ai";
+import { completeSimple } from "@earendil-works/pi-ai/compat";
 import {
 	type AgentToolResult,
 	type AgentToolUpdateCallback,
