@@ -71,6 +71,7 @@ jobs:
           publish_if_missing @casualjim/pi-caveman packages/pi-caveman
           publish_if_missing @casualjim/pi-codebase-memory packages/pi-codebase-memory
           publish_if_missing @casualjim/pi-heimdall packages/pi-heimdall
+publish_if_missing @casualjim/pi-pstack packages/pi-pstack
 
       - name: Determine bump level
         id: bump
