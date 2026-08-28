@@ -1,6 +1,6 @@
 {
   "name": "@casualjim/pi-pstack",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Pi-native fork of pstack skills, Poteto Mode, and bundled agents. Delegates through pi-subagents instead of its own subagent tool.",
   "license": "MIT",
   "author": "casualjim",
