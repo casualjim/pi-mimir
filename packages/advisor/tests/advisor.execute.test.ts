@@ -11,6 +11,8 @@ vi.mock("@earendil-works/pi-ai", async (importOriginal) => {
 	return { ...actual, completeSimple: mocks.completeSimple };
 });
 
+vi.mock("@earendil-works/pi-ai/compat", () => ({ completeSimple: mocks.completeSimple }));
+
 import { registerAdvisorTool, setAdvisorEffort, setAdvisorModel } from "../extensions/advisor/advisor";
 import { createHarness } from "./helpers/pi-harness";
 

@@ -1,5 +1,9 @@
 packages:
   - "packages/*"
+  - "!packages/pi-grill-me"
+  - "!packages/pi-headroom"
+  - "!packages/pi-openspec"
+  - "!packages/pi-review"
 overrides:
   '@aws-sdk/core': 3.974.16
   '@aws-sdk/credential-provider-env': 3.972.42
@@ -17,3 +21,8 @@ allowBuilds:
   '@google/genai': false
   codebase-memory-mcp: false
   protobufjs: false
+minimumReleaseAgeExclude:
+  - '@casualjim/heimdall-sandbox-darwin-arm64@0.2.4'
+  - '@casualjim/heimdall-sandbox-linux-arm64@0.2.4'
+  - '@casualjim/heimdall-sandbox-linux-x64@0.2.4'
+  - '@casualjim/heimdall-sandbox@0.2.4'
