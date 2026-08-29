@@ -110,8 +110,8 @@ importers:
   packages/pi-heimdall:
     dependencies:
       '@casualjim/heimdall-sandbox':
-        specifier: ^0.2.4
-        version: 0.2.4
+        specifier: ^0.2.5
+        version: 0.2.5
       ignore:
         specifier: ^7.0.5
         version: 7.0.5
@@ -280,26 +280,26 @@ packages:
     resolution: {integrity: sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==}
     engines: {node: '>=6.9.0'}
 
-  '@casualjim/heimdall-sandbox-darwin-arm64@0.2.4':
-    resolution: {integrity: sha512-V+N8DlAtNGCIez7DtMN0Y+doFk2yqO2KuRbYvc0D/xEwvwgEQAJF8ABBJGvtTl8iYUjejx3HIISdD3Oe3542yw==}
+  '@casualjim/heimdall-sandbox-darwin-arm64@0.2.5':
+    resolution: {integrity: sha512-Chtp/AuU7E/nys76HGEkc2v+HRGz3Glm4Pe9PM3G+uZ732cd52YvR4FT1/7f56AygQua5Byx+IzCu85HxtLJ0Q==}
     cpu: [arm64]
     os: [darwin]
     hasBin: true
 
-  '@casualjim/heimdall-sandbox-linux-arm64@0.2.4':
-    resolution: {integrity: sha512-mjJGVbvShLnhPtBmROJ016M3/qUX0d6Gh8oLCaeQBiTAL77/T387dCRa/S7dqQD2lgJPGZ/tBMcnhAVgHIWLlA==}
+  '@casualjim/heimdall-sandbox-linux-arm64@0.2.5':
+    resolution: {integrity: sha512-heyi5ArFq5bbaHjA/wduNvMlzKahJodsOzpCFN/PWCm8CJ695HGMVq7Qno5QuC9u2lJlNZdiiO8hJAJd53tKpA==}
     cpu: [arm64]
     os: [linux]
     hasBin: true
 
-  '@casualjim/heimdall-sandbox-linux-x64@0.2.4':
-    resolution: {integrity: sha512-EoAenHmGN53ojEzMQYqcIAna+izhxuHCxNvfIlqfD6fBOH8gT+KGMakFwgbGSRqyf7DgelLP/YsAPjwUt9OtDQ==}
+  '@casualjim/heimdall-sandbox-linux-x64@0.2.5':
+    resolution: {integrity: sha512-FYtFWTXo4+nMVa0JZKLwYx3PsU4HUdrsekQyVQvn+3UwL7FTNfFDlJV+4gwCLQHRk4ZTSVUF7Z8ZF99ZebAz+Q==}
     cpu: [x64]
     os: [linux]
     hasBin: true
 
-  '@casualjim/heimdall-sandbox@0.2.4':
-    resolution: {integrity: sha512-AcwlvAVqFOh9f+IhOcwxWQHf6kniUU9TIgB/zSeLQY6M8+hlM0Iv4H0L3Hs/QJPILMtr7P2IaTw0uQoBvDk3lg==}
+  '@casualjim/heimdall-sandbox@0.2.5':
+    resolution: {integrity: sha512-bhyIrfo2KOjRXnMHh/Fd941ItLBCfB5O0o+pZ9fUsp45x2tl2nONe94I1c8NLMF30wZ8m544V6Uc0OPNI2yyhw==}
     hasBin: true
 
   '@earendil-works/pi-agent-core@0.83.0':
@@ -1477,20 +1477,20 @@ snapshots:
 
   '@babel/runtime@7.29.7': {}
 
-  '@casualjim/heimdall-sandbox-darwin-arm64@0.2.4':
+  '@casualjim/heimdall-sandbox-darwin-arm64@0.2.5':
     optional: true
 
-  '@casualjim/heimdall-sandbox-linux-arm64@0.2.4':
+  '@casualjim/heimdall-sandbox-linux-arm64@0.2.5':
     optional: true
 
-  '@casualjim/heimdall-sandbox-linux-x64@0.2.4':
+  '@casualjim/heimdall-sandbox-linux-x64@0.2.5':
     optional: true
 
-  '@casualjim/heimdall-sandbox@0.2.4':
+  '@casualjim/heimdall-sandbox@0.2.5':
     optionalDependencies:
-      '@casualjim/heimdall-sandbox-darwin-arm64': 0.2.4
-      '@casualjim/heimdall-sandbox-linux-arm64': 0.2.4
-      '@casualjim/heimdall-sandbox-linux-x64': 0.2.4
+      '@casualjim/heimdall-sandbox-darwin-arm64': 0.2.5
+      '@casualjim/heimdall-sandbox-linux-arm64': 0.2.5
+      '@casualjim/heimdall-sandbox-linux-x64': 0.2.5
 
   '@earendil-works/pi-agent-core@0.83.0(ws@8.21.0)(zod@4.4.3)':
     dependencies:
