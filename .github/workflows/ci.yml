@@ -29,9 +29,6 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Install OpenSpec CLI
-        run: npm install --global @fission-ai/openspec@1.4.1
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 

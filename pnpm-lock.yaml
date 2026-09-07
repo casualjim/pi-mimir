@@ -22,30 +22,6 @@ importers:
 
   .: {}
 
-  packages/advisor:
-    devDependencies:
-      '@earendil-works/pi-ai':
-        specifier: ^0.83.0
-        version: 0.83.0(ws@8.21.0)(zod@4.4.3)
-      '@earendil-works/pi-coding-agent':
-        specifier: ^0.83.0
-        version: 0.83.0(ws@8.21.0)(zod@4.4.3)
-      '@earendil-works/pi-tui':
-        specifier: ^0.78.0
-        version: 0.78.0
-      '@types/node':
-        specifier: ^24.0.0
-        version: 24.13.3
-      typebox:
-        specifier: ^1.3.7
-        version: 1.3.19
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.9
-        version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.3)(vite@8.0.16(@types/node@24.13.3)(jiti@2.7.0)(yaml@2.9.0))
-
   packages/pi-cavekit:
     devDependencies:
       '@types/node':
@@ -59,25 +35,6 @@ importers:
         version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.3)(vite@8.0.16(@types/node@24.13.3)(jiti@2.7.0)(yaml@2.9.0))
 
   packages/pi-caveman:
-    devDependencies:
-      '@earendil-works/pi-coding-agent':
-        specifier: ^0.83.0
-        version: 0.83.0(ws@8.21.0)(zod@4.4.3)
-      '@types/node':
-        specifier: ^24.0.0
-        version: 24.13.3
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.9
-        version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.3)(vite@8.0.16(@types/node@24.13.3)(jiti@2.7.0)(yaml@2.9.0))
-
-  packages/pi-codebase-memory:
-    dependencies:
-      codebase-memory-mcp:
-        specifier: ^0.8.0
-        version: 0.8.1
     devDependencies:
       '@earendil-works/pi-coding-agent':
         specifier: ^0.83.0
@@ -110,8 +67,8 @@ importers:
   packages/pi-heimdall:
     dependencies:
       '@casualjim/heimdall-sandbox':
-        specifier: ^0.2.5
-        version: 0.2.5
+        specifier: ^0.2.6
+        version: 0.2.6
       ignore:
         specifier: ^7.0.5
         version: 7.0.5
@@ -280,26 +237,26 @@ packages:
     resolution: {integrity: sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==}
     engines: {node: '>=6.9.0'}
 
-  '@casualjim/heimdall-sandbox-darwin-arm64@0.2.5':
-    resolution: {integrity: sha512-Chtp/AuU7E/nys76HGEkc2v+HRGz3Glm4Pe9PM3G+uZ732cd52YvR4FT1/7f56AygQua5Byx+IzCu85HxtLJ0Q==}
+  '@casualjim/heimdall-sandbox-darwin-arm64@0.2.6':
+    resolution: {integrity: sha512-dAdATPTyWXZf8OIIjbDLq4XI06uNTNdvoh2sI/k3Xd1qJiDKNQheyR7piPxKjxeGs0+t1S80l+w4+gTo4UaXuw==}
     cpu: [arm64]
     os: [darwin]
     hasBin: true
 
-  '@casualjim/heimdall-sandbox-linux-arm64@0.2.5':
-    resolution: {integrity: sha512-heyi5ArFq5bbaHjA/wduNvMlzKahJodsOzpCFN/PWCm8CJ695HGMVq7Qno5QuC9u2lJlNZdiiO8hJAJd53tKpA==}
+  '@casualjim/heimdall-sandbox-linux-arm64@0.2.6':
+    resolution: {integrity: sha512-yq7wU3xq4s5TQR5Hii6A7ljVniUZhWPNA12FqDuVCfAL/a4xWV0Hg9HQZk02bNj042PWy7xAv67Zi98WMKphBA==}
     cpu: [arm64]
     os: [linux]
     hasBin: true
 
-  '@casualjim/heimdall-sandbox-linux-x64@0.2.5':
-    resolution: {integrity: sha512-FYtFWTXo4+nMVa0JZKLwYx3PsU4HUdrsekQyVQvn+3UwL7FTNfFDlJV+4gwCLQHRk4ZTSVUF7Z8ZF99ZebAz+Q==}
+  '@casualjim/heimdall-sandbox-linux-x64@0.2.6':
+    resolution: {integrity: sha512-e9pIr7JC0nwCiNpteSlpkxhl8nxZofxsLP0E2MS8kB0LRVNfWMth4HCwtf5x7CzpYpyoCoqzqKMgUDe43DYcoA==}
     cpu: [x64]
     os: [linux]
     hasBin: true
 
-  '@casualjim/heimdall-sandbox@0.2.5':
-    resolution: {integrity: sha512-bhyIrfo2KOjRXnMHh/Fd941ItLBCfB5O0o+pZ9fUsp45x2tl2nONe94I1c8NLMF30wZ8m544V6Uc0OPNI2yyhw==}
+  '@casualjim/heimdall-sandbox@0.2.6':
+    resolution: {integrity: sha512-wBw8896h8iV4xlPrWmbVhlBOy6bbgRMv1o5XonJhBkwj+fbEhEc8sqan4qlQrHl9Ndn7r18DXVvfUyTm6fWUCg==}
     hasBin: true
 
   '@earendil-works/pi-agent-core@0.83.0':
@@ -704,13 +661,6 @@ packages:
   chalk@5.6.2:
     resolution: {integrity: sha512-7NzBL0rN6fMUW+f7A6Io4h40qQlG+xGmtMxfbnH/K7TAtt8JQWVQK+6g0UXKMeVJoyV5EkkNsErQ8pVD3bLHbA==}
     engines: {node: ^12.17.0 || ^14.13 || >=16.0.0}
-
-  codebase-memory-mcp@0.8.1:
-    resolution: {integrity: sha512-QUUqUL1CLT1euLQ2eI6kft+tZmIoC0wZxpCt2B844znzOk90fmDZJbT8z7ec3665imshNzAg7Szdl9vYNoxn+w==}
-    engines: {node: '>=18'}
-    cpu: [x64, arm64]
-    os: [linux, darwin, win32]
-    hasBin: true
 
   commander@14.0.3:
     resolution: {integrity: sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw==}
@@ -1477,20 +1427,20 @@ snapshots:
 
   '@babel/runtime@7.29.7': {}
 
-  '@casualjim/heimdall-sandbox-darwin-arm64@0.2.5':
+  '@casualjim/heimdall-sandbox-darwin-arm64@0.2.6':
     optional: true
 
-  '@casualjim/heimdall-sandbox-linux-arm64@0.2.5':
+  '@casualjim/heimdall-sandbox-linux-arm64@0.2.6':
     optional: true
 
-  '@casualjim/heimdall-sandbox-linux-x64@0.2.5':
+  '@casualjim/heimdall-sandbox-linux-x64@0.2.6':
     optional: true
 
-  '@casualjim/heimdall-sandbox@0.2.5':
+  '@casualjim/heimdall-sandbox@0.2.6':
     optionalDependencies:
-      '@casualjim/heimdall-sandbox-darwin-arm64': 0.2.5
-      '@casualjim/heimdall-sandbox-linux-arm64': 0.2.5
-      '@casualjim/heimdall-sandbox-linux-x64': 0.2.5
+      '@casualjim/heimdall-sandbox-darwin-arm64': 0.2.6
+      '@casualjim/heimdall-sandbox-linux-arm64': 0.2.6
+      '@casualjim/heimdall-sandbox-linux-x64': 0.2.6
 
   '@earendil-works/pi-agent-core@0.83.0(ws@8.21.0)(zod@4.4.3)':
     dependencies:
@@ -1887,8 +1837,6 @@ snapshots:
   chai@6.2.2: {}
 
   chalk@5.6.2: {}
-
-  codebase-memory-mcp@0.8.1: {}
 
   commander@14.0.3: {}
 

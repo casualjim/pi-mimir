@@ -1,75 +1,38 @@
 # pi-mimir
 
-`pi-mimir` is a Pi package monorepo for review-gated OpenSpec workflows, standalone review workflows, codebase-memory discovery support, forked advisor guidance, Cavekit specs, and Caveman terse mode.
+`pi-mimir` is a Pi package monorepo for Cavekit specs, Caveman terse mode, Crumbs discovery guidance, pstack skills, and Heimdall security guards.
 
 ## Workspace packages
 
-- `packages/pi-openspec` — `@casualjim/pi-openspec`; OpenSpec extension, workflow skills, role agents, review-gated schema assets, and tests.
-- `packages/pi-review` — `@casualjim/pi-review`; Codex-style `/review` command plus whole-tree implementation review skills.
-- `packages/pi-codebase-memory` — `@casualjim/pi-codebase-memory`; standalone codebase-memory MCP setup plugin, raw-discovery reminders, and public `codebase-memory` skill.
-- `packages/pi-crumbs` — `@casualjim/pi-crumbs`; Crumbs CLI discovery guidance plugin, raw-discovery reminders, graph augmentation, and public `crumbs` skill. Assumes `crumbs` on `$PATH`; disables gracefully when missing.
-- `packages/advisor` — `@casualjim/pi-advisor`; forked child advisor extension, `/advisor` command, `advisor` tool, and packaged `advisor-child` agent.
 - `packages/pi-cavekit` — `@casualjim/pi-cavekit`; Pi prompt templates and skills for root `SPEC.md` workflows.
 - `packages/pi-caveman` — `@casualjim/pi-caveman`; terse-mode skills, Cavecrew guidance, and Pi-native Caveman extension hooks.
+- `packages/pi-crumbs` — `@casualjim/pi-crumbs`; Crumbs CLI discovery guidance plugin, raw-discovery reminders, graph augmentation, and public `crumbs` skill. Assumes `crumbs` on `$PATH`; disables gracefully when missing.
 - `packages/pi-heimdall` — `@casualjim/pi-heimdall`; guardian extension for secret exposure, command policy, `.env` protection, SOPS/Kubernetes guards, and bash sandboxing.
+- `packages/pi-pstack` — `@casualjim/pi-pstack`; pstack skills, Poteto Mode, and bundled agents delegating through pi-subagents.
 
 ## Install in Pi
 
 Install whichever packages you need:
 
 ```text
-pi install npm:@casualjim/pi-openspec
-pi install npm:@casualjim/pi-review
-pi install npm:@casualjim/pi-codebase-memory
-pi install npm:@casualjim/pi-crumbs
-pi install npm:@casualjim/pi-advisor
 pi install npm:@casualjim/pi-cavekit
 pi install npm:@casualjim/pi-caveman
+pi install npm:@casualjim/pi-crumbs
 pi install npm:@casualjim/pi-heimdall
+pi install npm:@casualjim/pi-pstack
 ```
 
 For local development from this checkout, install package paths instead:
 
 ```text
-pi install ./packages/pi-openspec
-pi install ./packages/pi-review
-pi install ./packages/pi-codebase-memory
-pi install ./packages/pi-crumbs
-pi install ./packages/advisor
 pi install ./packages/pi-cavekit
 pi install ./packages/pi-caveman
+pi install ./packages/pi-crumbs
 pi install ./packages/pi-heimdall
+pi install ./packages/pi-pstack
 ```
 
-## OpenSpec workflow
-
-After installing `@casualjim/pi-openspec` with OpenSpec CLI 1.4.1 available, initialise a target repository with:
-
-```text
-/openspec:init
-```
-
-`/openspec:init` runs `openspec init --tools pi`, sets `openspec/config.yaml` to the `review-gated` schema, syncs OpenSpec schema/project-state assets, exposes packaged skills without copying them into `.pi/skills`, syncs role agents into `~/.pi/agent/agents`, and reports whether codebase-memory tools are active.
-
-Primary skill entrypoints:
-
-- `plan` — compose generated proposal/spec/design/task behaviour with one holistic planning review.
-- `implement` — apply an implementation-ready OpenSpec change, verify it, and stop before archive. Implementation review is separate and explicit.
-- `review-plan` — run a standalone planning review over existing planning artifacts.
-
-For implementation review, install `@casualjim/pi-review` and run `review-implementation` or `/review` as needed.
-
-`@casualjim/pi-openspec` does not commit, push, create pull requests, archive changes, or run branch-finishing workflows.
-
-For full architecture-aware discovery, install and activate the separate codebase-memory package:
-
-```text
-pi install npm:@casualjim/pi-codebase-memory
-```
-
-Without active `codebase_memory_*` tools, workflows must report degraded discovery and use exact reads or shell inspection as fallback.
-
-See [`packages/pi-openspec/README.md`](packages/pi-openspec/README.md) for detailed usage.
+All packages are also compatible with [omp](https://omp.sh): install with `omp plugin add` or link with `omp plugin link ./packages/<name>`.
 
 ## Cavekit and Caveman
 
@@ -104,8 +67,8 @@ pnpm check:pack
 Run package-specific checks when working in one package, for example:
 
 ```bash
-pnpm --filter @casualjim/pi-openspec test
-pnpm --filter @casualjim/pi-openspec typecheck
+pnpm --filter @casualjim/pi-heimdall test
+pnpm --filter @casualjim/pi-heimdall typecheck
 ```
 
 ## License
