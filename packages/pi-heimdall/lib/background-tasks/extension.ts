@@ -913,7 +913,7 @@ export default function registerBackgroundTasksExtension(pi: ExtensionAPI): void
 	pi.on("session_start", async (_event, ctx) => {
 		activeCtx = ctx;
 		disabledSet.clear();
-		const effective = loadEffectiveConfig(getAgentDir(), ctx.cwd);
+		const effective = loadEffectiveConfig(ctx.cwd);
 		config = effective.config;
 		projectConfigPath = effective.projectConfigPath;
 		preflightState = await loadHeimdallPreflightState(ctx.cwd);

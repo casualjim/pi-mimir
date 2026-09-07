@@ -5,6 +5,15 @@ import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 let mockAgentDir = "";
+let mockHomeDir = "";
+
+vi.mock("node:os", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("node:os")>();
+	return {
+		...actual,
+		homedir: () => mockHomeDir,
+	};
+});
 
 vi.mock("@earendil-works/pi-coding-agent", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("@earendil-works/pi-coding-agent")>();
@@ -20,6 +29,8 @@ describe("background task extension registration", () => {
 	beforeEach(() => {
 		rootDir = join(tmpdir(), `heimdall-bg-registration-${Date.now()}-${Math.random().toString(16).slice(2)}`);
 		mockAgentDir = join(rootDir, "agent");
+		mockHomeDir = join(rootDir, "home");
+		mkdirSync(mockHomeDir, { recursive: true });
 		mkdirSync(mockAgentDir, { recursive: true });
 	});
 

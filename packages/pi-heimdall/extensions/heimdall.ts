@@ -10,9 +10,9 @@
  *   - sandbox-guard: native sandbox delegation via heimdall-sandbox (always-on)
  *
  * Config is loaded from three levels and deep-merged (later levels override earlier levels):
- *   - Generated defaults: ~/.pi/agent/heimdall.default.jsonc
- *   - User-level:        ~/.pi/agent/heimdall.jsonc (fallback: .json)
- *   - Project-level:     repo root `.pi/heimdall.jsonc` (fallback: .json)
+ *   - Generated defaults: ~/.config/heimdall/default.jsonc
+ *   - User-level:        ~/.config/heimdall/config.jsonc (fallback: .json)
+ *   - Project-level:     repo root `.config/heimdall.json` (fallback: .json)
  *
  * sandbox-guard always runs (when enabled in config).
  * The following guards can be disabled via the `disabled` array:
@@ -20,7 +20,7 @@
  *   - kubectl-secret-guard, sops-secret-guard
  */
 
-import { type ExtensionAPI, getAgentDir } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { HeimdallConfig } from "../lib/types.js";
 import {
 	OPT_OUT_GUARD_IDS,
@@ -40,7 +40,7 @@ export default function heimdall(pi: ExtensionAPI) {
 	// after a chat session starts. This matters for source installs because
 	// `pi install /path/to/pi-heimdall` only registers the package; users still
 	// expect the visible default config to appear on the next Pi startup.
-	ensureGeneratedDefaultConfig(getAgentDir());
+	ensureGeneratedDefaultConfig();
 
 	let config: HeimdallConfig = {};
 	let projectConfigPath: string | undefined;
@@ -49,9 +49,13 @@ export default function heimdall(pi: ExtensionAPI) {
 	pi.on("session_start", async (_event, ctx) => {
 		config = {};
 		disabledSet.clear();
-		const effective = loadEffectiveConfig(getAgentDir(), ctx.cwd);
+		const effective = loadEffectiveConfig(ctx.cwd);
 		config = effective.config;
 		projectConfigPath = effective.projectConfigPath;
+
+		for (const error of effective.migrationErrors) {
+			ctx.ui.notify(`heimdall: ${error}`, "warning");
+		}
 
 		if (Array.isArray(config.disabled)) {
 			for (const d of config.disabled) {

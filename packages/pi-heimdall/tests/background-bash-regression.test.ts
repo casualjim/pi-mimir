@@ -7,7 +7,16 @@ import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 let mockAgentDir = "";
+let mockHomeDir = "";
 const spawned: FakeChild[] = [];
+
+vi.mock("node:os", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("node:os")>();
+	return {
+		...actual,
+		homedir: () => mockHomeDir,
+	};
+});
 
 vi.mock("@earendil-works/pi-coding-agent", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("@earendil-works/pi-coding-agent")>();
@@ -40,9 +49,11 @@ describe("foreground bash regression with background extension enabled", () => {
 		rootDir = join(tmpdir(), `heimdall-bg-regression-${Date.now()}-${Math.random().toString(16).slice(2)}`);
 		cwd = join(rootDir, "repo");
 		mockAgentDir = join(rootDir, "agent");
-		mkdirSync(join(cwd, ".pi"), { recursive: true });
+		mockHomeDir = join(rootDir, "home");
+		mkdirSync(mockHomeDir, { recursive: true });
+		mkdirSync(join(cwd, ".config"), { recursive: true });
 		mkdirSync(mockAgentDir, { recursive: true });
-		writeFileSync(join(cwd, ".pi", "heimdall.jsonc"), JSON.stringify({
+		writeFileSync(join(cwd, ".config", "heimdall.jsonc"), JSON.stringify({
 			sandbox: { enabled: true, useDefaultFilesystemDeny: false, filesystem: { writable: ["."] } },
 			commandPolicies: [{ name: "no-cargo-test", blocked: ["cargo", "test"], message: "Use mise test." }],
 		}));

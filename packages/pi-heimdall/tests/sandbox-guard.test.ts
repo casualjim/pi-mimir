@@ -465,6 +465,71 @@ describe("sandbox-guard", () => {
 			const allowed = await harness.emitToolCall("read", { path: "./.env.example" });
 			expect(allowed).toBeUndefined();
 		});
+
+		it("supports negation on absolute deny paths", async () => {
+			const harness = createPiHarness(false);
+			registerSandboxGuard(harness.pi, () => ({
+				sandbox: { enabled: true, filesystem: { deny: ["~/.config", "!~/.config/heimdall"] } },
+			}));
+			await harness.emitSessionStart();
+
+			const other = await harness.emitToolCall("read", { path: "~/.config/other-tool/data" });
+			expect(other).toEqual({ block: true, reason: expect.stringContaining("denied") });
+
+			const own = await harness.emitToolCall("read", { path: "~/.config/heimdall/config.json" });
+			expect(own).toBeUndefined();
+		});
+
+		it("keeps negated absolute paths out of glob evaluation", async () => {
+			const harness = createPiHarness(false);
+			registerSandboxGuard(harness.pi, () => ({
+				sandbox: { enabled: true, filesystem: { deny: ["fnox.*", "!~/.docker"] } },
+			}));
+			await harness.emitSessionStart();
+
+			const glob = await harness.emitToolCall("read", { path: "./fnox.toml" });
+			expect(glob).toEqual({ block: true, reason: expect.stringContaining("denied") });
+
+			const negated = await harness.emitToolCall("read", { path: "~/.docker/config.json" });
+			expect(negated).toBeUndefined();
+		});
+	});
+
+	describe("/sandbox session toggle", () => {
+		const enabledConfig = () => ({
+			sandbox: { enabled: true, filesystem: { writable: ["~/github"], deny: ["~/.ssh"] } },
+		});
+
+		it("turns sandbox off for the session and back on", async () => {
+			const harness = createPiHarness(false);
+			registerSandboxGuard(harness.pi, () => enabledConfig() as never);
+			await harness.emitSessionStart();
+
+			await harness.emitCommand("sandbox", "off");
+			expect(harness.notify).toHaveBeenCalledWith(expect.stringContaining("off"), "warning");
+			expect(harness.setStatus).toHaveBeenCalledWith("heimdall-sandbox", undefined);
+			// tool enforcement disabled while off
+			expect(await harness.emitToolCall("read", { path: "~/.ssh/id_ed25519" })).toBeUndefined();
+			await expect(harness.userBash()).resolves.toBeUndefined();
+
+			await harness.emitCommand("sandbox", "on");
+			expect(harness.notify).toHaveBeenCalledWith(expect.stringContaining("on"), "info");
+			const blocked = await harness.emitToolCall("read", { path: "~/.ssh/id_ed25519" });
+			expect(blocked).toEqual({ block: true, reason: expect.stringContaining("denied") });
+		});
+
+		it("explicit /sandbox on overrides a config-disabled sandbox", async () => {
+			const harness = createPiHarness(false);
+			registerSandboxGuard(harness.pi, () => ({
+				sandbox: { enabled: false, filesystem: { deny: ["~/.ssh"] } },
+			}) as never);
+			await harness.emitSessionStart();
+
+			await harness.emitCommand("sandbox", "on");
+			expect(harness.notify).toHaveBeenCalledWith(expect.stringContaining("explicit session enable"), "info");
+			const blocked = await harness.emitToolCall("read", { path: "~/.ssh/id_ed25519" });
+			expect(blocked).toEqual({ block: true, reason: expect.stringContaining("denied") });
+		});
 	});
 
 	describe("fragment files (.heimdall-deny / .heimdall-write)", () => {
@@ -546,7 +611,10 @@ function createPiHarness(noSandboxFlag: boolean, cwd?: string) {
 	const setWidget = vi.fn();
 	const registerTool = vi.fn();
 	const registerFlag = vi.fn();
-	const registerCommand = vi.fn();
+	const commandHandlers = new Map<string, (...args: unknown[]) => unknown>();
+	const registerCommand = vi.fn((name: string, definition: { handler: (...args: unknown[]) => unknown }) => {
+		commandHandlers.set(name, definition.handler);
+	});
 	const pi = {
 		registerFlag,
 		registerTool,
@@ -579,9 +647,9 @@ function createPiHarness(noSandboxFlag: boolean, cwd?: string) {
 				});
 			}
 		},
-		userBash() {
+		async userBash() {
 			const userBashHandlers = handlers.get("user_bash") ?? [];
-			return userBashHandlers.at(-1)?.();
+			return await userBashHandlers.at(-1)?.();
 		},
 		async emitToolCall(toolName: string, input: Record<string, unknown>) {
 			const toolCallHandlers = handlers.get("tool_call") ?? [];
@@ -593,6 +661,14 @@ function createPiHarness(noSandboxFlag: boolean, cwd?: string) {
 				if (result) return result;
 			}
 			return undefined;
+		},
+		async emitCommand(name: string, args: string) {
+			const handler = commandHandlers.get(name);
+			if (!handler) throw new Error(`command ${name} not registered`);
+			await handler(args, {
+				hasUI: true,
+				ui: { notify, setStatus, setWidget, theme: { fg: (_color: string, value: string) => value } },
+			});
 		},
 	};
 }

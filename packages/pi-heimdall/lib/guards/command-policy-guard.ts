@@ -1,7 +1,7 @@
 /**
  * command-policy-guard
  *
- * Blocks bash commands that violate repo policy as defined in `.pi/heimdall.json`.
+ * Blocks bash commands that violate repo policy as defined in `.config/heimdall.json`.
  * Uses `shell-quote` for proper shell tokenization with bypass hardening.
  */
 

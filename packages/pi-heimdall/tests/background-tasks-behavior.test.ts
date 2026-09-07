@@ -9,10 +9,19 @@ import { BG_OUTPUT_SETTLE_MS } from "../lib/background-tasks/shared";
 import { buildSandboxPolicy } from "../lib/sandbox/config";
 
 let mockAgentDir = "";
+let mockHomeDir = "";
 let mockBinaryFound = true;
 let mockLaunchError: Error | null = null;
 const launchCalls: Array<{ command: string; cwd: string }> = [];
 const createdChildren: FakeChild[] = [];
+
+vi.mock("node:os", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("node:os")>();
+	return {
+		...actual,
+		homedir: () => mockHomeDir,
+	};
+});
 
 vi.mock("@earendil-works/pi-coding-agent", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("@earendil-works/pi-coding-agent")>();
@@ -62,9 +71,11 @@ describe("background task behaviors", () => {
 		rootDir = join(tmpdir(), `heimdall-bg-behavior-${Date.now()}-${Math.random().toString(16).slice(2)}`);
 		cwd = join(rootDir, "repo");
 		mockAgentDir = join(rootDir, "agent");
-		mkdirSync(join(cwd, ".pi"), { recursive: true });
+		mockHomeDir = join(rootDir, "home");
+		mkdirSync(mockHomeDir, { recursive: true });
+		mkdirSync(join(cwd, ".config"), { recursive: true });
 		mkdirSync(mockAgentDir, { recursive: true });
-		writeFileSync(join(cwd, ".pi", "heimdall.jsonc"), `{ "sandbox": { "enabled": true } }`);
+		writeFileSync(join(cwd, ".config", "heimdall.jsonc"), `{ "sandbox": { "enabled": true } }`);
 		mockBinaryFound = true;
 		mockLaunchError = null;
 		launchCalls.length = 0;
@@ -255,7 +266,7 @@ describe("background task behaviors", () => {
 	it("blocks command-policy, secret-key, kubectl, and sops preflight checks before launch", async () => {
 		process.env.MY_SECRET_TOKEN = "top-secret";
 		writeFileSync(join(cwd, ".env.json"), JSON.stringify({ MY_SECRET_TOKEN: "" }));
-		writeFileSync(join(cwd, ".pi", "heimdall.jsonc"), JSON.stringify({
+		writeFileSync(join(cwd, ".config", "heimdall.jsonc"), JSON.stringify({
 			sandbox: { enabled: true },
 			commandPolicies: [{ name: "no-cargo-test", blocked: ["cargo", "test"], message: "Use mise test." }],
 		}));

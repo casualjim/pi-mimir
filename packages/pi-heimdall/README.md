@@ -25,7 +25,7 @@ redacts anything that would leak secrets to the LLM context.
 | `env-protect` | opt-out | `read` | Reading `.env`, `.env.*`, `.envrc`, `*.env` — except `.env.example`, `.env.sample`, `.env.template`, `.env.dist`, `.env.defaults` |
 | `kubectl-secret-guard` | opt-out | `bash` | `kubectl get secrets`, `kubectl patch ... finalizers`, `kubectl exec` into a pod that dumps env / `/var/run/secrets` / `app.ini` |
 | `sops-secret-guard` | opt-out | `bash` | Any `sops` invocation that would decrypt content: `sops decrypt`, `sops -d`, `sops --decrypt`, `sops exec-env`, `sops exec-file`, `sops edit`, and bare `sops <file>` |
-| `command-policy-guard` | opt-out | `bash` | Commands that violate repo policy as defined in `.pi/heimdall.json` (e.g. blocking `cargo test` in favour of `mise test`) |
+| `command-policy-guard` | opt-out | `bash` | Commands that violate repo policy as defined in `.config/heimdall.json` (e.g. blocking `cargo test` in favour of `mise test`) |
 | `secret-guard` | opt-out | `bash` | Commands that reference secret env var names from a project `.env.json`, and redacts their values from bash output (plaintext, base64, rot13, reversed, hex, and hexdump-decoded) |
 
 `sandbox-guard` is always-on when enabled in config. The other five are opt-out
@@ -188,11 +188,11 @@ prompts, themes, and other extensions enabled. The only disabled piece is the
 
 ## Configuration
 
-Config files may be JSONC (comments and trailing commas) or legacy JSON. For each level, Heimdall prefers `.jsonc` and falls back to `.json` only when the `.jsonc` file is absent. Levels are deep-merged in this order, so later levels override earlier values and append arrays:
+Config files may be JSONC (comments and trailing commas) or plain JSON. For each level, Heimdall prefers `.jsonc` and falls back to `.json` only when the `.jsonc` file is absent. When both spellings exist at one level they are merged (JSON is the base, JSONC overrides). Levels are deep-merged in this order, so later levels override earlier values and append arrays:
 
-- **Generated defaults**: `~/.pi/agent/heimdall.default.jsonc`
-- **User-level**: `~/.pi/agent/heimdall.jsonc` (fallback: `heimdall.json`)
-- **Project-level**: repo root `.pi/heimdall.jsonc` (fallback: `heimdall.json`)
+- **Generated defaults**: `~/.config/heimdall/default.jsonc`
+- **User-level**: `~/.config/heimdall/config.jsonc` (fallback: `config.json`)
+- **Project-level**: repo root `.config/heimdall.json` (fallback: `.json`)
 
 Opt-out guards are enabled by default. Native sandbox delegation remains disabled unless `sandbox.enabled` is set to `true`. Disable individual opt-out guards via the
 `disabled` array:
@@ -240,7 +240,7 @@ Install options include Homebrew from the casualjim tap, npm install of
 
 ### Native policy config
 
-Heimdall refreshes `~/.pi/agent/heimdall.default.jsonc` on startup with visible recommended defaults. The file is generated, may be overwritten, and exists for transparency; put local changes in `heimdall.jsonc` or project config instead. The generated defaults keep `sandbox.enabled` set to `false` and include the recommended private-path `sandbox.filesystem.deny` list.
+Heimdall refreshes `~/.config/heimdall/default.jsonc` on startup with visible recommended defaults. The file is generated, may be overwritten, and exists for transparency; put local changes in `~/.config/heimdall/config.jsonc` or project config instead. The generated defaults keep `sandbox.enabled` set to `false` and include the recommended private-path `sandbox.filesystem.deny` list.
 
 All fields under `sandbox` except `enabled`, `binaryPath`, and `useDefaultFilesystemDeny` use the native `heimdall-sandbox` policy schema and are copied into the generated per-command policy. Runtime-only fields (`cwd`, `command`, and `stdio`) are added by Heimdall for each command. Set `sandbox.useDefaultFilesystemDeny: false` in user or project config to remove only the generated recommended deny entries while keeping explicit `sandbox.filesystem.deny` entries and `.heimdall-deny` fragments active. Host agent socket mounts are opt-in; set `gpgAgent: true` for GnuPG/keyboxd/dirmngr sockets, `sshAgent: true` for `SSH_AUTH_SOCK`, or `ageAgent: true` for age-compatible sockets.
 
@@ -344,7 +344,8 @@ Native config:
 
 ### Session controls
 
-- **Disable for a session:** `pi --no-sandbox`
+- **Disable for a session:** `pi --no-sandbox`, or `/sandbox off` in the TUI
+- **Enable mid-session:** `/sandbox on` (explicit session enable — overrides `sandbox.enabled: false` for this session only; config file unchanged)
 - **Check status:** `/sandbox` command in the TUI
 - **Override binary path:** set `sandbox.binaryPath`
 - **Disable generated private-path denies:** set `sandbox.useDefaultFilesystemDeny: false`
@@ -352,7 +353,7 @@ Native config:
 ## Configuring `command-policy-guard`
 
 `command-policy-guard` reads repo-specific command policies from
-repo root `.pi/heimdall.jsonc` (or legacy `.pi/heimdall.json`). If `commandPolicies` array missing or empty, guard does nothing.
+repo root `.config/heimdall.json`. If `commandPolicies` array missing or empty, guard does nothing.
 
 Example:
 

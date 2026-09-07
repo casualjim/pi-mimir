@@ -21,18 +21,36 @@ function loadFragmentFile(cwd: string, filename: string): string[] {
 	}
 }
 
-export function isDenied(filesystem: SandboxFilesystemPolicy | undefined, cwd: string, rawPath: string): boolean {
-	const denyPatterns = [...(filesystem?.deny ?? []), ...loadFragmentFile(cwd, ".heimdall-deny")];
-	const expandedPatterns = denyPatterns.map((pattern) => resolve(cwd, untildify(pattern)));
-	const target = resolve(cwd, untildify(rawPath));
-
-	for (const abs of expandedPatterns) {
+/**
+ * Last-match-wins prefix matching over absolute/`~`-rooted patterns. A
+ * leading `!` negates: the entry un-denies (or un-grants) paths it matches,
+ * so `["~/.config", "!~/.config/heimdall"]` keeps heimdall's own config
+ * readable while the rest of `~/.config` stays denied. Returns undefined
+ * when no absolute pattern matched.
+ */
+function matchesAbsolutePatterns(patterns: readonly string[], cwd: string, target: string): boolean | undefined {
+	let verdict: boolean | undefined;
+	for (const pattern of patterns) {
+		const negated = pattern.startsWith("!");
+		const abs = resolve(cwd, untildify(negated ? pattern.slice(1) : pattern));
 		if (target === abs || target.startsWith(`${abs}/`)) {
-			return true;
+			verdict = !negated;
 		}
 	}
+	return verdict;
+}
 
-	const globPatterns = denyPatterns.filter((pattern) => !pattern.startsWith("/") && !pattern.startsWith("~"));
+export function isDenied(filesystem: SandboxFilesystemPolicy | undefined, cwd: string, rawPath: string): boolean {
+	const denyPatterns = [...(filesystem?.deny ?? []), ...loadFragmentFile(cwd, ".heimdall-deny")];
+	const target = resolve(cwd, untildify(rawPath));
+
+	const absolute = matchesAbsolutePatterns(denyPatterns, cwd, target);
+	if (absolute !== undefined) return absolute;
+
+	const globPatterns = denyPatterns.filter((pattern) => {
+		const body = pattern.startsWith("!") ? pattern.slice(1) : pattern;
+		return !body.startsWith("/") && !body.startsWith("~");
+	});
 	if (globPatterns.length > 0) {
 		const ig = ignore().add(globPatterns);
 		const rel = relative(cwd, target);
@@ -49,14 +67,14 @@ export function isWritable(filesystem: SandboxFilesystemPolicy | undefined, cwd:
 	if (writePatterns.length === 0) return false;
 
 	const target = resolve(cwd, untildify(rawPath));
-	const absolutePatterns = writePatterns.map((pattern) => resolve(cwd, untildify(pattern)));
-	for (const abs of absolutePatterns) {
-		if (target === abs || target.startsWith(`${abs}/`)) {
-			return true;
-		}
-	}
 
-	const globPatterns = writePatterns.filter((pattern) => !pattern.startsWith("/") && !pattern.startsWith("~"));
+	const absolute = matchesAbsolutePatterns(writePatterns, cwd, target);
+	if (absolute !== undefined) return absolute;
+
+	const globPatterns = writePatterns.filter((pattern) => {
+		const body = pattern.startsWith("!") ? pattern.slice(1) : pattern;
+		return !body.startsWith("/") && !body.startsWith("~");
+	});
 	if (globPatterns.length > 0) {
 		const ig = ignore().add(globPatterns);
 		const rel = relative(cwd, target);

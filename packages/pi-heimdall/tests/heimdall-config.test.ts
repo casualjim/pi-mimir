@@ -1,21 +1,32 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DEFAULT_PRIVATE_PATHS } from "../lib/sandbox/default-private-paths";
-import { defaultConfigText, loadConfigFile, loadEffectiveConfig } from "../lib/heimdall-config";
+import { defaultConfigText, ensureGeneratedDefaultConfig, loadConfigFile, loadEffectiveConfig, migrateProjectConfig, migrateUserConfig } from "../lib/heimdall-config";
+
+let mockHomeDir = "";
+
+vi.mock("node:os", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("node:os")>();
+	return {
+		...actual,
+		homedir: () => mockHomeDir,
+	};
+});
 
 describe("heimdall config loading", () => {
 	let tmpDir: string;
-	let agentDir: string;
+	let configDir: string;
 	let cwd: string;
 
 	beforeEach(() => {
 		tmpDir = join(tmpdir(), `heimdall-config-test-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-		agentDir = join(tmpDir, "agent");
+		mockHomeDir = join(tmpDir, "home");
+		configDir = join(mockHomeDir, ".config", "heimdall");
 		cwd = join(tmpDir, "repo");
-		mkdirSync(agentDir, { recursive: true });
-		mkdirSync(join(cwd, ".pi"), { recursive: true });
+		mkdirSync(configDir, { recursive: true });
+		mkdirSync(join(cwd, ".config"), { recursive: true });
 	});
 
 	afterEach(() => {
@@ -23,7 +34,7 @@ describe("heimdall config loading", () => {
 	});
 
 	it("loads JSONC config files with comments and trailing commas", () => {
-		const configPath = join(agentDir, "heimdall.jsonc");
+		const configPath = join(configDir, "config.jsonc");
 		writeFileSync(configPath, `{
 			// comments are allowed
 			"sandbox": {
@@ -38,7 +49,7 @@ describe("heimdall config loading", () => {
 	});
 
 	it("does not mutate string values that contain comma-bracket sequences", () => {
-		const configPath = join(agentDir, "heimdall.jsonc");
+		const configPath = join(configDir, "config.jsonc");
 		writeFileSync(configPath, `{
 			"sandbox": {
 				"filesystem": {
@@ -50,51 +61,19 @@ describe("heimdall config loading", () => {
 		expect(loadConfigFile(configPath)?.sandbox?.filesystem?.virtual?.["/tmp/example"]).toBe("literal ,] and ,} content");
 	});
 
-	it("loads legacy JSON when JSONC is absent", () => {
-		writeFileSync(join(agentDir, "heimdall.json"), JSON.stringify({ sandbox: { enabled: true } }));
+	it("loads JSON when JSONC is absent", () => {
+		writeFileSync(join(configDir, "config.json"), JSON.stringify({ sandbox: { enabled: true } }));
 
-		const { config } = loadEffectiveConfig(agentDir, cwd);
-
-		expect(config.sandbox?.enabled).toBe(true);
-	});
-
-	it("merges legacy JSON project config on top of legacy JSON user config", () => {
-		writeFileSync(join(agentDir, "heimdall.json"), JSON.stringify({
-			sandbox: { enabled: true, network: "host", filesystem: { writable: ["~/user"] } },
-		}));
-		writeFileSync(join(cwd, ".pi", "heimdall.json"), JSON.stringify({
-			sandbox: { network: "none", filesystem: { writable: ["./project"] } },
-		}));
-
-		const { config, projectConfigPath } = loadEffectiveConfig(agentDir, cwd);
+		const { config } = loadEffectiveConfig(cwd, configDir);
 
 		expect(config.sandbox?.enabled).toBe(true);
-		expect(config.sandbox?.network).toBe("none");
-		expect(config.sandbox?.filesystem?.writable).toEqual(["~/.pi", "~/user", "./project"]);
-		expect(projectConfigPath).toBe(join(cwd, ".pi", "heimdall.json"));
 	});
 
-	it("prefers JSONC over JSON at user and project levels", () => {
-		writeFileSync(join(agentDir, "heimdall.json"), JSON.stringify({ sandbox: { network: "json" } }));
-		writeFileSync(join(agentDir, "heimdall.jsonc"), `{ "sandbox": { "network": "jsonc" } }`);
-		writeFileSync(join(cwd, ".pi", "heimdall.json"), JSON.stringify({ sandbox: { proc: "json" } }));
-		writeFileSync(join(cwd, ".pi", "heimdall.jsonc"), `{ "sandbox": { "proc": "jsonc" } }`);
+	it("generates default.jsonc in the config dir and reports it", () => {
+		const { config, defaultConfigPath, userConfigPath } = loadEffectiveConfig(cwd, configDir);
+		const text = readFileSync(defaultConfigPath, "utf-8");
 
-		const { config, projectConfigPath } = loadEffectiveConfig(agentDir, cwd);
-
-		expect(config.sandbox?.enabled).toBe(false);
-		expect(config.sandbox?.network).toBe("jsonc");
-		expect(config.sandbox?.proc).toBe("jsonc");
-		expect(projectConfigPath).toBe(join(cwd, ".pi", "heimdall.jsonc"));
-	});
-
-	it("generates and refreshes transparent default config", () => {
-		const generated = join(agentDir, "heimdall.default.jsonc");
-		writeFileSync(generated, "{ \"sandbox\": { \"enabled\": true } }\n");
-
-		const { config } = loadEffectiveConfig(agentDir, cwd);
-		const text = readFileSync(generated, "utf-8");
-
+		expect(defaultConfigPath).toBe(join(configDir, "default.jsonc"));
 		expect(text).toBe(defaultConfigText());
 		expect(text).toContain("Generated by pi-heimdall for transparency");
 		expect(config.sandbox?.enabled).toBe(false);
@@ -104,76 +83,340 @@ describe("heimdall config loading", () => {
 		expect(config.sandbox?.ageAgent).toBe(false);
 		expect(config.sandbox?.filesystem?.deny).toEqual(DEFAULT_PRIVATE_PATHS);
 		expect(config.sandbox?.filesystem?.writable).toEqual(["~/.pi"]);
+		expect(userConfigPath).toBeUndefined();
 	});
 
 	it("merges generated defaults, user config, and project config in precedence order", () => {
-		writeFileSync(join(agentDir, "heimdall.jsonc"), `{
+		writeFileSync(join(configDir, "config.jsonc"), `{
 			"sandbox": { "enabled": true, "network": "host", "filesystem": { "deny": ["~/user"] } }
 		}`);
-		writeFileSync(join(cwd, ".pi", "heimdall.jsonc"), `{
-			"sandbox": { "network": "none", "filesystem": { "deny": ["~/project"] } }
-		}`);
+		writeFileSync(join(cwd, ".config", "heimdall.json"), JSON.stringify({
+			sandbox: { network: "none", filesystem: { deny: ["~/project"] } },
+		}));
 
-		const { config } = loadEffectiveConfig(agentDir, cwd);
+		const { config, userConfigPath, projectConfigPath } = loadEffectiveConfig(cwd, configDir);
 
+		expect(userConfigPath).toBe(join(configDir, "config.jsonc"));
 		expect(config.sandbox?.enabled).toBe(true);
 		expect(config.sandbox?.network).toBe("none");
 		expect(config.sandbox?.filesystem?.deny).toEqual([...DEFAULT_PRIVATE_PATHS, "~/user", "~/project"]);
+		expect(projectConfigPath).toBe(join(cwd, ".config", "heimdall.json"));
 	});
 
 	it("useDefaultFilesystemDeny false excludes generated denies but keeps explicit denies", () => {
-		writeFileSync(join(agentDir, "heimdall.jsonc"), `{
+		writeFileSync(join(configDir, "config.jsonc"), `{
 			"sandbox": {
 				"useDefaultFilesystemDeny": false,
 				"filesystem": { "deny": ["~/.ssh", "~/user"] }
 			}
 		}`);
-		writeFileSync(join(cwd, ".pi", "heimdall.jsonc"), `{
+		writeFileSync(join(cwd, ".config", "heimdall.jsonc"), `{
 			"sandbox": { "filesystem": { "deny": ["~/project"] } }
 		}`);
 
-		const { config } = loadEffectiveConfig(agentDir, cwd);
+		const { config, projectConfigPath } = loadEffectiveConfig(cwd, configDir);
 
 		expect(config.sandbox?.useDefaultFilesystemDeny).toBe(false);
 		expect(config.sandbox?.filesystem?.deny).toEqual(["~/.ssh", "~/user", "~/project"]);
+		expect(projectConfigPath).toBe(join(cwd, ".config", "heimdall.jsonc"));
 	});
 
 	it("finds project config at repo root from nested cwd", () => {
 		const nestedCwd = join(cwd, "packages", "app");
 		mkdirSync(nestedCwd, { recursive: true });
 		mkdirSync(join(cwd, ".git"), { recursive: true });
-		writeFileSync(join(agentDir, "heimdall.json"), JSON.stringify({
+		writeFileSync(join(configDir, "config.json"), JSON.stringify({
 			sandbox: { enabled: true, network: "host" },
 		}));
-		writeFileSync(join(cwd, ".pi", "heimdall.json"), JSON.stringify({
+		writeFileSync(join(cwd, ".config", "heimdall.json"), JSON.stringify({
 			sandbox: { network: "none" },
 		}));
 
-		const { config, projectConfigPath } = loadEffectiveConfig(agentDir, nestedCwd);
+		const { config, projectConfigPath } = loadEffectiveConfig(nestedCwd, configDir);
 
 		expect(config.sandbox?.enabled).toBe(true);
 		expect(config.sandbox?.network).toBe("none");
-		expect(projectConfigPath).toBe(join(cwd, ".pi", "heimdall.json"));
+		expect(projectConfigPath).toBe(join(cwd, ".config", "heimdall.json"));
 	});
 
-	it("does not use parent .pi config outside repo root", () => {
+	it("does not use parent .config config outside repo root", () => {
 		const parentRoot = join(tmpDir, "workspace");
 		const repoRoot = join(parentRoot, "repo");
 		const nestedCwd = join(repoRoot, "packages", "app");
-		mkdirSync(join(parentRoot, ".pi"), { recursive: true });
+		mkdirSync(join(parentRoot, ".config"), { recursive: true });
 		mkdirSync(join(repoRoot, ".git"), { recursive: true });
 		mkdirSync(nestedCwd, { recursive: true });
-		writeFileSync(join(agentDir, "heimdall.json"), JSON.stringify({
+		writeFileSync(join(configDir, "config.json"), JSON.stringify({
 			sandbox: { enabled: true, network: "host" },
 		}));
-		writeFileSync(join(parentRoot, ".pi", "heimdall.json"), JSON.stringify({
+		writeFileSync(join(parentRoot, ".config", "heimdall.json"), JSON.stringify({
 			sandbox: { network: "none" },
 		}));
 
-		const { config, projectConfigPath } = loadEffectiveConfig(agentDir, nestedCwd);
+		const { config, projectConfigPath } = loadEffectiveConfig(nestedCwd, configDir);
 
 		expect(config.sandbox?.enabled).toBe(true);
 		expect(config.sandbox?.network).toBe("host");
 		expect(projectConfigPath).toBeUndefined();
+	});
+
+	it("merges same-level json and jsonc duplicates (json base, jsonc overrides)", () => {
+		writeFileSync(join(configDir, "config.json"), JSON.stringify({
+			sandbox: { enabled: true, network: "json", filesystem: { deny: ["~/from-json"] } },
+		}));
+		writeFileSync(join(configDir, "config.jsonc"), `{ "sandbox": { "network": "jsonc" } }`);
+
+		const { config, userConfigPath } = loadEffectiveConfig(cwd, configDir);
+
+		expect(userConfigPath).toBe(join(configDir, "config.jsonc"));
+		expect(config.sandbox?.enabled).toBe(true);
+		expect(config.sandbox?.network).toBe("jsonc");
+		expect(config.sandbox?.filesystem?.deny).toContain("~/from-json");
+	});
+
+	it("ensures generated default idempotently", () => {
+		const path = ensureGeneratedDefaultConfig(configDir);
+		const second = ensureGeneratedDefaultConfig(configDir);
+		expect(path).toBe(second);
+		expect(readFileSync(path, "utf-8")).toBe(defaultConfigText());
+	});
+});
+
+describe("heimdall mandatory config migration", () => {
+	let tmpDir: string;
+	let configDir: string;
+	let cwd: string;
+
+	beforeEach(() => {
+		tmpDir = join(tmpdir(), `heimdall-migrate-test-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+		mockHomeDir = tmpDir;
+		configDir = join(mockHomeDir, ".config", "heimdall");
+		cwd = join(tmpDir, "repo");
+	});
+
+	afterEach(() => {
+		rmSync(tmpDir, { recursive: true, force: true });
+	});
+
+	it("migrates the user config: merges pi+omp+dsh sources, writes config.json, deletes sources", () => {
+		const piAgent = join(mockHomeDir, ".pi", "agent");
+		const ompAgent = join(mockHomeDir, ".omp", "agent");
+		mkdirSync(piAgent, { recursive: true });
+		mkdirSync(ompAgent, { recursive: true });
+		mkdirSync(join(mockHomeDir, ".dsh"), { recursive: true });
+		writeFileSync(join(piAgent, "heimdall.json"), JSON.stringify({
+			sandbox: { enabled: true, network: "pi", filesystem: { writable: ["./pi"] } },
+		}));
+		writeFileSync(join(ompAgent, "heimdall.jsonc"), `{ "sandbox": { "network": "omp" } }`);
+		writeFileSync(join(mockHomeDir, ".dsh", "heimdall.json"), JSON.stringify({
+			sandbox: { filesystem: { writable: ["./dsh"] } },
+		}));
+
+		const target = migrateUserConfig(configDir);
+
+		expect(target).toBe(join(configDir, "config.json"));
+		// sources deleted
+		expect(existsSync(join(piAgent, "heimdall.json"))).toBe(false);
+		expect(existsSync(join(ompAgent, "heimdall.jsonc"))).toBe(false);
+		expect(existsSync(join(mockHomeDir, ".dsh", "heimdall.json"))).toBe(false);
+		// merged result
+		const migrated = loadConfigFile(target);
+		expect(migrated?.sandbox?.enabled).toBe(true);
+		expect(migrated?.sandbox?.network).toBe("omp");
+		expect(migrated?.sandbox?.filesystem?.writable).toEqual(["./pi", "./dsh"]);
+		// loader reads universal only
+		const { config, userConfigPath } = loadEffectiveConfig(cwd, configDir);
+		expect(userConfigPath).toBe(target);
+		expect(config.sandbox?.network).toBe("omp");
+	});
+
+	it("deletes stale generated defaults alongside the user migration", () => {
+		const piAgent = join(mockHomeDir, ".pi", "agent");
+		mkdirSync(piAgent, { recursive: true });
+		writeFileSync(join(piAgent, "heimdall.default.jsonc"), JSON.stringify({ sandbox: { enabled: false, network: "none" } }));
+		writeFileSync(join(piAgent, "heimdall.json"), JSON.stringify({ sandbox: { enabled: true } }));
+
+		migrateUserConfig(configDir);
+
+		expect(existsSync(join(piAgent, "heimdall.default.jsonc"))).toBe(false);
+		expect(existsSync(join(piAgent, "heimdall.json"))).toBe(false);
+		expect(existsSync(join(configDir, "config.json"))).toBe(true);
+		// default file is delete-only: config.json carries the user content, not the default's
+		expect(loadConfigFile(join(configDir, "config.json"))).toEqual({ sandbox: { enabled: true } });
+	});
+
+	it("deletes legacy user files even when the universal config already exists", () => {
+		mkdirSync(configDir, { recursive: true });
+		writeFileSync(join(configDir, "config.json"), JSON.stringify({ sandbox: { network: "xdg" } }));
+		const piAgent = join(mockHomeDir, ".pi", "agent");
+		mkdirSync(piAgent, { recursive: true });
+		writeFileSync(join(piAgent, "heimdall.json"), JSON.stringify({ sandbox: { network: "pi" } }));
+
+		expect(migrateUserConfig(configDir)).toBeUndefined();
+
+		expect(existsSync(join(piAgent, "heimdall.json"))).toBe(false);
+		// universal content untouched
+		expect(loadConfigFile(join(configDir, "config.json"))).toEqual({ sandbox: { network: "xdg" } });
+	});
+
+	it("migrates the project config: merges .pi+.omp+.dsh, writes .config/heimdall.json, deletes sources", () => {
+		mkdirSync(join(cwd, ".pi"), { recursive: true });
+		mkdirSync(join(cwd, ".omp"), { recursive: true });
+		mkdirSync(join(cwd, ".dsh"), { recursive: true });
+		writeFileSync(join(cwd, ".pi", "heimdall.json"), JSON.stringify({
+			commandPolicies: [{ name: "a", blocked: ["x"], message: "m" }],
+			sandbox: { network: "pi", filesystem: { writable: ["./pi"] } },
+		}));
+		writeFileSync(join(cwd, ".omp", "heimdall.jsonc"), `{ "sandbox": { "network": "omp" } }`);
+		writeFileSync(join(cwd, ".dsh", "heimdall.json"), JSON.stringify({
+			sandbox: { filesystem: { writable: ["./dsh"] } },
+		}));
+
+		const target = migrateProjectConfig(cwd);
+
+		expect(target).toBe(join(cwd, ".config", "heimdall.json"));
+		expect(existsSync(join(cwd, ".pi", "heimdall.json"))).toBe(false);
+		expect(existsSync(join(cwd, ".omp", "heimdall.jsonc"))).toBe(false);
+		expect(existsSync(join(cwd, ".dsh", "heimdall.json"))).toBe(false);
+		const migrated = loadConfigFile(target);
+		expect(migrated?.sandbox?.network).toBe("omp");
+		expect(migrated?.sandbox?.filesystem?.writable).toEqual(["./pi", "./dsh"]);
+		expect(migrated?.commandPolicies).toHaveLength(1);
+
+		// loader reads universal only; legacy files stay deleted
+		const { config, projectConfigPath } = loadEffectiveConfig(cwd, configDir);
+		expect(projectConfigPath).toBe(target);
+		expect(config.sandbox?.network).toBe("omp");
+		expect(existsSync(join(cwd, ".pi", "heimdall.json"))).toBe(false);
+	});
+
+	it("dedupes commandPolicies by name across legacy source dirs", () => {
+		// The faraday bug: the same policies shipped in .pi, .omp and .dsh
+		// copies tripled after migration (39 = 13x3). `name` is the identity;
+		// later layers override earlier ones even when the copies differ.
+		mkdirSync(join(cwd, ".pi"), { recursive: true });
+		mkdirSync(join(cwd, ".omp"), { recursive: true });
+		mkdirSync(join(cwd, ".dsh"), { recursive: true });
+		writeFileSync(join(cwd, ".pi", "heimdall.json"), JSON.stringify({
+			commandPolicies: [
+				{ name: "no-cargo-test", blocked: ["cargo", "test"], message: "from .pi" },
+				{ name: "bare-only-mise-check", blocked: ["mise", "check"], bare: true, message: "from .pi" },
+			],
+		}));
+		writeFileSync(join(cwd, ".omp", "heimdall.json"), JSON.stringify({
+			commandPolicies: [
+				{ name: "no-cargo-test", blocked: ["cargo", "test"], message: "from .omp" },
+			],
+		}));
+		writeFileSync(join(cwd, ".dsh", "heimdall.json"), JSON.stringify({
+			commandPolicies: [
+				{ name: "no-cargo-test", blocked: ["cargo", "test"], message: "from .dsh" },
+				{ name: "only-dsh", blocked: ["dsh"], message: "unique" },
+			],
+		}));
+
+		const target = migrateProjectConfig(cwd);
+
+		const migrated = loadConfigFile(target);
+		expect(migrated?.commandPolicies).toHaveLength(3);
+		const cargoTest = migrated?.commandPolicies?.find((p) => p.name === "no-cargo-test");
+		expect(cargoTest?.message).toBe("from .dsh"); // last layer wins
+	});
+
+	it("deletes legacy project files once the universal project config exists", () => {
+		mkdirSync(join(cwd, ".pi"), { recursive: true });
+		mkdirSync(join(cwd, ".config"), { recursive: true });
+		writeFileSync(join(cwd, ".pi", "heimdall.json"), JSON.stringify({ sandbox: { network: "pi" } }));
+		writeFileSync(join(cwd, ".config", "heimdall.json"), JSON.stringify({ sandbox: { network: "xdg" } }));
+		expect(migrateProjectConfig(cwd)).toBeUndefined();
+
+		expect(existsSync(join(cwd, ".pi", "heimdall.json"))).toBe(false);
+		expect(loadConfigFile(join(cwd, ".config", "heimdall.json"))).toEqual({ sandbox: { network: "xdg" } });
+	});
+
+	it("no-ops when neither universal nor legacy files exist", () => {
+		expect(migrateUserConfig(configDir)).toBeUndefined();
+		expect(migrateProjectConfig(cwd)).toBeUndefined();
+		expect(existsSync(join(configDir, "config.json"))).toBe(false);
+		expect(existsSync(join(cwd, ".config", "heimdall.json"))).toBe(false);
+	});
+
+	it("skips unparseable legacy files: merges the rest, preserves the bad one", () => {
+		mkdirSync(join(cwd, ".pi"), { recursive: true });
+		writeFileSync(join(cwd, ".pi", "heimdall.json"), `"commandPolicies": []`); // missing brace
+		mkdirSync(join(cwd, ".omp"), { recursive: true });
+		writeFileSync(join(cwd, ".omp", "heimdall.json"), JSON.stringify({
+			commandPolicies: [{ name: "a", blocked: ["x"], message: "m" }],
+		}));
+
+		const errors: string[] = [];
+		const target = migrateProjectConfig(cwd, errors);
+
+		expect(target).toBe(join(cwd, ".config", "heimdall.json"));
+		// healthy file migrated, bad file preserved
+		expect(existsSync(join(cwd, ".omp", "heimdall.json"))).toBe(false);
+		expect(existsSync(join(cwd, ".pi", "heimdall.json"))).toBe(true);
+		const migrated = loadConfigFile(target);
+		expect(migrated?.commandPolicies).toHaveLength(1);
+		expect(errors).toHaveLength(1);
+		expect(errors[0]).toContain("unparseable legacy project config");
+	});
+
+	it("loadEffectiveConfig survives an unparseable project legacy file", () => {
+		mkdirSync(configDir, { recursive: true });
+		writeFileSync(join(configDir, "config.json"), JSON.stringify({ sandbox: { enabled: true } }));
+		mkdirSync(join(cwd, ".pi"), { recursive: true });
+		writeFileSync(join(cwd, ".pi", "heimdall.json"), `"commandPolicies": []`); // missing brace
+
+		const { config, migrationErrors } = loadEffectiveConfig(cwd, configDir);
+
+		expect(config.sandbox?.enabled).toBe(true); // guards stay active
+		expect(migrationErrors).toHaveLength(1);
+		expect(migrationErrors[0]).toContain("unparseable legacy project config");
+		expect(existsSync(join(cwd, ".pi", "heimdall.json"))).toBe(true); // preserved
+		expect(existsSync(join(cwd, ".config", "heimdall.json"))).toBe(false); // nothing written
+	});
+
+	it("migration dedupes overlapping primitive arrays across legacy sources", () => {
+		const piAgent = join(mockHomeDir, ".pi", "agent");
+		const ompAgent = join(mockHomeDir, ".omp", "agent");
+		mkdirSync(piAgent, { recursive: true });
+		mkdirSync(ompAgent, { recursive: true });
+		const shared = ["*_TOKEN", "*_SECRET", "!~/.config/crumbs"];
+		writeFileSync(join(piAgent, "heimdall.json"), JSON.stringify({
+			sandbox: { env: { deny: shared }, filesystem: { deny: ["!~/.config/crumbs"], writable: ["~/wagyu"] } },
+		}));
+		writeFileSync(join(ompAgent, "heimdall.json"), JSON.stringify({
+			sandbox: { env: { deny: shared }, filesystem: { deny: ["!~/.config/crumbs"], writable: ["~/wagyu"] } },
+		}));
+
+		const target = migrateUserConfig(configDir);
+		const migrated = loadConfigFile(target);
+
+		expect(migrated?.sandbox?.env?.deny).toEqual(["*_TOKEN", "*_SECRET", "!~/.config/crumbs"]);
+		expect(migrated?.sandbox?.filesystem?.deny).toEqual(["!~/.config/crumbs"]);
+		expect(migrated?.sandbox?.filesystem?.writable).toEqual(["~/wagyu"]);
+	});
+
+	it("canonicalizes a universal config that already carries duplicate entries", () => {
+		mkdirSync(configDir, { recursive: true });
+		writeFileSync(join(configDir, "config.json"), JSON.stringify({
+			sandbox: {
+				env: { deny: ["*_TOKEN", "*_TOKEN"] },
+				filesystem: { writable: ["~/wagyu", "~/wagyu", "~/github"] },
+			},
+			commandPolicies: [
+				{ name: "a", blocked: ["x"], message: "m" },
+				{ name: "a", blocked: ["x"], message: "m" },
+			],
+		}));
+
+		migrateUserConfig(configDir);
+
+		const healed = loadConfigFile(join(configDir, "config.json"));
+		expect(healed?.sandbox?.env?.deny).toEqual(["*_TOKEN"]);
+		expect(healed?.sandbox?.filesystem?.writable).toEqual(["~/wagyu", "~/github"]);
+		// object entries dedupe by full identity
+		expect(healed?.commandPolicies).toHaveLength(1);
 	});
 });

@@ -61,24 +61,27 @@ export function registerSandboxGuard(
 
 		const writeCount = config.policy.filesystem?.writable?.length ?? 0;
 		const envDenyCount = config.policy.env?.deny?.length ?? 0;
-		const envIcon = envDenyCount > 0 ? `🔒${envDenyCount}` : "";
-		const networkIcon = config.policy.network === "host" ? "↔" : "⊘";
-		const theme = ctx.ui.theme;
+		renderSandboxStatus(ctx, writeCount, envDenyCount);
+		ctx.ui.notify("heimdall sandbox: active", "info");
+	});
 
+	/** Renders the session status widget from the current sandbox config. */
+	const renderSandboxStatus = (ctx: { ui: { setStatus(key: string, text: string | undefined): void; theme: { fg(color: string, value: string): string } } }, writeCount: number, envDenyCount: number): void => {
+		const envIcon = envDenyCount > 0 ? `🔒${envDenyCount}` : "";
+		const networkIcon = sandboxConfig!.policy.network === "host" ? "↔" : "⊘";
+		const theme = ctx.ui.theme;
 		ctx.ui.setStatus(
 			"heimdall-sandbox",
 			[
 				theme.fg("accent", "🛡"),
 				theme.fg("success", `✎${writeCount}`),
 				theme.fg("muted", envIcon),
-				theme.fg(config.policy.network === "host" ? "success" : "warning", networkIcon),
+				theme.fg(sandboxConfig!.policy.network === "host" ? "success" : "warning", networkIcon),
 			].join(theme.fg("dim", "│")),
 		);
-		ctx.ui.notify("heimdall sandbox: active", "info");
-	});
+	};
 
 	const defaultOps = () => createSandboxedBashOps(sandboxConfig!, sandboxCwd, { binaryPath: sandboxBinary });
-
 	const localCwd = process.cwd();
 	const localBash = createBashTool(localCwd);
 
@@ -112,7 +115,7 @@ export function registerSandboxGuard(
 		const block = (operation: "read" | "write", path: string) => {
 			const reason =
 				`Blocked: ${event.toolName} attempted to ${operation} "${path}" denied by heimdall sandbox filesystem policy. ` +
-				`Adjust .pi/heimdall.jsonc to allow this path.`;
+				`Adjust .config/heimdall.json to allow this path.`;
 			if (ctx.hasUI) ctx.ui.notify(`heimdall sandbox: blocked ${event.toolName} ${path}`, "warning");
 			return { block: true as const, reason };
 		};
@@ -134,8 +137,28 @@ export function registerSandboxGuard(
 	});
 
 	pi.registerCommand("sandbox", {
-		description: "Show heimdall sandbox configuration",
-		handler: async (_args, ctx) => {
+		description: "Show heimdall sandbox configuration; /sandbox on|off toggles it for this session",
+		handler: async (args, ctx) => {
+			const mode = args.trim().toLowerCase();
+
+			if (mode === "off") {
+				sandboxConfig = null;
+				ctx.ui.setStatus("heimdall-sandbox", undefined);
+				ctx.ui.notify("heimdall sandbox: off (this session; config unchanged)", "warning");
+				return;
+			}
+
+			if (mode === "on") {
+				const config = normalizeSandboxConfig(
+					{ ...(getHeimdallConfig().sandbox as SandboxConfig | undefined), enabled: true },
+					getConfigPath?.(),
+				);
+				sandboxConfig = config;
+				renderSandboxStatus(ctx, config.policy.filesystem?.writable?.length ?? 0, config.policy.env?.deny?.length ?? 0);
+				ctx.ui.notify("heimdall sandbox: on (explicit session enable; config unchanged)", "info");
+				return;
+			}
+
 			if (!sandboxConfig) {
 				ctx.ui.notify("heimdall sandbox: disabled", "info");
 				return;
