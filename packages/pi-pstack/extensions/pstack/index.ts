@@ -94,7 +94,7 @@ export default function (pi: ExtensionAPI) {
     description: "Interactively map pstack delegation roles to models available in Pi.",
     handler: async (_args, ctx) => {
       const config = await readConfig();
-      const available = (ctx.scopedModels.length ? ctx.scopedModels.map((entry) => entry.model) : ctx.modelRegistry.getAvailable())
+      const available = (ctx.scopedModels?.length ? ctx.scopedModels.map((entry) => entry.model) : ctx.modelRegistry.getAvailable())
         .map((model) => `${model.provider}/${model.id}`);
       const choices = ["inherit-parent", ...new Set(available)];
       if (!ctx.hasUI) {
@@ -161,7 +161,7 @@ export default function (pi: ExtensionAPI) {
     }),
     async execute(_id, params, _signal, _update, ctx) {
       if (params.action === "list-models") {
-        const models = (ctx.scopedModels.length ? ctx.scopedModels.map((entry) => entry.model) : ctx.modelRegistry.getAvailable())
+        const models = (ctx.scopedModels?.length ? ctx.scopedModels.map((entry) => entry.model) : ctx.modelRegistry.getAvailable())
           .map((model) => `${model.provider}/${model.id}`);
         return { content: [{ type: "text", text: ["inherit-parent", ...models].join("\n") }], details: { models } };
       }
