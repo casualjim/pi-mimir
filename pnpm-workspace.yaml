@@ -16,6 +16,7 @@ overrides:
   '@aws-sdk/token-providers': 3.1059.0
 allowBuilds:
   '@google/genai': false
+  esbuild: false
   protobufjs: false
 minimumReleaseAgeExclude:
   - '@casualjim/heimdall-sandbox-darwin-arm64@0.2.6'
