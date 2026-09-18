@@ -1,7 +1,7 @@
 # SPEC
 
 ## §G GOAL
-Pi package monorepo → Cavekit specs, Caveman terse mode, Crumbs discovery guidance, pstack skills, Heimdall security guards.
+Pi package monorepo → Cavekit specs, Caveman terse mode, Crumbs discovery guidance, pstack skills, Heimdall security guards, Headroom context compression.
 
 ## §C CONSTRAINTS
 - pnpm primary package manager; workspace `packages/*`; packages ESM; tests Vitest; typecheck `tsc --noEmit`.
@@ -14,6 +14,11 @@ Pi package monorepo → Cavekit specs, Caveman terse mode, Crumbs discovery guid
 - `pi-caveman` ships Pi-native extension hooks equivalent to upstream Claude `SessionStart`/`UserPromptSubmit`; no `~/.claude` mutation or non-Pi plugin install; Cavecrew agents ! Pi-subagents executable when package installed; use is skill/workflow-steered, not hook-auto-spawned.
 - `@casualjim/pi-review` standalone; OpenSpec integration/dependency ⊥; `/review` behavior mirrors Codex `/review` task.
 - `@casualjim/pi-heimdall` in monorepo ! normalized workspace package, not raw standalone repo copy; repo-local artifacts (`node_modules/`, `.pi/`, `openspec/`, research/plan scratch docs) ⊥.
+- `@casualjim/pi-headroom` ! port of noheadroom Pi bridge (fork lineage `@raquezha/noheadroom` → Jonghakseo upstream); Headroom proxy ! configured URL only (`~/.pi/agent/headroom/settings.json`); proxy process management/autoStart ⊥.
+- pi-headroom compression policy: only `toolResult` content mutates; user/assistant text, tool-call metadata, tool ids unchanged in Pi session.
+- pi-headroom tool-name adaptation ! rename compression-payload tool calls to defeat Headroom `DEFAULT_EXCLUDE_TOOLS`; `renameToolCalls` config ?; original Pi metadata preserved.
+- Headroom CCR ! redeemable: markers ! keep hash & name `headroom_retrieve`; `headroom_retrieve` → `/v1/retrieve/<hash>`.
+- `pi-headroom` ! load side by side in pi & omp: manifest keys `pi.extensions` + `omp.extensions`; host-only fields (`loadMode`, `approval`) tolerated by the other host; omp reads it through its legacy-pi import/typebox remap.
 
 ## §I INTERFACES
 - skill: `review-implementation`, `review-architecture`, `review-tests`, `review-data-flow`, `review-security` exposed by `@casualjim/pi-review` from package `skills/`; copied into `.pi/skills` ⊥; implementation/specialist reviews accept explicit non-OpenSpec scope + optional OpenSpec artifacts.
@@ -40,10 +45,15 @@ Pi package monorepo → Cavekit specs, Caveman terse mode, Crumbs discovery guid
 - agent: `cavecrew-investigator` → Pi-subagents executable read-only locator; codebase-memory tools first, exact reads/shell fallback; no fixes/design.
 - agent: `cavecrew-builder` → Pi-subagents executable surgical 1-2 file editor; Pi tools `read`/`edit`/`write`; no shell/git/destructive ops.
 - agent: `cavecrew-reviewer` → Pi-subagents executable diff/file reviewer; Pi tools `read`/`bash`; bash limited to non-mutating diff/log/show.
-- file: `~/.pi/agent/caveman-managed.json` → `@casualjim/pi-caveman` user-agent ownership manifest for synced Cavecrew agents.
+- role pack: `@casualjim/pi-caveman`/`@casualjim/pi-pstack` → bundled `agents/` registered on `pi-herdr-subagents:roles:discover:v1` (apiVersion 1) at extension load; unsubscribed on `session_shutdown`; `~/.pi/agent/agents` writes ⊥.
 - hook: `pi-caveman` session start → load default mode, write safe mode flag, inject filtered `skills/caveman/SKILL.md` rules.
 - hook: `pi-caveman` Pi equivalent of `UserPromptSubmit` ? → track `/skill:caveman`/natural-language mode changes and inject active-mode reminder.
 - file: Pi caveman mode state path ? → valid modes only; symlink/oversize/corrupt reads ignored.
+- pkg: `@casualjim/pi-headroom` → extension `extensions/headroom.ts`, libs `extensions/bridge.ts`, `extensions/client.ts`, `extensions/config.ts`, `extensions/types.ts`, tests `tests/`; manifests `pi.extensions` + `omp.extensions`.
+- tool: `headroom_retrieve(hash)` → GET `<baseUrl>/v1/retrieve/<hash>`; hash `[a-f0-9]{12,24}`; envelope `original_content` preferred; 404 → expired/TTL hint; invalid hash → error text; ⊥ throw; `loadMode: essential` + `approval: read` (omp placement/approval tiers; pi ignores).
+- cmd: `/headroom [status|on|off|health|stats|mode <normal|quiet|silent>]` → status summary/toggle/health probe/backend stats/mode switch.
+- file: headroom settings → resolve order `PI_HEADROOM_SETTINGS` → `PI_CODING_AGENT_DIR/headroom/settings.json` → host default (`~/.omp/agent/headroom/settings.json` omp, `~/.pi/agent/headroom/settings.json` pi); host detect = omp `ExtensionAPI.zod` probe; default baseUrl `http://127.0.0.1:8787` (Headroom default) — custom port ! settings `baseUrl` or env; `{enabled, baseUrl, mode, minContextTokens, minMessageChars, timeoutMs, allowRemote, renameToolCalls}`; env `PI_HEADROOM_URL`/`HEADROOM_URL`/`HEADROOM_BASE_URL`, `PI_HEADROOM_ENABLED`, `PI_HEADROOM_MODE`, `PI_HEADROOM_ALLOW_REMOTE` ? override.
+- endpoint: Headroom proxy → `POST /v1/compress` (Pi policy payload), `GET /v1/retrieve/{hash}`, `GET /health`, `GET /stats`; CCR TTL 1800s.
 
 ## §V INVARIANTS
 V1: package registration ! match intended Pi surface; no hidden public skills/prompts/extensions.
@@ -64,7 +74,7 @@ V22: `/review` output ! readable `cavecrew-reviewer` findings; preserve Codex bu
 V23: `pi-review` discovery ! codebase-memory ladder first when tools available; stale/unavailable graph → degraded discovery stated; exact diff/file reads allowed.
 V24: `cavecrew-investigator` ! expose codebase-memory tools + `read`/`bash` fallback; read-only; compressed file:line output; fixes/design ⊥.
 V26: `pi-caveman` Cavecrew ! remain explicit skill/agent delegation; extension hooks only manage Caveman mode state/injection, ⊥ auto-spawn subagents.
-V27: Cavecrew agent files ! Pi-subagents-compatible frontmatter/tool names; synced to `~/.pi/agent/agents` with content-hash manifest; user-modified agents preserved; Claude tool names `Read/Grep/Glob/Bash/Edit/Write` ⊥.
+V27: Cavecrew/pstack agent files ! role-pack discoverable: frontmatter/tool names host-readable; registered in place from package `agents/`; `~/.pi/agent/agents` copy/manifest sync ⊥; Claude tool names `Read/Grep/Glob/Bash/Edit/Write` ⊥.
 V28: `packages/pi-heimdall` ! contain only workspace package source/tests/docs needed for package; copied standalone repo artifacts (`node_modules/`, `.pi/`, `openspec/`, `fnox.toml`, research/plan scratch docs, standalone lockfiles) ⊥.
 V29: workspace dependency state ! pnpm-owned: `packageManager` pins pnpm, `pnpm-workspace.yaml` declares packages, `pnpm-lock.yaml` exists, npm lockfiles ⊥.
 V30: workspace scripts/docs/CI ! prefer pnpm commands; npm commands only explicit compatibility notes.
@@ -77,6 +87,14 @@ V36: ported cavekit verbs ! rewrite upstream internal refs (`skills/<verb>/SKILL
 V37: cavekit `§R` writes & reach-for-verb handoffs (grill/research/review/deepen) ! route through `cavekit-spec`; verbs propose handoff blocks, ⊥ write `SPEC.md` directly; sectioned ownership honored — each verb touches only owned sections.
 V38: bundled `packages/pi-cavekit/FORMAT.md` ! mirror upstream §R + sectioned-ownership + right-size sections; cavekit archive section preserved.
 V39: command-policy-guard `bare` policy ! block matched command only when output leaves the segment — pipe after (`|`) or output redirect (`>`/`>>`/`>&`/`>|`/`&>`/`&>>`); pipe-input & input redirect (`<`/`<<<`/`<&`) allowed; `bare` absent → unconditional block (current behavior preserved).
+V40: pi-headroom compression ! mutate only `toolResult` content ∈ Pi `context` event; roles, tool-call ids/names, user/assistant text unchanged in Pi session.
+V41: pi-headroom CCR markers ! keep hash & name `headroom_retrieve`; bracket markers (`Retrieve more: hash=`, `Retrieve original: hash=`) rewritten to name tool; `<<ccr:HASH...>>` machine markers preserved byte-intact (JSON payloads); ⊥ rewrite to `read` offset/limit.
+V42: `headroom_retrieve` ! accept `[a-f0-9]{12,24}`; ! prefer `original_content`; hash invalid/404 → explicit error text (TTL 1800s hint); ⊥ throw, ⊥ mutate session.
+V43: pi-headroom ⊥ spawn/manage proxy process; proxy unset/unreachable/remote-blocked → compression no-op + one-time warning; commands/health/stats still work.
+V44: pi-headroom ! registered via `pi.extensions`; ⊥ npm noheadroom dependency; installed surface replaces `npm:@raquezha/noheadroom`; `~/.pi/agent/headroom/settings.json` path ⊥ changed silently.
+V45: compression pass ! gated by enabled + proxy health + `minContextTokens` + `throttleMs`; identical payload ⊥ retried (input/output/candidate fingerprints + bounded seen FIFO); guard skips recorded.
+V46: role-pack registration ! declare apiVersion 1 only; ⊥ write user agent dirs; unsubscribe on `session_shutdown`.
+V47: `pi-headroom` ! work in pi & omp side by side: host detect via `ExtensionAPI.zod`; settings file resolved per host (env overrides win); `headroom_retrieve` ! declare `loadMode: essential` + `approval: read`; compress timeout ! stay under omp `EXTENSION_HANDLER_TIMEOUT_MS` (30s) so the `context` handler returns before the host cap.
 
 ## §T TASKS
 id|status|task|cites
@@ -109,7 +127,7 @@ T26|x|update `packages/pi-grill-me/skills/engineering/grill-with-docs/SKILL.md` 
 T27|x|add optional `cavecrew-investigator` guidance to `cavekit-spec` DISTILL and `cavekit-check` evidence lookup; fallback to own codebase-memory/direct reads|V11,V24
 T28|x|add optional `cavecrew-investigator` trace guidance to `cavekit-backprop`; keep spec mutation in `cavekit-spec`|V11,V24
 T29|x|document/test Cavecrew explicit-delegation model: upstream Claude plugin hooks only mode tracking; Pi extension must not auto-spawn cavecrew agents|V1,V2,V16,V26
-T30|x|sync `packages/pi-caveman/agents/cavecrew-*.md` into `~/.pi/agent/agents` with `~/.pi/agent/caveman-managed.json`; preserve user edits and remove stale managed agents|V1,V2,V3,V27
+T30|x|replace Cavecrew agent sync with role-pack registration (`roles.ts`, discover event, shutdown unsubscribe); delete `agents.ts`; update tests/docs|V1,V2,V27
 T31|x|convert Cavecrew agent frontmatter/instructions to Pi-subagents tool names and behavior: investigator codebase-memory-first, builder `read/edit/write`, reviewer non-mutating `read/bash`|V1,V24,V27
 T32|x|update `cavecrew` skill instructions/tests to invoke Pi `subagent` tool correctly: list first, execute only available non-disabled agents, use `agent: "cavecrew-*"` task contracts|V1,V26,V27
 T33|x|normalize `packages/pi-heimdall`: remove copied standalone repo artifacts, keep package source/tests/docs, update tests/package checks if needed|V1,V2,V28
@@ -133,6 +151,16 @@ T50|x|teach `cavekit-spec`/`cavekit-check`/`cavekit-build` to handle optional §
 T51|x|update §I cavekit interface line + package registration (`pi.skills`/`pi.prompts` auto-cover new dirs) + README for new skills/prompts|V1,V2,V36
 T52|x|add tests: no upstream `skills/<verb>/SKILL.md` path leak, §R routes through `cavekit-spec`, sectioned ownership, new prompt/skill surface registered|V1,V2,V10,V36,V37
 T53|x|extend `CommandPolicy` + `command-policy-guard` with `bare` requirement: block matched cmd when segment has pipe/redirect; add tests + README docs|V39
+T54|x|scaffold `packages/pi-headroom` workspace pkg: `@casualjim/pi-headroom`, `pi.extensions`, tsconfig/vitest, README+LICENSE attribution (noheadroom fork lineage)|V1,V2,V44
+T55|x|port noheadroom `extensions/*` into `packages/pi-headroom/extensions` (bridge/client/config/types, Pi types)|V40,V45
+T56|x|impl `headroom_retrieve` tool + marker naturalization (all shapes) + awareness hint naming tool|V41,V42
+T57|x|drop proxy-manager/autoStart; degrade semantics for unset/unreachable/remote proxy|V43
+T58|x|impl `/headroom` commands + settings/env precedence + `renameToolCalls` knob|V43
+T59|x|add tests: apply-back alignment, marker shapes, retrieve client (envelope/string/404/bad hash), loop guards, config precedence, registration|V1,V40,V41,V42,V45
+T60|x|install path entry in `~/.pi/agent/settings.json`, remove `npm:@raquezha/noheadroom`, live verify compress+retrieve E2E|V42,V44
+T61|x|update README/§I docs for pi-headroom surface + retrieve contract|V1,V44
+T62|x|audit pi-headroom against omp `ExtensionAPI`: context event, registerTool/TypeBox, renderer/Box/Text/theme, EventBus, agent-dir settings; adapt host detect + settings resolution + `loadMode`/`approval` + 20s timeout|V47
+T63|~|verify pi-headroom in omp: headless session produces a marker + `headroom_retrieve` redeems it (needs a real omp process; sandbox blocks omp's agent.db writes)|V42,V47
 
 ## §B BUGS
 id|date|cause|fix

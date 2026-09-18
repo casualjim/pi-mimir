@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { syncBundledCavecrewAgents } from "./agents.js";
+import { registerCavecrewRoles } from "./roles.js";
 import { buildActiveReminder, loadCavemanRules } from "./rules.js";
 import {
   clearModeState,
@@ -19,9 +19,12 @@ function modeFromSkillCommand(text: string): CavemanMode | null | "off" {
   const cmd = parts[0] ?? "";
   const arg = parts[1] ?? "";
 
-  if (cmd === "/skill:caveman-commit" || cmd === "/caveman-commit") return "commit";
-  if (cmd === "/skill:caveman-review" || cmd === "/caveman-review") return "review";
-  if (cmd === "/skill:caveman-compress" || cmd === "/caveman-compress") return "compress";
+  if (cmd === "/skill:caveman-commit" || cmd === "/caveman-commit")
+    return "commit";
+  if (cmd === "/skill:caveman-review" || cmd === "/caveman-review")
+    return "review";
+  if (cmd === "/skill:caveman-compress" || cmd === "/caveman-compress")
+    return "compress";
 
   if (cmd === "/skill:caveman" || cmd === "/caveman") {
     if (!arg) return getDefaultMode();
@@ -36,14 +39,20 @@ function modeFromNaturalLanguage(text: string): CavemanMode | null | "off" {
   const prompt = text.trim().toLowerCase();
   if (!prompt) return null;
 
-  if (/\bnormal mode\b/i.test(prompt) ||
-      /\b(stop|disable|deactivate|turn off)\b.*\bcaveman\b/i.test(prompt) ||
-      /\bcaveman\b.*\b(stop|disable|deactivate|turn off)\b/i.test(prompt)) {
+  if (
+    /\bnormal mode\b/i.test(prompt) ||
+    /\b(stop|disable|deactivate|turn off)\b.*\bcaveman\b/i.test(prompt) ||
+    /\bcaveman\b.*\b(stop|disable|deactivate|turn off)\b/i.test(prompt)
+  ) {
     return "off";
   }
 
-  if (/\b(activate|enable|turn on|start|talk like|use)\b.*\bcaveman\b/i.test(prompt) ||
-      /\bcaveman\b.*\b(mode|activate|enable|turn on|start)\b/i.test(prompt)) {
+  if (
+    /\b(activate|enable|turn on|start|talk like|use)\b.*\bcaveman\b/i.test(
+      prompt,
+    ) ||
+    /\bcaveman\b.*\b(mode|activate|enable|turn on|start)\b/i.test(prompt)
+  ) {
     return getDefaultMode();
   }
 
@@ -63,9 +72,9 @@ function activeBaseMode(): CavemanMode | null {
 }
 
 export default function cavemanExtension(pi: ExtensionAPI) {
-  pi.on("session_start", async () => {
-    syncBundledCavecrewAgents();
+  registerCavecrewRoles(pi);
 
+  pi.on("session_start", async () => {
     const mode = getDefaultMode();
     if (mode === "off") {
       clearModeState();
@@ -84,7 +93,8 @@ export default function cavemanExtension(pi: ExtensionAPI) {
 
   pi.on("input", async (event) => {
     if (event.source === "extension") return { action: "continue" };
-    const mode = modeFromSkillCommand(event.text) ?? modeFromNaturalLanguage(event.text);
+    const mode =
+      modeFromSkillCommand(event.text) ?? modeFromNaturalLanguage(event.text);
     setMode(mode);
     return { action: "continue" };
   });

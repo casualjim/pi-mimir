@@ -1,3 +1,4 @@
 node_modules/
 fnox.toml
 __pycache__
+.vitest/

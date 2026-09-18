@@ -1,123 +1,226 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
+import { describe, expect, it, vi } from "vitest";
+import { readFileSync, readdirSync } from "node:fs";
+import path from "node:path";
 import {
-  BUNDLED_AGENTS_DIR,
-  CAVEMAN_MANAGED_MANIFEST,
-  syncBundledCavecrewAgents,
-} from '../extensions/caveman/agents.js';
+  BUNDLED_ROLES_DIR,
+  ROLE_PACK_DISCOVERY_EVENT,
+  registerCavecrewRoles,
+} from "../extensions/caveman/roles.js";
 
-const root = path.resolve(import.meta.dirname, '..');
+const root = path.resolve(import.meta.dirname, "..");
 
-function sha256(content: Buffer | string): string {
-  return createHash('sha256').update(content).digest('hex');
-}
+const THINKING_LEVELS = [
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+];
 
 function cavecrewAgentNames(): string[] {
-  return readdirSync(BUNDLED_AGENTS_DIR).filter((name) => /^cavecrew-[a-z0-9-]+\.md$/.test(name)).sort();
+  return readdirSync(BUNDLED_ROLES_DIR)
+    .filter((name) => /^cavecrew-[a-z0-9-]+\.md$/.test(name))
+    .sort();
 }
 
-function toolsLine(name: string): string {
-  const content = readFileSync(path.join(BUNDLED_AGENTS_DIR, name), 'utf8');
-  return content.match(/^tools:\s*(.+)$/m)?.[1].trim() ?? '';
+function frontmatter(name: string): string {
+  const content = readFileSync(path.join(BUNDLED_ROLES_DIR, name), "utf8");
+  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) throw new Error(`${name} has no frontmatter`);
+  return match[1];
 }
 
-describe('Cavecrew managed agents', () => {
-  let cwd: string;
-  let previousAgentDir: string | undefined;
+function frontmatterValue(name: string, key: string): string | undefined {
+  const line = frontmatter(name)
+    .split("\n")
+    .find((candidate) => candidate.startsWith(`${key}:`));
+  return line?.slice(`${key}:`.length).trim() || undefined;
+}
 
-  beforeEach(() => {
-    cwd = path.join(tmpdir(), `pi-caveman-agents-test-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-    previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-    process.env.PI_CODING_AGENT_DIR = cwd;
-    mkdirSync(cwd, { recursive: true });
+interface FakePi {
+  events: {
+    on(channel: string, handler: (data: unknown) => void): () => void;
+    emit(channel: string, data: unknown): void;
+  };
+  on(event: string, handler: () => void): void;
+  handlers: Map<string, () => void>;
+}
+
+function fakePi(): FakePi {
+  const channels = new Map<string, (data: unknown) => void>();
+  const handlers = new Map<string, () => void>();
+  return {
+    events: {
+      on(channel, handler) {
+        channels.set(channel, handler);
+        return () => channels.delete(channel);
+      },
+      emit(channel, data) {
+        channels.get(channel)?.(data);
+      },
+    },
+    on(event, handler) {
+      handlers.set(event, handler);
+    },
+    handlers,
+  };
+}
+
+function registerWith(pi: FakePi): string[] {
+  const registered: string[] = [];
+  pi.events.emit(ROLE_PACK_DISCOVERY_EVENT, {
+    apiVersion: 1,
+    register: (registeredPath: string) => registered.push(registeredPath),
+  });
+  return registered;
+}
+
+describe("Cavecrew role pack", () => {
+  it("registers the bundled agents directory on the pi-herdr-agents discovery event", () => {
+    const pi = fakePi();
+    const registered: string[] = [];
+    registerCavecrewRoles(pi as never);
+
+    expect(pi.handlers.has("session_shutdown")).toBe(true);
+    expect(registered).toEqual([]);
+
+    pi.events.emit(ROLE_PACK_DISCOVERY_EVENT, {
+      apiVersion: 1,
+      register: (registeredPath: string) => registered.push(registeredPath),
+    });
+
+    expect(registered).toEqual([BUNDLED_ROLES_DIR]);
+    expect(path.isAbsolute(BUNDLED_ROLES_DIR)).toBe(true);
+    expect(readdirSync(BUNDLED_ROLES_DIR)).toContain(
+      "cavecrew-investigator.md",
+    );
   });
 
-  afterEach(() => {
-    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
-    rmSync(cwd, { recursive: true, force: true });
+  it("ignores unknown protocol versions", () => {
+    const pi = fakePi();
+    const register = vi.fn();
+    registerCavecrewRoles(pi as never);
+
+    pi.events.emit(ROLE_PACK_DISCOVERY_EVENT, { apiVersion: 2, register });
+
+    expect(register).not.toHaveBeenCalled();
   });
 
-  it('syncs cavecrew agents to user agent dir with content-hash manifest', () => {
-    const result = syncBundledCavecrewAgents();
-    const expected = cavecrewAgentNames();
+  it("unsubscribes on session shutdown", () => {
+    const pi = fakePi();
+    registerCavecrewRoles(pi as never);
 
-    expect(result.added.sort()).toEqual(expected);
-    expect(result.updated).toEqual([]);
-    expect(result.removed).toEqual([]);
-    expect(result.errors).toEqual([]);
+    pi.handlers.get("session_shutdown")?.();
 
-    const userAgentDir = path.join(cwd, 'agents');
-    for (const name of expected) expect(existsSync(path.join(userAgentDir, name))).toBe(true);
-
-    const manifest = JSON.parse(readFileSync(path.join(cwd, CAVEMAN_MANAGED_MANIFEST), 'utf8')) as Record<string, string>;
-    expect(Object.keys(manifest).sort()).toEqual(expected);
-    for (const name of expected) {
-      expect(manifest[name]).toBe(sha256(readFileSync(path.join(BUNDLED_AGENTS_DIR, name))));
-    }
-  });
-
-  it('preserves user-modified managed agents and drops ownership', () => {
-    const userAgentDir = path.join(cwd, 'agents');
-    mkdirSync(userAgentDir, { recursive: true });
-    writeFileSync(path.join(userAgentDir, 'cavecrew-reviewer.md'), '# user modified\n', 'utf8');
-    writeFileSync(path.join(cwd, CAVEMAN_MANAGED_MANIFEST), JSON.stringify({
-      'cavecrew-reviewer.md': sha256('# previous managed\n'),
-    }), 'utf8');
-
-    const result = syncBundledCavecrewAgents();
-    const manifest = JSON.parse(readFileSync(path.join(cwd, CAVEMAN_MANAGED_MANIFEST), 'utf8')) as Record<string, string>;
-
-    expect(result.updated).not.toContain('cavecrew-reviewer.md');
-    expect(readFileSync(path.join(userAgentDir, 'cavecrew-reviewer.md'), 'utf8')).toContain('user modified');
-    expect(manifest['cavecrew-reviewer.md']).toBeUndefined();
-  });
-
-  it('removes stale unchanged managed agents', () => {
-    const userAgentDir = path.join(cwd, 'agents');
-    mkdirSync(userAgentDir, { recursive: true });
-    const content = '# old managed\n';
-    writeFileSync(path.join(userAgentDir, 'cavecrew-old.md'), content, 'utf8');
-    writeFileSync(path.join(cwd, CAVEMAN_MANAGED_MANIFEST), JSON.stringify({
-      'cavecrew-old.md': sha256(content),
-    }), 'utf8');
-
-    const result = syncBundledCavecrewAgents();
-
-    expect(result.removed).toContain('cavecrew-old.md');
-    expect(existsSync(path.join(userAgentDir, 'cavecrew-old.md'))).toBe(false);
+    expect(registerWith(pi)).toEqual([]);
   });
 });
 
-describe('Cavecrew Pi-subagents contract', () => {
-  it('uses Pi tool names and codebase-memory-first investigator ladder', () => {
-    expect(toolsLine('cavecrew-investigator.md')).toBe('read, bash, codebase_memory_get_architecture, codebase_memory_search_graph, codebase_memory_search_code, codebase_memory_trace_path, codebase_memory_get_code_snippet, codebase_memory_get_graph_schema, codebase_memory_index_status');
-    expect(toolsLine('cavecrew-builder.md')).toBe('read, edit, write');
-    expect(toolsLine('cavecrew-reviewer.md')).toBe('read, bash');
+describe("Cavecrew definition contract", () => {
+  it("declares the fields pi-herdr-agents validates", () => {
+    const names = cavecrewAgentNames();
+    expect(names).toHaveLength(3);
 
-    for (const name of cavecrewAgentNames()) {
-      const content = readFileSync(path.join(BUNDLED_AGENTS_DIR, name), 'utf8');
-      expect(content).not.toMatch(/tools:\s*\[/);
-      expect(content).not.toMatch(/\b(Read|Grep|Glob|Bash|Edit|Write)\b/);
+    for (const name of names) {
+      const stem = name.replace(/\.md$/, "");
+      expect(frontmatterValue(name, "name")).toBe(stem);
+
+      const description = frontmatterValue(name, "description");
+      expect(description, `${name} description`).toBeTruthy();
+      expect(
+        description,
+        `${name} description must not be a folded block`,
+      ).not.toMatch(/^[>|[]/);
+
+      expect(frontmatterValue(name, "system-prompt")).toBe("append");
+      expect(frontmatterValue(name, "spawning")).toBe("false");
+      expect(frontmatterValue(name, "auto-exit")).toBe("true");
+
+      const thinking = frontmatterValue(name, "thinking");
+      if (thinking !== undefined) expect(THINKING_LEVELS).toContain(thinking);
     }
-
-    const investigator = readFileSync(path.join(BUNDLED_AGENTS_DIR, 'cavecrew-investigator.md'), 'utf8');
-    expect(investigator).toContain('codebase_memory_get_architecture');
-    expect(investigator).toContain('degraded: codebase-memory unavailable; using read/bash.');
   });
 
-  it('documents explicit delegation and forbids extension auto-spawn', () => {
-    const skill = readFileSync(path.join(root, 'skills/cavecrew/SKILL.md'), 'utf8');
-    const readme = readFileSync(path.join(root, 'README.md'), 'utf8');
-    const extension = readFileSync(path.join(root, 'extensions/caveman/index.ts'), 'utf8');
+  it("uses inline comma-separated tool scalars with no thinking suffix on model", () => {
+    for (const name of cavecrewAgentNames()) {
+      const tools = frontmatterValue(name, "tools");
+      expect(tools, `${name} tools`).toBeTruthy();
+      expect(tools, `${name} tools must be an inline scalar`).not.toMatch(
+        /[[\]{}>|#"']/,
+      );
+      for (const entry of tools!.split(",")) expect(entry.trim()).toBeTruthy();
 
-    expect(skill).toContain('{ "action": "list" }');
-    expect(skill).toContain('{ "agent": "cavecrew-investigator"');
-    expect(skill).toContain('Never auto-spawn Cavecrew from extension hooks.');
-    expect(readme).toContain('does not auto-spawn agents');
-    expect(extension).not.toContain('subagent');
+      const model = frontmatterValue(name, "model");
+      if (model !== undefined) {
+        expect(
+          model,
+          `${name} model must not carry a thinking suffix`,
+        ).not.toMatch(/:(?:off|minimal|low|medium|high|xhigh|max)$/);
+        expect(model.split("/")).toHaveLength(2);
+      }
+    }
+  });
+
+  it("uses Pi tool names and codebase-memory-first investigator ladder", () => {
+    expect(frontmatterValue("cavecrew-builder.md", "tools")).toBe(
+      "read, edit, write",
+    );
+    expect(frontmatterValue("cavecrew-reviewer.md", "tools")).toBe(
+      "read, bash",
+    );
+    expect(frontmatterValue("cavecrew-reviewer.md", "model")).toBe(
+      "zai/glm-5.3",
+    );
+    expect(frontmatterValue("cavecrew-reviewer.md", "thinking")).toBe("max");
+    expect(frontmatterValue("cavecrew-investigator.md", "model")).toBe(
+      "ollama-cloud/deepseek-v4.1-flash",
+    );
+    expect(frontmatterValue("cavecrew-investigator.md", "thinking")).toBe(
+      "high",
+    );
+
+    for (const name of cavecrewAgentNames()) {
+      const content = readFileSync(path.join(BUNDLED_ROLES_DIR, name), "utf8");
+      expect(content, `${name} uses a YAML tool list`).not.toMatch(
+        /tools:\s*\[/,
+      );
+      expect(content, `${name} uses legacy Claude tool names`).not.toMatch(
+        /\b(Read|Grep|Glob|Bash|Edit|Write)\b/,
+      );
+      expect(content, `${name} uses namespaced MCP tool names`).not.toMatch(
+        /codebase_memory_/,
+      );
+    }
+
+    const investigator = readFileSync(
+      path.join(BUNDLED_ROLES_DIR, "cavecrew-investigator.md"),
+      "utf8",
+    );
+    expect(investigator).toContain("`get_architecture`");
+    expect(investigator).toContain(
+      "degraded: codebase-memory unavailable; using read/bash.",
+    );
+  });
+
+  it("documents explicit delegation and forbids extension auto-spawn", () => {
+    const skill = readFileSync(
+      path.join(root, "skills/cavecrew/SKILL.md"),
+      "utf8",
+    );
+    const readme = readFileSync(path.join(root, "README.md"), "utf8");
+    const extension = readFileSync(
+      path.join(root, "extensions/caveman/index.ts"),
+      "utf8",
+    );
+
+    expect(skill).toContain("subagents_list");
+    expect(skill).toContain(
+      '{ "name": "Locate X", "agent": "cavecrew-investigator"',
+    );
+    expect(skill).toContain("Never auto-spawn Cavecrew from extension hooks.");
+    expect(readme).toContain("does not auto-spawn agents");
+    expect(extension).not.toContain("registerTool");
   });
 });

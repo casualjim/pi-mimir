@@ -9,25 +9,20 @@ description: >
 
 Cavecrew = caveman-compressed delegation pattern. Same jobs as locator, surgical editor, reviewer; difference is output contract is terse so main context stays smaller.
 
-This Pi port bundles upstream prompt resources in `agents/` as reference material. Actual execution depends on subagents configured in current Pi environment.
+This Pi port ships the upstream prompt resources in `agents/` as live pi-herdr-agents role definitions, published through the package's role pack.
 
 ## Pi Subagent Rule
 
-Before executing any subagent, call:
+Delegation goes through pi-herdr-agents' `subagent` tool. Before delegating, call `subagents_list` (or `/subagent list`) and use only the roles it reports. The Cavecrew roles are published as a role pack, so they appear with source `package`:
 
 ```json
-{ "action": "list" }
-```
-
-Only execute agents listed as executable/non-disabled. Prefer exact runtime names:
-
-```json
-{ "agent": "cavecrew-investigator", "task": "Locate `X`. Return file:line only." }
-{ "agent": "cavecrew-builder", "task": "Edit only `path/to/file.ts`: fix `X`. Return receipt." }
-{ "agent": "cavecrew-reviewer", "task": "Review current diff. Findings only." }
+{ "name": "Locate X", "agent": "cavecrew-investigator", "task": "Locate `X`. Return file:line only." }
+{ "name": "Fix X", "agent": "cavecrew-builder", "task": "Edit only `path/to/file.ts`: fix `X`. Return receipt." }
+{ "name": "Review diff", "agent": "cavecrew-reviewer", "task": "Review current diff. Findings only." }
 ```
 
 If exact Cavecrew agents missing, either:
+
 - use equivalent available agents with Cavecrew output contract in task prompt, or
 - perform work in main thread when delegation would add ambiguity.
 
@@ -36,7 +31,7 @@ Never auto-spawn Cavecrew from extension hooks. Delegation only after user/main-
 ## When to use cavecrew vs alternatives
 
 | Task | Use |
-|---|---|
+| --- | --- |
 | "Where is X defined / what calls Y / list uses of Z" | investigator-style subagent |
 | Same but you also want suggestions/architecture commentary | normal exploration/main thread |
 | Surgical edit, ≤2 files, scope obvious | builder-style subagent |
@@ -100,14 +95,15 @@ Skip investigator when file/line already known. Hand exact path:line to builder 
 - Don't ask reviewer for "general feedback"; it returns findings only, no architecture opinions.
 - Don't expect prose. Cavecrew output is structured and terse. If human will read it directly, paraphrase.
 
-## Bundled Prompt Resources
+## Bundled Role Definitions
 
-Reference prompt files live in package `agents/` and are synced as managed user agents to `~/.pi/agent/agents` when `pi-caveman` extension loads:
+The package's `agents/` directory is registered with pi-herdr-agents as a role pack when the `pi-caveman` extension loads, using the `pi-herdr-subagents:roles:discover:v1` event. Nothing is copied into `~/.pi/agent/agents`:
+
 - `cavecrew-investigator.md`
 - `cavecrew-builder.md`
 - `cavecrew-reviewer.md`
 
-Ownership tracked in `~/.pi/agent/caveman-managed.json`. User-modified synced agents stay user-owned and are not overwritten.
+The host reads and validates these files in place, so edits land as soon as the file changes. A project or global definition of the same name overrides the role pack.
 
 ## Auto-clarity
 

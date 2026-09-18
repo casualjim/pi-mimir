@@ -1,6 +1,9 @@
 ---
 name: poteto-agent
 description: pstack implementation delegate. Reads the bundled Pi poteto-mode skill in full before any work, including its Principles index.
+system-prompt: append
+spawning: true
+auto-exit: true
 ---
 
 # Poteto subagent

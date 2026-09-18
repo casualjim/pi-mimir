@@ -8,6 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 async function listFiles(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true });
   const files = await Promise.all(entries.map(async (entry) => {
+    if (entry.name === 'node_modules') return [];
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) return listFiles(full);
     return [full];
