@@ -1,8 +1,12 @@
 {
   "name": "@casualjim/pi-headroom",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Headroom context compression for pi with a working headroom_retrieve tool",
-  "keywords": ["pi-package", "headroom", "context-compression"],
+  "keywords": [
+    "pi-package",
+    "headroom",
+    "context-compression"
+  ],
   "license": "MIT",
   "author": "casualjim",
   "repository": {
@@ -10,19 +14,31 @@
     "url": "https://github.com/casualjim/pi-mimir"
   },
   "type": "module",
-  "files": ["extensions/", "README.md", "LICENSE"],
-  "engines": { "node": ">=22.0.0" },
-  "publishConfig": { "access": "public" },
+  "files": [
+    "extensions/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "check:pack": "pnpm pack --dry-run",
     "test": "vitest run"
   },
   "pi": {
-    "extensions": ["./extensions/headroom.ts"]
+    "extensions": [
+      "./extensions/headroom.ts"
+    ]
   },
   "omp": {
-    "extensions": ["./extensions/headroom.ts"]
+    "extensions": [
+      "./extensions/headroom.ts"
+    ]
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",
