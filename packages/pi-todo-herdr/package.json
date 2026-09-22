@@ -1,6 +1,6 @@
 {
   "name": "@casualjim/pi-todo-herdr",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Hierarchical task tools for Pi with a live widget and Herdr sidebar integration.",
   "type": "module",
   "main": "./index.ts",

@@ -1,6 +1,6 @@
 {
   "name": "@casualjim/pi-crumbs",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "license": "MIT",
   "description": "Crumbs CLI discovery guidance plugin for Pi",
   "keywords": [

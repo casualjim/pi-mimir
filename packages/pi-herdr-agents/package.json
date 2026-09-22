@@ -1,6 +1,6 @@
 {
   "name": "@casualjim/pi-herdr-agents",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "Asynchronous Pi subagents in Herdr, with optional isolated Git worktrees (fork: worktree creation aligned with wt)",
   "keywords": [
     "pi-package",

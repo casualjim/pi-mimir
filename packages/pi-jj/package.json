@@ -1,6 +1,6 @@
 {
   "name": "@casualjim/pi-jj",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "pi-jj stacked PR workflow + jj/git publish alignment (merged fork)",
   "keywords": [
     "pi-package",
