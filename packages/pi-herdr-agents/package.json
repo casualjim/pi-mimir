@@ -1,0 +1,72 @@
+{
+  "name": "@casualjim/pi-herdr-agents",
+  "version": "2.0.3",
+  "description": "Asynchronous Pi subagents in Herdr, with optional isolated Git worktrees (fork: worktree creation aligned with wt)",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "herdr",
+    "subagents",
+    "agents",
+    "worktrees",
+    "orchestration"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "Giuseppe Rodriguez",
+    "url": "https://github.com/giuseppecrj"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/casualjim/pi-mimir.git",
+    "directory": "packages/pi-herdr-agents"
+  },
+  "bugs": {
+    "url": "https://github.com/casualjim/pi-mimir/issues"
+  },
+  "homepage": "https://github.com/casualjim/pi-mimir/tree/main/packages/pi-herdr-agents#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "scripts": {
+    "changelog": "auto-changelog",
+    "format": "biome format --write pi-extension test skills/orchestrate/adversarial-review-example.js",
+    "format:check": "biome format pi-extension test skills/orchestrate/adversarial-review-example.js",
+    "lint": "oxlint pi-extension test skills/orchestrate/adversarial-review-example.js",
+    "test": "node --experimental-strip-types --test test/test.ts test/worktree-cleanup.test.ts test/launch.test.ts test/runtime-routing.test.ts test/package-skill.test.js test/evals/*.test.mjs",
+    "test:integration": "node --experimental-strip-types --test --test-concurrency=1 test/integration/*.test.ts",
+    "test:integration:live": "PI_TEST_LIVE=1 node --experimental-strip-types --test --test-concurrency=1 test/integration/*.test.ts",
+    "version": "auto-changelog --package && git add CHANGELOG.md"
+  },
+  "auto-changelog": {
+    "commitLimit": false,
+    "template": "keepachangelog",
+    "unreleased": true
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "@sinclair/typebox": "*"
+  },
+  "pi": {
+    "extensions": [
+      "./pi-extension/subagents/index.ts"
+    ],
+    "skills": [
+      "./skills"
+    ],
+    "image": "https://raw.githubusercontent.com/giuseppecrj/pi-herdr-agents/main/docs/assets/pi-herdr-agents-gallery.png"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.11",
+    "@earendil-works/pi-ai": "^0.87.1",
+    "@earendil-works/pi-coding-agent": "^0.87.1",
+    "@earendil-works/pi-tui": "^0.87.0",
+    "@oxlint/plugins": "^1.80.0",
+    "@sinclair/typebox": "^0.34.52",
+    "auto-changelog": "^2.6.0",
+    "oxlint": "^1.80.0"
+  }
+}

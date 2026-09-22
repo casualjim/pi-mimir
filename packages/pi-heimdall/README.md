@@ -22,9 +22,10 @@ redacts anything that would leak secrets to the LLM context.
 | Guard | Type | Tool | Blocks / redacts |
 |---|---|---|---|
 | `sandbox-guard` | always-on | `bash` | Delegates sandboxed bash commands to the native `heimdall-sandbox` runtime using the configured native policy schema |
-| `env-protect` | opt-out | `read` | Reading `.env`, `.env.*`, `.envrc`, `*.env` — except `.env.example`, `.env.sample`, `.env.template`, `.env.dist`, `.env.defaults` |
+| `env-protect` | opt-out | `read` | Reading `.env`, `.env.*`, `.envrc`, `*.env`, `fnox.toml`, `.fnox.toml`, `fnox.*.toml` — except `.env.example`, `.env.sample`, `.env.template`, `.env.dist`, `.env.defaults`. No escalation: these files never reach the LLM context |
 | `kubectl-secret-guard` | opt-out | `bash` | `kubectl get secrets`, `kubectl patch ... finalizers`, `kubectl exec` into a pod that dumps env / `/var/run/secrets` / `app.ini` |
 | `sops-secret-guard` | opt-out | `bash` | Any `sops` invocation that would decrypt content: `sops decrypt`, `sops -d`, `sops --decrypt`, `sops exec-env`, `sops exec-file`, `sops edit`, and bare `sops <file>` |
+| `fnox-secret-guard` | opt-out | `bash` | Any `fnox` invocation that resolves secret values: `fnox get`, `fnox exec`, `fnox sync` |
 | `command-policy-guard` | opt-out | `bash` | Commands that violate repo policy as defined in `.config/heimdall.json` (e.g. blocking `cargo test` in favour of `mise test`) |
 | `secret-guard` | opt-out | `bash` | Commands that reference secret env var names from a project `.env.json`, and redacts their values from bash output (plaintext, base64, rot13, reversed, hex, and hexdump-decoded) |
 

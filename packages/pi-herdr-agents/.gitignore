@@ -1,0 +1,6 @@
+node_modules/
+config.json
+.reviews/
+.pi/*
+!.pi/skills/
+!.pi/settings.json

@@ -672,3 +672,90 @@ function createPiHarness(noSandboxFlag: boolean, cwd?: string) {
 		},
 	};
 }
+
+describe("sandbox-guard escalation (heimdall-allow)", () => {
+	function getAllowTool(harness: ReturnType<typeof createPiHarness>) {
+		const call = harness.registerTool.mock.calls.find(([def]: any[]) => def?.name === "heimdall-allow");
+		if (!call) throw new Error("heimdall-allow tool not registered");
+		return call[0] as {
+			execute: (
+				id: string,
+				params: { path: string; operation: "read" | "write"; reason?: string },
+				signal: undefined,
+				onUpdate: undefined,
+				ctx: { hasUI: boolean; ui: { confirm: (title: string, message: string) => Promise<boolean>; notify: (m: string, l?: string) => void } },
+			) => Promise<{ content: Array<{ text: string }> }>;
+		};
+	}
+
+	it("block reason points the agent at heimdall-allow", async () => {
+		const harness = createPiHarness(false);
+		registerSandboxGuard(harness.pi, () => ({
+			sandbox: { enabled: true, filesystem: { deny: ["~/Private"] } },
+		}));
+		await harness.emitSessionStart();
+
+		const result = (await harness.emitToolCall("read", { path: "~/Private/secret.txt" })) as { reason: string };
+		expect(result.reason).toContain("heimdall-allow");
+	});
+
+	it("user approval via the tool unblocks the path for the session", async () => {
+		const harness = createPiHarness(false);
+		registerSandboxGuard(harness.pi, () => ({
+			sandbox: { enabled: true, filesystem: { deny: ["~/Private"] } },
+		}));
+		await harness.emitSessionStart();
+		const allow = getAllowTool(harness);
+		const confirm = vi.fn(async () => true);
+
+		expect(await harness.emitToolCall("read", { path: "~/Private/secret.txt" })).toBeTruthy();
+
+		const result = await allow.execute("t1", { path: "~/Private/secret.txt", operation: "read", reason: "tests need it" }, undefined, undefined, { hasUI: true, ui: { confirm, notify: vi.fn() } });
+		expect(confirm).toHaveBeenCalled();
+		expect(result.content[0]!.text).toContain("Approved");
+
+		expect(await harness.emitToolCall("read", { path: "~/Private/secret.txt" })).toBeUndefined();
+	});
+
+	it("a declined request keeps the block", async () => {
+		const harness = createPiHarness(false);
+		registerSandboxGuard(harness.pi, () => ({
+			sandbox: { enabled: true, filesystem: { deny: ["~/Private"] } },
+		}));
+		await harness.emitSessionStart();
+		const allow = getAllowTool(harness);
+
+		await allow.execute("t1", { path: "~/Private/secret.txt", operation: "read" }, undefined, undefined, { hasUI: true, ui: { confirm: async () => false, notify: vi.fn() } });
+
+		expect(await harness.emitToolCall("read", { path: "~/Private/secret.txt" })).toBeTruthy();
+	});
+
+	it("approval is operation-scoped: read approval does not unlock writes", async () => {
+		const harness = createPiHarness(false);
+		registerSandboxGuard(harness.pi, () => ({
+			sandbox: { enabled: true, filesystem: { deny: ["~/Private"], writable: ["./src"] } },
+		}));
+		await harness.emitSessionStart();
+		const allow = getAllowTool(harness);
+
+		await allow.execute("t1", { path: "~/Private/notes.md", operation: "read" }, undefined, undefined, { hasUI: true, ui: { confirm: async () => true, notify: vi.fn() } });
+
+		expect(await harness.emitToolCall("read", { path: "~/Private/notes.md" })).toBeUndefined();
+		const write = await harness.emitToolCall("write", { path: "~/Private/notes.md" });
+		expect(write).toBeTruthy();
+	});
+
+	it("the /heimdall-allow command grants without a dialog and a new session clears approvals", async () => {
+		const harness = createPiHarness(false);
+		registerSandboxGuard(harness.pi, () => ({
+			sandbox: { enabled: true, filesystem: { deny: ["~/Private"] } },
+		}));
+		await harness.emitSessionStart();
+
+		await harness.emitCommand("heimdall-allow", "read ~/Private/secret.txt");
+		expect(await harness.emitToolCall("read", { path: "~/Private/secret.txt" })).toBeUndefined();
+
+		await harness.emitSessionStart();
+		expect(await harness.emitToolCall("read", { path: "~/Private/secret.txt" })).toBeTruthy();
+	});
+});

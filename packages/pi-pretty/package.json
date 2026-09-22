@@ -1,0 +1,71 @@
+{
+	"name": "@casualjim/pi-pretty",
+	"version": "0.7.0",
+	"description": "Pretty terminal output for pi built-in tools, composed with pi-heimdall — the bash tool renders like pi-pretty and executes through the heimdall sandbox.",
+	"keywords": [
+		"pi",
+		"pi-extension",
+		"pi-package",
+		"pretty-print",
+		"shiki",
+		"syntax-highlighting",
+		"terminal",
+		"heimdall",
+		"sandbox"
+	],
+	"homepage": "https://github.com/casualjim/pi-mimir/tree/main/packages/pi-pretty",
+	"license": "MIT",
+	"author": "casualjim",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/casualjim/pi-mimir"
+	},
+	"files": [
+		"src/",
+		"README.md",
+		"LICENSE"
+	],
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./bash-renderers": {
+			"types": "./src/tools/bash.d.ts",
+			"default": "./src/tools/bash.ts"
+		}
+	},
+	"engines": {
+		"node": ">=22.0.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"check:pack": "pnpm pack --dry-run",
+		"test": "vitest run"
+	},
+	"pi": {
+		"extensions": [
+			"./src/index.ts"
+		]
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-ai": "*",
+		"@earendil-works/pi-coding-agent": "*",
+		"@earendil-works/pi-tui": "*"
+	},
+	"devDependencies": {
+		"@earendil-works/pi-ai": "^0.87.1",
+		"@earendil-works/pi-coding-agent": "^0.87.1",
+		"@earendil-works/pi-tui": "^0.87.0",
+		"@types/node": "^24.13.4",
+		"jiti": "^2.7.0",
+		"typescript": "^7.0.2",
+		"vitest": "^5.0.0"
+	},
+	"dependencies": {
+		"@ff-labs/fff-node": "^0.10.0",
+		"@shikijs/cli": "^4.0.2",
+		"shiki": "4.0.2"
+	}
+}

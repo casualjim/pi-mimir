@@ -1,0 +1,16 @@
+.pi/
+openspec/
+test/
+docs/assets/
+.github/
+.gitignore
+config.json
+prototype/
+prototypes/
+sessions/
+run.jsonl
+.reviews/
+biome.json
+oxlint.config.ts
+tools/
+*.tgz

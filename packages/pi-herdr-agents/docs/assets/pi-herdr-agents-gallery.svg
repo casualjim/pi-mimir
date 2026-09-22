@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title description">
+  <title id="title">Pi Herdr Agents — parallel agents for Pi</title>
+  <desc id="description">A dark terminal-inspired package banner showing a parent Pi session supervising parallel scout, worker, and review agents in Herdr.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#060b13"/>
+      <stop offset="0.5" stop-color="#0b1624"/>
+      <stop offset="1" stop-color="#18121d"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#54d8ff"/>
+      <stop offset="0.52" stop-color="#7e9cff"/>
+      <stop offset="1" stop-color="#ffbd73"/>
+    </linearGradient>
+    <linearGradient id="flow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#58d9ff"/>
+      <stop offset="0.56" stop-color="#8e9fff"/>
+      <stop offset="1" stop-color="#ffbd73"/>
+    </linearGradient>
+    <radialGradient id="cyanGlow"><stop offset="0" stop-color="#3ccfff" stop-opacity="0.28"/><stop offset="1" stop-color="#3ccfff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="amberGlow"><stop offset="0" stop-color="#ffb65d" stop-opacity="0.22"/><stop offset="1" stop-color="#ffb65d" stop-opacity="0"/></radialGradient>
+    <pattern id="grid" width="52" height="52" patternUnits="userSpaceOnUse"><path d="M52 0H0V52" fill="none" stroke="#ffffff" stroke-opacity="0.035"/></pattern>
+    <filter id="shadow" x="-25%" y="-35%" width="150%" height="180%"><feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000000" flood-opacity="0.42"/></filter>
+    <filter id="glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="8" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M1 1L10 6L1 11Z" fill="#8fa5ff"/></marker>
+    <clipPath id="frame"><rect width="1600" height="900" rx="34"/></clipPath>
+  </defs>
+  <g clip-path="url(#frame)">
+    <rect width="1600" height="900" fill="url(#background)"/>
+    <rect width="1600" height="900" fill="url(#grid)"/>
+    <circle cx="1310" cy="130" r="500" fill="url(#cyanGlow)"/>
+    <circle cx="1280" cy="820" r="470" fill="url(#amberGlow)"/>
+    <path d="M-80 760C300 620 460 810 760 700S1240 430 1690 610" fill="none" stroke="url(#flow)" stroke-width="100" stroke-opacity="0.065"/>
+
+    <g transform="translate(88 72)">
+      <rect width="220" height="44" rx="22" fill="#ffffff" fill-opacity="0.065" stroke="#ffffff" stroke-opacity="0.14"/>
+      <circle cx="25" cy="22" r="5" fill="#55dcff" filter="url(#glow)"/>
+      <text x="43" y="28" fill="#d9e1ea" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" font-weight="700" letter-spacing="2">PI PACKAGE</text>
+    </g>
+    <text x="1512" y="101" text-anchor="end" fill="#8591a4" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="2.5">HERDR NATIVE</text>
+
+    <text x="88" y="238" fill="#f4f7f8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="96" font-weight="760" letter-spacing="-4">Pi</text>
+    <text x="190" y="238" fill="url(#brand)" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="96" font-weight="760" letter-spacing="-4">Herdr Agents</text>
+    <text x="91" y="304" fill="#d3dae3" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="34" font-weight="520">Parallel agents. One terminal.</text>
+    <text x="92" y="352" fill="#8895a8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21">Delegate work without blocking the parent Pi session.</text>
+
+    <g transform="translate(90 401)" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700" letter-spacing="1">
+      <g><rect width="190" height="42" rx="12" fill="#54d8ff" fill-opacity="0.08" stroke="#54d8ff" stroke-opacity="0.35"/><text x="95" y="27" text-anchor="middle" fill="#83e4ff">ASYNC AGENTS</text></g>
+      <g transform="translate(204)"><rect width="180" height="42" rx="12" fill="#829dff" fill-opacity="0.09" stroke="#829dff" stroke-opacity="0.35"/><text x="90" y="27" text-anchor="middle" fill="#aebcff">LIVE STATUS</text></g>
+      <g transform="translate(398)"><rect width="228" height="42" rx="12" fill="#ffbd73" fill-opacity="0.08" stroke="#ffbd73" stroke-opacity="0.34"/><text x="114" y="27" text-anchor="middle" fill="#ffd09a">WORKTREE HANDOFF</text></g>
+    </g>
+
+    <g transform="translate(88 492)" filter="url(#shadow)">
+      <rect width="728" height="266" rx="22" fill="#080d15" fill-opacity="0.96" stroke="#ffffff" stroke-opacity="0.13"/>
+      <path d="M0 54H728" stroke="#ffffff" stroke-opacity="0.09"/>
+      <circle cx="28" cy="27" r="6" fill="#ff766e"/><circle cx="50" cy="27" r="6" fill="#ffbd73"/><circle cx="72" cy="27" r="6" fill="#59dcae"/>
+      <text x="364" y="33" text-anchor="middle" fill="#6f7a8c" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14">pi — subagents</text>
+      <text x="30" y="92" fill="#dce4ec" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="17">╭─ Subagents ─────────────── 2 active · 1 open ─╮</text>
+      <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16">
+        <text x="31" y="132" fill="#7f8a9a">│ 00:23</text><text x="120" y="132" fill="#eef2f5">Scout: Auth</text><text x="390" y="132" fill="#71ddff">active · read</text><text x="682" y="132" text-anchor="end" fill="#7f8a9a">7m │</text>
+        <text x="31" y="172" fill="#7f8a9a">│ 00:45</text><text x="120" y="172" fill="#eef2f5">Worker: API</text><text x="390" y="172" fill="#9cadff">active · bash</text><text x="682" y="172" text-anchor="end" fill="#7f8a9a">2m │</text>
+        <text x="31" y="212" fill="#7f8a9a">│ 01:08</text><text x="120" y="212" fill="#eef2f5">Reviewer</text><text x="390" y="212" fill="#ffc47f">waiting</text><text x="682" y="212" text-anchor="end" fill="#7f8a9a">1m │</text>
+      </g>
+      <text x="30" y="246" fill="#dce4ec" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="17">╰──────────────────────────────────────────────╯</text>
+    </g>
+
+    <g transform="translate(866 178)">
+      <path d="M218 282C310 205 386 135 504 96" fill="none" stroke="url(#flow)" stroke-width="3" stroke-opacity="0.7" marker-end="url(#arrow)"/>
+      <path d="M228 312C350 312 420 312 530 312" fill="none" stroke="url(#flow)" stroke-width="3" stroke-opacity="0.72" marker-end="url(#arrow)"/>
+      <path d="M218 342C310 420 386 492 504 530" fill="none" stroke="url(#flow)" stroke-width="3" stroke-opacity="0.68" marker-end="url(#arrow)"/>
+
+      <g transform="translate(0 224)" filter="url(#shadow)">
+        <rect width="234" height="176" rx="24" fill="#0b111b" stroke="#5ad9ff" stroke-opacity="0.48"/>
+        <circle cx="42" cy="44" r="11" fill="#5ad9ff" filter="url(#glow)"/>
+        <text x="67" y="51" fill="#eff4f6" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="17" font-weight="700">PARENT PI</text>
+        <path d="M28 76H206" stroke="#ffffff" stroke-opacity="0.09"/>
+        <text x="28" y="111" fill="#9ba7b7" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14">interactive</text>
+        <text x="28" y="141" fill="#71ddff" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14">returns immediately</text>
+      </g>
+
+      <g transform="translate(516 34)" filter="url(#shadow)">
+        <rect width="204" height="126" rx="20" fill="#0c1420" stroke="#59d9ff" stroke-opacity="0.38"/>
+        <circle cx="30" cy="34" r="7" fill="#59d9ff"/><text x="50" y="40" fill="#e9eef2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="700">SCOUT</text>
+        <text x="29" y="76" fill="#8491a2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">read-only pane</text><text x="29" y="101" fill="#71ddff" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">● active</text>
+      </g>
+      <g transform="translate(542 249)" filter="url(#shadow)">
+        <rect width="204" height="126" rx="20" fill="#101321" stroke="#879fff" stroke-opacity="0.42"/>
+        <circle cx="30" cy="34" r="7" fill="#879fff"/><text x="50" y="40" fill="#e9eef2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="700">WORKER</text>
+        <text x="29" y="76" fill="#8992a8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">isolated worktree</text><text x="29" y="101" fill="#aab8ff" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">● active</text>
+      </g>
+      <g transform="translate(516 464)" filter="url(#shadow)">
+        <rect width="204" height="126" rx="20" fill="#16131b" stroke="#ffbd73" stroke-opacity="0.42"/>
+        <circle cx="30" cy="34" r="7" fill="#ffbd73"/><text x="50" y="40" fill="#e9eef2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="700">REVIEW</text>
+        <text x="29" y="76" fill="#968b89" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">retained session</text><text x="29" y="101" fill="#ffd09a" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">● waiting</text>
+      </g>
+      <text x="372" y="650" text-anchor="middle" fill="#758195" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" letter-spacing="1.8">DEDICATED HERDR SURFACES</text>
+    </g>
+
+    <g transform="translate(88 814)">
+      <rect width="1424" height="1" fill="#ffffff" fill-opacity="0.1"/>
+      <circle cx="10" cy="41" r="6" fill="#59dcae" filter="url(#glow)"/>
+      <text x="30" y="47" fill="#d6dde4" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="17">non-blocking · supervised · recoverable</text>
+      <text x="1424" y="47" text-anchor="end" fill="#717d90" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16">npm:pi-herdr-agents</text>
+    </g>
+  </g>
+  <rect x="1" y="1" width="1598" height="898" rx="33" fill="none" stroke="#ffffff" stroke-opacity="0.13" stroke-width="2"/>
+</svg>

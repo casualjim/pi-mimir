@@ -1,0 +1,23 @@
+{
+  "status": {
+    "enabled": true
+  },
+  "models": {
+    "agents": {}
+  },
+  "roles": {
+    "bundled": true
+  },
+  "persistent": {
+    "maxAgents": 3
+  },
+  "supervision": {
+    "forcePolling": false,
+    "hangWarningMinutes": 15
+  },
+  "panes": {
+    "mode": "grouped",
+    "direction": "right",
+    "maxPerTab": 4
+  }
+}

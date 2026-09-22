@@ -1,0 +1,61 @@
+{
+  "name": "@casualjim/pi-todo-herdr",
+  "version": "0.3.0",
+  "description": "Hierarchical task tools for Pi with a live widget and Herdr sidebar integration.",
+  "type": "module",
+  "main": "./index.ts",
+  "files": [
+    "index.ts",
+    "src/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "pi",
+    "pi-extension",
+    "todo",
+    "task-management",
+    "herdr",
+    "productivity"
+  ],
+  "author": {
+    "name": "casualjim"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/casualjim/pi-mimir/tree/main/packages/pi-todo-herdr",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/casualjim/pi-mimir"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "node --experimental-transform-types --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run typecheck && pnpm test"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "image": "https://github.com/leset0ng/pi-todo-herdr/raw/main/media/screenshot.png"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "^0.87.1",
+    "@earendil-works/pi-coding-agent": "^0.87.1",
+    "@earendil-works/pi-tui": "^0.87.1",
+    "typebox": "^1.0.13",
+    "typescript": "^7.0.2",
+    "@types/node": "^24.13.4"
+  }
+}

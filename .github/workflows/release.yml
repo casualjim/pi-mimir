@@ -63,10 +63,15 @@ jobs:
             (cd "${package_dir}" && pnpm publish --provenance --access public --no-git-checks)
           }
 
+          publish_if_missing @casualjim/pi-headroom packages/pi-headroom
+          publish_if_missing @casualjim/pi-jj packages/pi-jj
+          publish_if_missing @casualjim/pi-pretty packages/pi-pretty
+          publish_if_missing @casualjim/pi-todo-herdr packages/pi-todo-herdr
           publish_if_missing @casualjim/pi-cavekit packages/pi-cavekit
           publish_if_missing @casualjim/pi-caveman packages/pi-caveman
           publish_if_missing @casualjim/pi-heimdall packages/pi-heimdall
           publish_if_missing @casualjim/pi-pstack packages/pi-pstack
+          publish_if_missing @casualjim/pi-herdr-agents packages/pi-herdr-agents
 
       - name: Determine bump level
         id: bump

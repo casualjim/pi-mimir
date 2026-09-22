@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" role="img" aria-labelledby="title desc">
+  <title id="title">Conceptual checkpoints and stacks banner</title>
+  <desc id="desc">A connected visual showing checkpoints, a coding-agent core, and stacked pull request layers.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#07172a" />
+      <stop offset="55%" stop-color="#102f4c" />
+      <stop offset="100%" stop-color="#1d486b" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#80ecff" />
+      <stop offset="50%" stop-color="#77ffe0" />
+      <stop offset="100%" stop-color="#9dffa3" />
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1c456c" />
+      <stop offset="100%" stop-color="#133554" />
+    </linearGradient>
+    <radialGradient id="halo" cx="50%" cy="48%" r="48%">
+      <stop offset="0%" stop-color="#87f0ff" stop-opacity="0.34" />
+      <stop offset="100%" stop-color="#87f0ff" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="320" fill="url(#bg)" />
+  <rect width="1200" height="320" fill="url(#halo)" />
+
+  <g opacity="0.18" stroke="url(#accent)" stroke-width="1.5" fill="none">
+    <path d="M0 58h226l34 30h136" />
+    <path d="M0 258h240l30-22h124" />
+    <path d="M796 42h188l16 14h200" />
+    <path d="M768 290h214l12-10h206" />
+  </g>
+
+  <g transform="translate(72 74)">
+    <rect x="0" y="18" width="314" height="136" rx="20" fill="#123e62" fill-opacity="0.6" stroke="#7fe9ff" stroke-opacity="0.35" />
+    <path d="M42 120L92 88L140 104L190 72L240 88L282 54" stroke="url(#accent)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+    <path d="M92 88L92 54M140 104L140 68M190 72L190 42M240 88L240 54" stroke="#a7ddff" stroke-opacity="0.35" stroke-width="2" stroke-dasharray="3 8" />
+    <circle cx="42" cy="120" r="10" fill="#76ffe4" />
+    <circle cx="92" cy="88" r="10" fill="#7decff" />
+    <circle cx="92" cy="54" r="8" fill="#8dffc2" />
+    <circle cx="140" cy="104" r="10" fill="#9bffb0" />
+    <circle cx="140" cy="68" r="8" fill="#7ef3ff" />
+    <circle cx="190" cy="72" r="10" fill="#78f3ff" />
+    <circle cx="190" cy="42" r="8" fill="#96ffb3" />
+    <circle cx="240" cy="88" r="10" fill="#8fffbb" />
+    <circle cx="240" cy="54" r="8" fill="#7deeff" />
+    <circle cx="282" cy="54" r="10" fill="#9cffad" />
+    <path d="M44 136h66M124 136h60M202 136h72" stroke="#a4ecff" stroke-width="5" stroke-linecap="round" opacity="0.6" />
+  </g>
+
+  <g transform="translate(600 160)">
+    <path d="M-214 0h96" stroke="url(#accent)" stroke-width="4" stroke-linecap="round" />
+    <path d="M118 0h100" stroke="url(#accent)" stroke-width="4" stroke-linecap="round" />
+    <circle cx="0" cy="0" r="78" fill="#0f385b" stroke="#86ecff" stroke-width="3" stroke-opacity="0.65" />
+    <circle cx="0" cy="0" r="96" fill="none" stroke="#7de9ff" stroke-opacity="0.26" stroke-dasharray="3 9" />
+    <rect x="-46" y="-22" width="92" height="56" rx="16" fill="#205783" />
+    <circle cx="-20" cy="8" r="8" fill="#98ffe0" />
+    <circle cx="20" cy="8" r="8" fill="#98ffe0" />
+    <path d="M-22 26h44" stroke="#9fefff" stroke-width="4" stroke-linecap="round" />
+    <path d="M0 -78v-18" stroke="#8eeeff" stroke-width="3" stroke-linecap="round" />
+    <circle cx="0" cy="-102" r="10" fill="#95ffc0" />
+    <path d="M-64 -12h-22M64 -12h22" stroke="#8cecff" stroke-width="3" stroke-linecap="round" />
+  </g>
+
+  <g transform="translate(804 64)">
+    <rect x="10" y="16" width="306" height="74" rx="14" fill="url(#card)" />
+    <rect x="24" y="8" width="306" height="74" rx="14" fill="url(#card)" stroke="#7fe9ff" stroke-opacity="0.36" />
+    <rect x="38" y="0" width="306" height="74" rx="14" fill="url(#card)" stroke="#93ffc0" stroke-opacity="0.55" />
+    <path d="M70 30h170M70 50h132" stroke="#a4edff" stroke-width="6" stroke-linecap="round" />
+    <circle cx="304" cy="40" r="10" fill="#114c70" stroke="#8ef4cc" />
+
+    <rect x="10" y="102" width="306" height="74" rx="14" fill="url(#card)" />
+    <rect x="24" y="94" width="306" height="74" rx="14" fill="url(#card)" stroke="#7fe9ff" stroke-opacity="0.36" />
+    <rect x="38" y="86" width="306" height="74" rx="14" fill="url(#card)" stroke="#93ffc0" stroke-opacity="0.55" />
+    <path d="M70 116h170M70 136h132" stroke="#a4edff" stroke-width="6" stroke-linecap="round" />
+    <circle cx="304" cy="126" r="10" fill="#114c70" stroke="#8ef4cc" />
+  </g>
+
+  <path d="M388 160h42M770 160h34" stroke="url(#accent)" stroke-width="4" stroke-linecap="round" opacity="0.8" />
+
+  <text x="228" y="276" fill="#dff5ff" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="24" font-weight="700" text-anchor="middle" letter-spacing="0.6">checkpoints</text>
+  <text x="600" y="276" fill="#e8f9ff" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="30" font-weight="800" text-anchor="middle" letter-spacing="0.8">pi-jj</text>
+  <text x="986" y="276" fill="#dff5ff" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="24" font-weight="700" text-anchor="middle" letter-spacing="0.6">stacked prs</text>
+</svg>

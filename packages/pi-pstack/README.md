@@ -22,13 +22,13 @@ subagent({ name: "Fix retry regression", agent: "poteto-agent", task: "investiga
 
 - 46 skills under `skills/`, matching the upstream inventory minus Cursor-only `make-bot-ui` (prose adapted where Pi differs).
 - `poteto-agent` and `comment-sicko` agent definitions under `agents/`, published to pi-herdr-agents as a role pack.
-- Commands: `/poteto-mode` (sticky Poteto Mode for the session) and `/setup-pstack` (map pstack roles to models; if no `verify-*` skill or test harness is found, it offers to generate one via `/skill:create-verification-skill`).
-- Tools: `pstack_todo`, `pstack_sessions`, `pstack_config`.
+- Commands: `/poteto-mode` (sticky Poteto Mode for the session).
+- Tools: none. Task tracking, session recall, and subagent model routing use the host environment (`set_tasks` family, `recall`, `subagents_write_task_models`).
 
 ## What's removed vs upstream
 
 - The `subagent` tool and its child-Pi process runner. Use pi-herdr-agents' `subagent` instead.
-- `/setup-pstack` and `pstack_config` write a role-to-model map to `~/.pi/agent/pstack/models.json`. The workflow skills (how, why, reflect, swarm, arena, interrogate, architect) consult this map to pick the per-call `model` they pass to pi-herdr-agents' `subagent`. pstack uses one agent (`poteto-agent`) with role-varying models, and panel roles are lists (one subagent per entry), so per-role config (one model per agent name) can't express it. Panel roles are configured as arrays by editing the JSON directly; `/setup-pstack` sets single-model roles interactively.
+- `/setup-pstack`, `pstack_config`, `pstack_todo`, `pstack_sessions`, and the `~/.pi/agent/pstack/models.json` role map. The live role-to-model routing is pi-herdr-agents' `models.tasks`/`models.agents` config (`subagents_write_task_models`). Workflow skills consult that config for the per-call `model` they pass to `subagent`. Panel roles take model lists; set those via `models.agents` per agent or `task:<category>` routing.
 
 ## Safety
 

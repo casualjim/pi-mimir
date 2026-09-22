@@ -26,7 +26,7 @@ Update mode changes the rest of the flow:
 
 ### 1. Mine their history
 
-Locate prior Pi sessions for the current working directory with `pstack_sessions` (`action: "list"`) before fanning out. Read only the returned paths. Never glob `~/.pi/agent/sessions/`, because that crosses project boundaries and may read unrelated private chats.
+Locate prior Pi sessions for the current working directory with the `recall` tool before fanning out. Read only paths it returns. Never glob `~/.pi/agent/sessions/`, because that crosses project boundaries and may read unrelated private chats.
 
 Survey recent agent conversations within that scope for recurring patterns. Run multiple parallel subagents across slices of history (e.g. last 2-4 weeks, split into 3 slices so each has enough material). Each slice mining subagent reads transcripts from the workspace-scoped path the parent provides, looks for the signals below, and returns a short structured list of patterns it saw with evidence pointers. Default signals worth hunting:
 

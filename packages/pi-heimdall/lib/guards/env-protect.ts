@@ -17,9 +17,19 @@ function isExampleVariant(name: string): boolean {
 	);
 }
 
-function isDotenvPath(rawPath: string): boolean {
+export function isDotenvPath(rawPath: string): boolean {
 	const path = rawPath.replace(/^@/, "");
 	const name = basename(path).toLowerCase();
+
+	// fnox is a secrets manager (sops-like); its project files hold secret
+	// values/refs. Cover both bare and dot-prefixed variants: fnox.toml,
+	// .fnox.toml, fnox.<profile>.toml, .fnox.local.toml, ...
+	if (name === "fnox.toml" || name === ".fnox.toml") return true;
+	if (
+		(name.startsWith("fnox.") || name.startsWith(".fnox.")) &&
+		name.endsWith(".toml")
+	)
+		return true;
 
 	if (name === ".env" || name === ".envrc") return true;
 	if (name.startsWith(".env.")) return !isExampleVariant(name);

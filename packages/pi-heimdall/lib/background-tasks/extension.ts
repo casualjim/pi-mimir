@@ -50,7 +50,6 @@ import {
 import type { HeimdallConfig } from "../types.js";
 import { normalizeSandboxConfig } from "../sandbox/config.js";
 import {
-	ensureNoSandboxFlag,
 	launchSandboxProcess,
 	resolveHeimdallSandboxBinary,
 	terminateSandboxProcessGroup,
@@ -174,13 +173,17 @@ function padAnsi(text: string, width: number): string {
 }
 
 export default function registerBackgroundTasksExtension(pi: ExtensionAPI): void {
+	// SAFETY: the host pi object is a plain record at runtime; this stores the
+	// install marker so a double registration (e.g. two entry files) is a no-op.
 	const installedPi = pi as unknown as Record<PropertyKey, unknown>;
 	if (installedPi[BG_INSTALL_SYMBOL]) {
 		return;
 	}
 	installedPi[BG_INSTALL_SYMBOL] = true;
 
-	ensureNoSandboxFlag(pi);
+	// The core extension (extensions/heimdall.ts) owns the `--no-sandbox` flag:
+	// pi 0.87.1+ hard-errors when two extension files register the same flag.
+	// This extension only reads it via pi.getFlag.
 
 	let activeCtx: ExtensionContext | null = null;
 	let requestWidgetRender: (() => void) | null = null;

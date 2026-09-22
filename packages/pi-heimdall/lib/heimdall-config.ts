@@ -11,6 +11,7 @@ export const OPT_OUT_GUARD_IDS = [
 	"env-protect",
 	"kubectl-secret-guard",
 	"sops-secret-guard",
+	"fnox-secret-guard",
 ] as const;
 
 const DEFAULT_CONFIG_BASENAME = "default";
@@ -332,6 +333,24 @@ function findProjectConfigPath(cwd: string): string | undefined {
 }
 
 /**
+ * Read-only sibling of loadEffectiveConfig: reads the same three levels
+ * without writing generated defaults or migrating legacy files. Missing
+ * levels merge as empty.
+ */
+export function readEffectiveConfig(cwd: string, configDir: string = heimdallConfigDir()): EffectiveConfig {
+	const userLevel = loadConfigLevel(configDir, USER_CONFIG_BASENAME);
+	const projectConfigPath = findProjectConfigPath(cwd);
+	const defaultConfigPath = generatedDefaultConfigPath(configDir);
+	return {
+		config: mergeConfigLevels(loadConfigFile(defaultConfigPath), userLevel.config, loadConfigFile(projectConfigPath)),
+		defaultConfigPath,
+		userConfigPath: userLevel.path,
+		projectConfigPath,
+		migrationErrors: [],
+	};
+}
+
+/**
  * Load the effective config. Fixed locations only — agent-owned legacy paths
  * (`.pi/`, `.omp/`, `.dsh/`, `~/.pi/agent/`) are migrated (merged, written to
  * the universal location, deleted) and never read:
@@ -350,11 +369,8 @@ export function loadEffectiveConfig(cwd: string, configDir: string = heimdallCon
 	const userLevel = loadConfigLevel(configDir, USER_CONFIG_BASENAME);
 	const projectConfigPath = findProjectConfigPath(cwd);
 
-	const defaultConfig = loadConfigFile(defaultConfigPath);
-	const projectConfig = loadConfigFile(projectConfigPath);
-
 	return {
-		config: mergeConfigLevels(defaultConfig, userLevel.config, projectConfig),
+		config: mergeConfigLevels(loadConfigFile(defaultConfigPath), userLevel.config, loadConfigFile(projectConfigPath)),
 		defaultConfigPath,
 		userConfigPath: userLevel.path,
 		projectConfigPath,

@@ -1,0 +1,1416 @@
+/**
+ * Integration tests for the full subagent lifecycle.
+ *
+ * These tests spawn real pi sessions with real LLM calls.
+ * Each test creates a herdr pane, runs pi with a task that uses the subagent
+ * tool, and verifies the outcome through marker files and terminal output.
+ *
+ * Duration: ~30-120s per test, depending on the selected model.
+ *
+ * Run `PI_TEST_MODEL="openai-codex/gpt-5.6-luna" PI_TEST_TIMEOUT=180000
+ * npm run test:integration` from inside herdr. The exact authenticated model keeps
+ * real-LLM runs predictable and the longer timeout covers the lifecycle suite.
+ *
+ * Configuration:
+ *   PI_TEST_MODEL     — exact authenticated model for all pi sessions (recommended: openai-codex/gpt-5.6-luna)
+ *   PI_TEST_TIMEOUT   — per-test timeout in ms (default: 120000)
+ */
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import {
+	existsSync,
+	mkdirSync,
+	readdirSync,
+	readFileSync,
+	writeFileSync,
+} from "node:fs";
+import { join } from "node:path";
+import { getProviderRequests, resetProviderRequests } from "./fake-provider.ts";
+import {
+	getAvailableBackends,
+	setBackend,
+	restoreBackend,
+	createTestEnv,
+	cleanupTestEnv,
+	createTrackedSurface,
+	focusSurface,
+	startPi,
+	waitForScreen,
+	waitForFile,
+	waitForPaneReady,
+	waitForPiExit,
+	sleep,
+	uniqueId,
+	trackTempFile,
+	readPane,
+	runInPane,
+	shellQuote,
+	PI_TIMEOUT,
+	type TestEnv,
+} from "./harness.ts";
+
+// Inventory blockers are not command completion; require Pi's warning notification.
+// \s+ between words tolerates Pi's pane-width word wrap in screen captures.
+const dirtyCleanupWarning =
+	/^\s*Warning:\s+Dirty\s+worktree:\s+1\s+changed\s+files,\s+1\s+untracked;/m;
+const staleDirtyInventory = [
+	"unrelated — /managed/other/task",
+	"Source: /other · workspace: none · manifest: absent",
+	"out-of-scope · Git: 1 dirty, 1 untracked, 0 ignored, 0 conflicts · Source repository is outside cwd containment; Dirty worktree: 1 changed files, 1 untracked; commit or request preserve explicitly",
+].join("\n");
+
+it("dirty cleanup warning matcher rejects stale inventory", () => {
+	assert.match(staleDirtyInventory, /Dirty worktree:/);
+	assert.doesNotMatch(staleDirtyInventory, dirtyCleanupWarning);
+	assert.match(
+		" Warning: Dirty worktree: 1 changed files, 1 untracked; commit or request preserve explicitly",
+		dirtyCleanupWarning,
+	);
+});
+
+const backends = getAvailableBackends();
+
+function getWorkspaceActiveTab(workspaceId: string): string | null {
+	const workspaces: Array<{
+		workspace_id: string;
+		active_tab_id?: string;
+	}> = JSON.parse(
+		execFileSync("herdr", ["workspace", "list"], { encoding: "utf8" }),
+	).result.workspaces;
+	return (
+		workspaces.find((workspace) => workspace.workspace_id === workspaceId)
+			?.active_tab_id ?? null
+	);
+}
+
+function getPaneTab(paneId: string): string | null {
+	return (
+		JSON.parse(
+			execFileSync("herdr", ["pane", "get", paneId], {
+				encoding: "utf8",
+			}),
+		).result.pane?.tab_id ?? null
+	);
+}
+
+function listBtwPanes(workspaceId: string): string[] {
+	const tabs: Array<{ label: string; tab_id: string }> = JSON.parse(
+		execFileSync("herdr", ["tab", "list", "--workspace", workspaceId], {
+			encoding: "utf8",
+		}),
+	).result.tabs;
+	const btwTabIds = new Set(
+		tabs.filter((tab) => tab.label === "BTW").map((tab) => tab.tab_id),
+	);
+	const panes: Array<{ pane_id: string; tab_id: string }> = JSON.parse(
+		execFileSync("herdr", ["pane", "list", "--workspace", workspaceId], {
+			encoding: "utf8",
+		}),
+	).result.panes;
+	return panes
+		.filter((pane) => btwTabIds.has(pane.tab_id))
+		.map((pane) => pane.pane_id);
+}
+
+async function waitForBtwPane(
+	workspaceId: string,
+	previousPane?: string,
+	timeout = PI_TIMEOUT,
+): Promise<string> {
+	const startedAt = Date.now();
+	while (Date.now() - startedAt < timeout) {
+		const panes = listBtwPanes(workspaceId);
+		if (panes.length === 1 && panes[0] !== previousPane) return panes[0];
+		await sleep(500);
+	}
+	throw new Error(`Timeout waiting for BTW pane in workspace ${workspaceId}`);
+}
+
+async function waitForNoBtwPane(
+	workspaceId: string,
+	timeout = PI_TIMEOUT,
+): Promise<void> {
+	const startedAt = Date.now();
+	while (Date.now() - startedAt < timeout) {
+		if (listBtwPanes(workspaceId).length === 0) return;
+		await sleep(500);
+	}
+	throw new Error(
+		`Timeout waiting for BTW pane cleanup in workspace ${workspaceId}`,
+	);
+}
+
+if (backends.length === 0) {
+	console.log(
+		"⚠️  herdr is unavailable — skipping subagent lifecycle integration tests",
+	);
+	console.log("   Run inside herdr to enable these tests.");
+}
+
+for (const backend of backends) {
+	describe(`subagent-lifecycle [${backend}]`, {
+		timeout: PI_TIMEOUT * 5,
+	}, () => {
+		let prevMux: string | undefined;
+		let env: TestEnv;
+
+		beforeEach(() => {
+			prevMux = setBackend(backend);
+			env = createTestEnv(backend);
+			resetProviderRequests();
+		});
+
+		afterEach(() => {
+			cleanupTestEnv(env);
+			restoreBackend(prevMux);
+		});
+
+		// ── Basic spawn + completion ──
+
+		it("opens, replaces, and closes a context-aware BTW pane without steering the parent", async () => {
+			const id = uniqueId();
+			const contextMarker = `SECRET_${id}`;
+			const expectedAnswer = new RegExp(`BTW_CONFIRMED_(?:SECRET_)?${id}`);
+			const parentSession = join(env.dir, `btw-parent-${id}.jsonl`);
+			const surface = createTrackedSurface(env, `btw-parent-${id}`);
+			await waitForPaneReady(surface);
+			const parentTab = getPaneTab(surface);
+			assert.ok(parentTab, "parent pane must belong to a Herdr tab");
+
+			startPi(surface, env.dir, `Reply with only ${contextMarker}.`, {
+				extraArgs: `--session ${shellQuote(parentSession)}`,
+			});
+			await waitForScreen(surface, new RegExp(contextMarker), PI_TIMEOUT);
+			await waitForFile(parentSession, PI_TIMEOUT, new RegExp(contextMarker));
+			const parentBefore = readFileSync(parentSession, "utf8");
+
+			focusSurface(backend, surface);
+			assert.equal(getWorkspaceActiveTab(env.workspaceId), parentTab);
+
+			runInPane(surface, "/btw Say FIRST and wait for another question");
+			const firstBtwPane = await waitForBtwPane(env.workspaceId);
+			assert.equal(
+				getWorkspaceActiveTab(env.workspaceId),
+				parentTab,
+				"opening BTW must not change the workspace's active tab",
+			);
+
+			runInPane(
+				surface,
+				"/btw Read the previous assistant answer. Reply with BTW_CONFIRMED_ followed by its secret code, with no spaces.",
+			);
+			const secondBtwPane = await waitForBtwPane(env.workspaceId, firstBtwPane);
+			assert.notEqual(
+				secondBtwPane,
+				firstBtwPane,
+				"second /btw should replace the first pane",
+			);
+			assert.equal(
+				getWorkspaceActiveTab(env.workspaceId),
+				parentTab,
+				"replacing BTW must not change the workspace's active tab",
+			);
+
+			try {
+				await waitForScreen(secondBtwPane, expectedAnswer, PI_TIMEOUT);
+			} catch (error) {
+				let childScreen = "<pane unavailable>";
+				try {
+					childScreen = readPane(secondBtwPane, 200);
+				} catch {
+					// Keep the original wait error when diagnostic screen capture fails.
+				}
+				throw new Error(
+					`${error instanceof Error ? error.message : String(error)}\n` +
+						`Parent screen:\n${readPane(surface, 200)}\n` +
+						`Child screen:\n${childScreen}`,
+				);
+			}
+			assert.equal(
+				readFileSync(parentSession, "utf8"),
+				parentBefore,
+				"BTW must not alter parent history",
+			);
+
+			runInPane(surface, "/btw-close");
+			await waitForNoBtwPane(env.workspaceId);
+		});
+
+		it("spawns a subagent that writes a file and verifies the session", async () => {
+			const id = uniqueId();
+			const markerFile = `/tmp/pi-integ-echo-${id}.txt`;
+			trackTempFile(env, markerFile);
+
+			const surface = createTrackedSurface(env, `echo-${id}`);
+			await waitForPaneReady(surface);
+
+			const task = [
+				`Call the subagent tool with these EXACT parameters:`,
+				`  name: "Echo-${id}"`,
+				`  agent: "test-echo"`,
+				`  task: "Run this bash command: echo 'PASS_${id}' > '${markerFile}'"`,
+				`Do not do anything else. Just call the subagent tool once.`,
+				`After you receive the subagent result, say INTEGRATION_COMPLETE.`,
+			].join("\n");
+
+			startPi(surface, env.dir, task);
+
+			// Verify: subagent created the marker file
+			const content = await waitForFile(markerFile, PI_TIMEOUT, /PASS/);
+			assert.ok(
+				content.includes(`PASS_${id}`),
+				`Marker file should contain PASS_${id}. Got: ${content.trim()}`,
+			);
+
+			// Verify: outer pi received the subagent result
+			const screen = await waitForScreen(
+				surface,
+				/INTEGRATION_COMPLETE|completed|Sub-agent.*"Echo/i,
+				PI_TIMEOUT,
+			);
+
+			// Verify: session file was created (shown in steer result)
+			const sessionMatch = screen.match(/Session:\s*(\S+\.jsonl)/);
+			if (sessionMatch) {
+				const sessionFile = sessionMatch[1];
+				assert.ok(
+					existsSync(sessionFile),
+					`Subagent session file should exist: ${sessionFile}`,
+				);
+
+				const lines = readFileSync(sessionFile, "utf8").trim().split("\n");
+				assert.ok(
+					lines.length >= 2,
+					`Session should have ≥2 entries, got ${lines.length}`,
+				);
+
+				const header = JSON.parse(lines[0]);
+				assert.equal(
+					header.type,
+					"session",
+					"First entry should be session header",
+				);
+				assert.ok(header.id, "Session header should have an id");
+			}
+		});
+
+		it("delivers one model-visible custom completion message", async () => {
+			const id = uniqueId();
+			const childMarker = `CHILD_RESULT_${id}`;
+			const parentMarker = `PARENT_CONTINUED_${id}`;
+			const parentSession = join(env.dir, `single-result-parent-${id}.jsonl`);
+			const surface = createTrackedSurface(env, `single-result-${id}`);
+			await waitForPaneReady(surface);
+
+			startPi(
+				surface,
+				env.dir,
+				[
+					"Call the subagent tool with these EXACT parameters:",
+					`  name: "SingleResult-${id}"`,
+					'  agent: "test-echo"',
+					`  task: "Return exactly ${childMarker}"`,
+					"Do not do anything else. Just call the subagent tool once.",
+					`After you receive the subagent result, say ${parentMarker}.`,
+				].join("\n"),
+				{ extraArgs: `--session ${shellQuote(parentSession)}` },
+			);
+
+			let entries: any[] = [];
+			let customIndex = -1;
+			let continued = false;
+			const deadline = Date.now() + PI_TIMEOUT;
+			while (!continued && Date.now() < deadline) {
+				if (existsSync(parentSession)) {
+					entries = readFileSync(parentSession, "utf8")
+						.trim()
+						.split("\n")
+						.filter(Boolean)
+						.map((line) => JSON.parse(line));
+					customIndex = entries.findIndex(
+						(entry) =>
+							entry.type === "custom_message" &&
+							entry.customType === "subagent_result",
+					);
+					continued =
+						customIndex >= 0 &&
+						entries
+							.slice(customIndex + 1)
+							.some(
+								(entry) =>
+									entry.type === "message" &&
+									entry.message?.role === "assistant" &&
+									JSON.stringify(entry.message.content).includes(parentMarker),
+							);
+				}
+				if (!continued) await sleep(50);
+			}
+
+			assert.equal(continued, true, readPane(surface, 300));
+			const customResults = entries.filter(
+				(entry) =>
+					entry.type === "custom_message" &&
+					entry.customType === "subagent_result",
+			);
+			assert.equal(customResults.length, 1);
+			assert.match(customResults[0].content, new RegExp(childMarker));
+			assert.match(customResults[0].content, /Parent action:/);
+			assert.match(
+				customResults[0].details.resultContent,
+				new RegExp(childMarker),
+			);
+			assert.doesNotMatch(
+				customResults[0].details.resultContent,
+				/Parent action:/,
+			);
+			assert.equal(
+				entries
+					.slice(customIndex + 1)
+					.some(
+						(entry) =>
+							entry.type === "message" && entry.message?.role === "user",
+					),
+				false,
+			);
+		});
+
+		it("runs a non-auto-exit coordinator through discovery and synthesis waves", async () => {
+			const id = uniqueId();
+			const coordinatorName = `nested-${id}`;
+			const marker = `INTEGRATION_MULTI_WAVE_COORDINATOR:${id}`;
+			const parentSession = join(env.dir, `multi-wave-parent-${id}.jsonl`);
+			const surface = createTrackedSurface(env, `multi-wave-${id}`);
+			await waitForPaneReady(surface);
+
+			startPi(
+				surface,
+				env.dir,
+				[
+					"Call the subagent tool with these EXACT parameters:",
+					`  name: "${coordinatorName}"`,
+					'  agent: "adversarial-reviewer"',
+					`  task: "${marker}"`,
+					"Do not do anything else. Just call the subagent tool once.",
+					`After completion, say PARENT_MULTI_WAVE_${id}.`,
+				].join("\n"),
+				{ extraArgs: `--session ${shellQuote(parentSession)}` },
+			);
+
+			let entries: any[] = [];
+			let completion: any;
+			const deadline = Date.now() + Math.min(PI_TIMEOUT, 60_000);
+			while (!completion && Date.now() < deadline) {
+				if (existsSync(parentSession)) {
+					entries = readFileSync(parentSession, "utf8")
+						.trim()
+						.split("\n")
+						.filter(Boolean)
+						.map((line) => JSON.parse(line));
+					completion = entries.find(
+						(entry) =>
+							entry.type === "custom_message" &&
+							entry.customType === "subagent_result" &&
+							entry.details?.name === coordinatorName,
+					);
+				}
+				if (!completion) await sleep(50);
+			}
+
+			assert.ok(completion, readPane(surface, 300));
+			assert.match(completion.details.resultContent, /completed/i);
+			assert.match(
+				completion.details.resultContent,
+				new RegExp(`FINAL_MULTI_WAVE_${id}`),
+			);
+			assert.equal(
+				entries.filter(
+					(entry) =>
+						entry.type === "custom_message" &&
+						entry.customType === "subagent_result" &&
+						entry.details?.name === coordinatorName,
+				).length,
+				1,
+				"coordinator must deliver exactly one final parent result",
+			);
+
+			const coordinatorSession = completion.details.sessionFile;
+			assert.ok(coordinatorSession, "coordinator session must be retained");
+			assert.equal(existsSync(coordinatorSession), true);
+			const coordinatorEntries = readFileSync(coordinatorSession, "utf8")
+				.trim()
+				.split("\n")
+				.filter(Boolean)
+				.map((line) => JSON.parse(line));
+			const transcript = JSON.stringify(coordinatorEntries);
+			assert.match(transcript, new RegExp(`DISCOVERY_RESULT_${id}`));
+			assert.match(transcript, new RegExp(`SYNTHESIS_RESULT_${id}`));
+			assert.equal(
+				coordinatorEntries.some((entry) => {
+					if (entry.type !== "message" || entry.message?.role !== "assistant") {
+						return false;
+					}
+					const turn = JSON.stringify(entry.message.content);
+					return (
+						turn.includes(`FINAL_MULTI_WAVE_${id}`) &&
+						turn.includes("subagent_done")
+					);
+				}),
+				true,
+				"final report text and subagent_done must occur in the same coordinator turn",
+			);
+		});
+
+		it("retains a completed worktree, refuses dirty cleanup, and explicitly removes it without deleting history", async (t) => {
+			const id = uniqueId();
+			const branch = `integration/ticket-${id}`;
+			const ticketFile = `ticket-${id}.txt`;
+			const surface = createTrackedSurface(env, `worktree-run-${id}`);
+			await waitForPaneReady(surface);
+
+			execFileSync("git", ["init", "-q", "-b", "main"], { cwd: env.dir });
+			execFileSync("git", ["config", "user.email", "test@example.com"], {
+				cwd: env.dir,
+			});
+			execFileSync("git", ["config", "user.name", "Integration Test"], {
+				cwd: env.dir,
+			});
+			// Worktrees inherit this repo config; disable signing so non-interactive commits succeed.
+			execFileSync("git", ["config", "commit.gpgsign", "false"], {
+				cwd: env.dir,
+			});
+			writeFileSync(join(env.dir, "README.md"), "worktree lifecycle fixture\n");
+			// Keep harness .pi/agent config out of the committed base so worktree children
+			// inherit PI_CODING_AGENT_DIR instead of writing sessions into the worktree.
+			writeFileSync(join(env.dir, ".gitignore"), ".pi/\n");
+			execFileSync("git", ["add", "README.md", ".gitignore"], { cwd: env.dir });
+			execFileSync("git", ["commit", "-qm", "fixture"], { cwd: env.dir });
+
+			const task = [
+				`Call the subagent tool with these EXACT parameters:`,
+				`  name: "Worktree-${id}"`,
+				`  agent: "test-echo"`,
+				`  worktree: { branch: "${branch}" }`,
+				`  task: "Run: echo 'WORKTREE_${id}' > '${ticketFile}' && git add '${ticketFile}' && git commit -m 'Implement ${id}'"`,
+				`Do not do anything else. Just call the subagent tool once.`,
+				`After you receive the result, say WORKTREE_COMPLETE_${id} and repeat its worktree path.`,
+			].join("\n");
+
+			const decoyExtension = join(env.dir, ".pi", "cleanup-decoy.ts");
+			writeFileSync(
+				decoyExtension,
+				`export default (pi) => {
+					pi.registerCommand("cleanup-inventory-decoy", {
+						handler: async (_args, ctx) => ctx.ui.notify(${JSON.stringify(`${staleDirtyInventory}\nSTALE_INVENTORY_${id}`)}, "info"),
+					});
+				};\n`,
+			);
+			startPi(surface, env.dir, task, {
+				extraArgs: `-e ${shellQuote(decoyExtension)}`,
+			});
+
+			let worktree:
+				| { path: string; branch: string; open_workspace_id: string }
+				| undefined;
+			const startedAt = Date.now();
+			while (!worktree && Date.now() - startedAt < PI_TIMEOUT) {
+				const output = execFileSync(
+					"herdr",
+					["worktree", "list", "--cwd", env.dir, "--json"],
+					{
+						encoding: "utf8",
+					},
+				);
+				worktree = JSON.parse(output).result.worktrees.find(
+					(candidate: { branch?: string }) => candidate.branch === branch,
+				);
+				if (!worktree) await sleep(250);
+			}
+			assert.ok(
+				worktree,
+				`Expected Herdr to create branch ${branch}. Parent screen:\n${readPane(surface, 300)}`,
+			);
+
+			try {
+				const content = await waitForFile(
+					join(worktree.path, ticketFile),
+					PI_TIMEOUT,
+					/WORKTREE_/,
+				);
+				assert.ok(content.includes(`WORKTREE_${id}`));
+
+				await waitForScreen(
+					surface,
+					new RegExp(`WORKTREE_COMPLETE_${id}`),
+					PI_TIMEOUT,
+					300,
+				);
+				assert.equal(
+					execFileSync("git", ["status", "--porcelain"], {
+						cwd: worktree.path,
+						encoding: "utf8",
+					}),
+					"",
+				);
+				assert.match(
+					execFileSync("git", ["log", "-1", "--pretty=%s"], {
+						cwd: worktree.path,
+						encoding: "utf8",
+					}),
+					new RegExp(`Implement ${id}`),
+				);
+				assert.ok(
+					worktree.open_workspace_id,
+					"Completed worktree workspace should remain open",
+				);
+				// The completed child's processes may briefly hold the checkout, and
+				// each blocked inventory render is final, so re-issue the command
+				// until the holders exit and the entry becomes eligible.
+				const eligibleEntry = /eligible\s+·\s+Git:\s+0\s+dirty/;
+				const eligibleDeadline = Date.now() + PI_TIMEOUT;
+				for (;;) {
+					runInPane(surface, "/worktree list");
+					try {
+						await waitForScreen(surface, eligibleEntry, 20_000, 300);
+						break;
+					} catch (error) {
+						if (Date.now() >= eligibleDeadline) throw error;
+					}
+				}
+				// Put inventory-shaped stale output on screen on every host, even if
+				// no unrelated dirty managed checkout exists there.
+				runInPane(surface, "/cleanup-inventory-decoy");
+				const decoyScreen = await waitForScreen(
+					surface,
+					new RegExp(`STALE_INVENTORY_${id}`),
+					PI_TIMEOUT,
+					300,
+				);
+				assert.match(decoyScreen, /Dirty\s+worktree:/);
+				assert.doesNotMatch(decoyScreen, dirtyCleanupWarning);
+				t.diagnostic(
+					"Stale inventory: old predicate accepts; warning predicate rejects.",
+				);
+				writeFileSync(
+					join(worktree.path, "uncommitted.txt"),
+					"retained dirty state\n",
+				);
+				runInPane(surface, `/worktree remove ${worktree.open_workspace_id}`);
+				await waitForScreen(surface, dirtyCleanupWarning, PI_TIMEOUT, 300);
+				assert.equal(existsSync(worktree.path), true);
+				assert.equal(
+					readFileSync(join(worktree.path, "uncommitted.txt"), "utf8"),
+					"retained dirty state\n",
+				);
+				t.diagnostic(
+					"Dirty refusal notification observed; checkout and uncommitted file intact.",
+				);
+				execFileSync("git", ["add", "uncommitted.txt"], { cwd: worktree.path });
+				execFileSync("git", ["commit", "-qm", `Preserved ${id}`], {
+					cwd: worktree.path,
+				});
+				const retainedHead = execFileSync("git", ["rev-parse", "HEAD"], {
+					cwd: worktree.path,
+					encoding: "utf8",
+				}).trim();
+				runInPane(surface, `/worktree remove ${worktree.open_workspace_id}`);
+				await waitForScreen(surface, /commits\s+retained/, PI_TIMEOUT, 300);
+				assert.equal(existsSync(worktree.path), false);
+				assert.match(
+					execFileSync("git", ["branch", "--list", branch], {
+						cwd: env.dir,
+						encoding: "utf8",
+					}),
+					new RegExp(branch),
+				);
+				assert.equal(
+					execFileSync("git", ["rev-parse", branch], {
+						cwd: env.dir,
+						encoding: "utf8",
+					}).trim(),
+					retainedHead,
+				);
+				assert.match(
+					execFileSync("git", ["log", "--format=%s", branch], {
+						cwd: env.dir,
+						encoding: "utf8",
+					}),
+					new RegExp(`Implement ${id}`),
+				);
+				const remaining = JSON.parse(
+					execFileSync("herdr", ["workspace", "list"], { encoding: "utf8" }),
+				).result.workspaces;
+				assert.equal(
+					remaining.some(
+						(workspace: { workspace_id: string }) =>
+							workspace.workspace_id === worktree.open_workspace_id,
+					),
+					false,
+				);
+				t.diagnostic(
+					`History assertions passed: ${branch} = ${retainedHead}; Implement ${id} reachable; checkout ${worktree.path} and workspace ${worktree.open_workspace_id} absent; source ${env.dir}.`,
+				);
+			} catch (error) {
+				// Preserve evidence in the test log before finally/afterEach teardown.
+				for (const capture of [
+					() => `Parent screen:\n${readPane(surface, 300)}`,
+					() =>
+						`Source branch ${branch}: ${execFileSync("git", ["rev-parse", branch], { cwd: env.dir, encoding: "utf8" }).trim()}`,
+					() =>
+						readdirSync(env.dir, { recursive: true, encoding: "utf8" })
+							.filter(
+								(file) =>
+									file.includes("worktree-runs/") && file.endsWith(".json"),
+							)
+							.map(
+								(file) =>
+									`${file}:\n${readFileSync(join(env.dir, file), "utf8")}`,
+							)
+							.join("\n"),
+				]) {
+					try {
+						console.error(capture());
+					} catch (captureError) {
+						console.error("Cleanup diagnostic unavailable:", captureError);
+					}
+				}
+				throw error;
+			} finally {
+				// Cleanup must not mask body failures or require a perfectly clean tree.
+				if (worktree?.open_workspace_id) {
+					try {
+						execFileSync("herdr", [
+							"worktree",
+							"remove",
+							"--workspace",
+							worktree.open_workspace_id,
+							"--force",
+							"--json",
+						]);
+					} catch {
+						// Best-effort cleanup for interrupted/dirty retained worktrees.
+					}
+				}
+				try {
+					execFileSync("git", ["branch", "-D", branch], {
+						cwd: env.dir,
+						stdio: "ignore",
+					});
+				} catch {
+					// Branch may already be gone after forced worktree removal.
+				}
+			}
+		});
+
+		it("delivers completion after the parent starts a new session", async () => {
+			type SessionEntry = {
+				type?: string;
+				customType?: string;
+				details?: {
+					name?: string;
+					exitCode?: number;
+					resultContent?: string;
+				};
+				message?: { role?: string };
+			};
+
+			const id = uniqueId();
+			const startFile = `/tmp/pi-integ-switch-start-${id}.txt`;
+			const markerFile = `/tmp/pi-integ-switch-done-${id}.txt`;
+			const childDir = join(env.dir, "sibling-project");
+			const sessionDir = join(env.dir, `switch-sessions-${id}`);
+			const originalSession = join(sessionDir, "original.jsonl");
+			mkdirSync(childDir);
+			mkdirSync(sessionDir);
+			trackTempFile(env, startFile);
+			trackTempFile(env, markerFile);
+
+			const readSession = (path: string): SessionEntry[] => {
+				try {
+					return readFileSync(path, "utf8")
+						.trim()
+						.split("\n")
+						.filter(Boolean)
+						.map((line) => JSON.parse(line));
+				} catch {
+					return [];
+				}
+			};
+			const isMatchingReceipt = (entry: SessionEntry): boolean =>
+				entry.type === "custom_message" &&
+				entry.customType === "subagent_result" &&
+				entry.details?.name === `Switch-${id}`;
+
+			const surface = createTrackedSurface(env, `switch-${id}`);
+			await waitForPaneReady(surface);
+
+			const task = [
+				`Call the subagent tool with these EXACT parameters:`,
+				`  name: "Switch-${id}"`,
+				`  agent: "test-echo"`,
+				`  cwd: "${childDir}"`,
+				`  task: "Run this bash command: echo 'START_${id}' > '${startFile}'; sleep 12; echo 'DONE_${id}' > '${markerFile}'"`,
+				`Do not do anything else. Just call the subagent tool once.`,
+			].join("\n");
+
+			startPi(surface, env.dir, task, {
+				extraArgs: [
+					`--session ${shellQuote(originalSession)}`,
+					`--session-dir ${shellQuote(sessionDir)}`,
+				].join(" "),
+			});
+			await waitForFile(startFile, PI_TIMEOUT, /START_/);
+			assert.equal(existsSync(originalSession), true);
+
+			runInPane(surface, "/new");
+
+			const content = await waitForFile(markerFile, PI_TIMEOUT, /DONE_/);
+			assert.ok(
+				content.includes(`DONE_${id}`),
+				"Subagent should finish after the parent session switch",
+			);
+
+			let replacementSession: string | undefined;
+			const deadline = Date.now() + PI_TIMEOUT;
+			while (!replacementSession && Date.now() < deadline) {
+				for (const file of readdirSync(sessionDir).filter((name) =>
+					name.endsWith(".jsonl"),
+				)) {
+					const path = join(sessionDir, file);
+					if (path === originalSession) continue;
+					const entries = readSession(path);
+					const receiptIndex = entries.findIndex(isMatchingReceipt);
+					const settled =
+						receiptIndex >= 0 &&
+						entries
+							.slice(receiptIndex + 1)
+							.some(
+								(entry) =>
+									entry.type === "message" &&
+									entry.message?.role === "assistant",
+							);
+					if (entries.filter(isMatchingReceipt).length === 1 && settled) {
+						replacementSession = path;
+						break;
+					}
+				}
+				if (!replacementSession) await sleep(50);
+			}
+
+			const replacementPath = replacementSession;
+			assert.ok(
+				replacementPath,
+				`Expected a settled replacement session receipt. Parent screen:\n${readPane(surface, 300)}`,
+			);
+			assert.notEqual(replacementPath, originalSession);
+			const replacementResults =
+				readSession(replacementPath).filter(isMatchingReceipt);
+			assert.equal(replacementResults.length, 1);
+			const receipt = replacementResults[0];
+			assert.equal(receipt.type, "custom_message");
+			assert.equal(receipt.customType, "subagent_result");
+			assert.ok(receipt.details, "Receipt must include structured details");
+			assert.equal(receipt.details?.name, `Switch-${id}`);
+			assert.equal(receipt.details?.exitCode, 0);
+			assert.match(receipt.details?.resultContent ?? "", /.+/);
+			assert.equal(
+				readSession(originalSession).filter(isMatchingReceipt).length,
+				0,
+				"Completion must not be delivered into the original parent session",
+			);
+		});
+
+		// ── In-progress activity snapshots ──
+
+		it("keeps a long active tool call from surfacing false stalled status", async () => {
+			const id = uniqueId();
+			const startFile = `/tmp/pi-integ-status-start-${id}.txt`;
+			const markerFile = `/tmp/pi-integ-status-${id}.txt`;
+			trackTempFile(env, startFile);
+			trackTempFile(env, markerFile);
+
+			const surface = createTrackedSurface(env, `status-${id}`);
+			await waitForPaneReady(surface);
+
+			const task = [
+				`Call the subagent tool with these EXACT parameters:`,
+				`  name: "Status-${id}"`,
+				`  agent: "test-echo"`,
+				`  task: "Use the bash tool with a 150-second timeout to run exactly: echo 'START_${id}' > '${startFile}'; sleep 120; echo 'STATUS_${id}' > '${markerFile}'"`,
+				`Do not do anything else. Just call the subagent tool once.`,
+				`After you receive the subagent result, say STATUS_TEST_DONE.`,
+			].join("\n");
+
+			startPi(surface, env.dir, task);
+
+			const activeScreen = await waitForScreen(
+				surface,
+				/active[\s\S]*bash|bash[\s\S]*active/i,
+				PI_TIMEOUT,
+				300,
+			);
+			assert.doesNotMatch(
+				activeScreen,
+				/Subagent status[\s\S]*stalled|stalled[\s\S]*Subagent status/i,
+			);
+
+			await waitForFile(startFile, PI_TIMEOUT, /START_/);
+			assert.equal(
+				existsSync(markerFile),
+				false,
+				"Completion marker should not exist before the long sleep",
+			);
+			await sleep(65_000);
+			const watchdogScreen = readPane(surface, 300);
+			assert.doesNotMatch(
+				watchdogScreen,
+				/Subagent status[\s\S]*stalled|stalled[\s\S]*Subagent status/i,
+			);
+
+			const content = await waitForFile(markerFile, PI_TIMEOUT, /STATUS_/);
+			assert.ok(
+				content.includes(`STATUS_${id}`),
+				`Marker file should contain STATUS_${id}`,
+			);
+
+			const completionScreen = await waitForScreen(
+				surface,
+				/STATUS_TEST_DONE|completed|Sub-agent.*"Status-/i,
+				PI_TIMEOUT,
+				300,
+			);
+			assert.ok(/STATUS_TEST_DONE|completed/i.test(completionScreen));
+		});
+
+		// ── Parallel subagent spawn ──
+
+		it("spawns two subagents in parallel and both complete", async () => {
+			const id = uniqueId();
+			const fileA = `/tmp/pi-integ-para-${id}-a.txt`;
+			const fileB = `/tmp/pi-integ-para-${id}-b.txt`;
+			trackTempFile(env, fileA);
+			trackTempFile(env, fileB);
+
+			const surface = createTrackedSurface(env, `parallel-${id}`);
+			await waitForPaneReady(surface);
+
+			const task = [
+				`You must call the subagent tool TWICE. Make both calls before waiting for results.`,
+				``,
+				`First call:`,
+				`  name: "ParaA-${id}"`,
+				`  agent: "test-echo"`,
+				`  task: "Run: echo 'DONE_A_${id}' > '${fileA}'"`,
+				``,
+				`Second call:`,
+				`  name: "ParaB-${id}"`,
+				`  agent: "test-echo"`,
+				`  task: "Run: echo 'DONE_B_${id}' > '${fileB}'"`,
+				``,
+				`Call both subagent tools NOW, do not wait between them.`,
+			].join("\n");
+
+			startPi(surface, env.dir, task);
+
+			// Both marker files should appear
+			const [contentA, contentB] = await Promise.all([
+				waitForFile(fileA, PI_TIMEOUT, /DONE_A/),
+				waitForFile(fileB, PI_TIMEOUT, /DONE_B/),
+			]);
+
+			assert.ok(
+				contentA.includes(`DONE_A_${id}`),
+				`File A should contain marker`,
+			);
+			assert.ok(
+				contentB.includes(`DONE_B_${id}`),
+				`File B should contain marker`,
+			);
+		});
+
+		// ── Fork mode ──
+
+		it("fork mode creates a child session linked to the parent", async () => {
+			const id = uniqueId();
+			const markerFile = `/tmp/pi-integ-fork-${id}.txt`;
+			trackTempFile(env, markerFile);
+
+			const surface = createTrackedSurface(env, `fork-${id}`);
+			await waitForPaneReady(surface);
+
+			const task = [
+				`Call the subagent tool with these EXACT parameters:`,
+				`  name: "Fork-${id}"`,
+				`  fork: true`,
+				`  task: "Run this bash command: echo 'FORK_OK_${id}' > '${markerFile}'"`,
+				`Do not set the agent or interactive parameters. Just set name, fork, and task.`,
+				`After you receive the result, say FORK_COMPLETE.`,
+			].join("\n");
+
+			startPi(surface, env.dir, task);
+
+			// Verify: forked subagent created the file
+			const content = await waitForFile(markerFile, PI_TIMEOUT, /FORK_OK/);
+			assert.ok(
+				content.includes(`FORK_OK_${id}`),
+				`Fork marker file should exist with content`,
+			);
+
+			// Wait for the outer pi to show the result
+			const screen = await waitForScreen(
+				surface,
+				/FORK_COMPLETE|completed|Sub-agent.*"Fork/i,
+				PI_TIMEOUT,
+			);
+
+			// Receiving the result proves the bare fork auto-exited and its child pane
+			// was finalized instead of remaining at the editor as an interactive run.
+
+			// Verify: the forked session has a parent link
+			const sessionMatch = screen.match(/Session:\s*(\S+\.jsonl)/);
+			if (sessionMatch) {
+				const sessionFile = sessionMatch[1];
+				assert.ok(
+					existsSync(sessionFile),
+					`Fork session file should exist: ${sessionFile}`,
+				);
+
+				const entries = readFileSync(sessionFile, "utf8")
+					.trim()
+					.split("\n")
+					.map((l) => JSON.parse(l));
+				const header = entries[0];
+				assert.equal(
+					header.type,
+					"session",
+					"First entry should be session header",
+				);
+				assert.ok(
+					header.parentSession,
+					"Fork session should have parentSession field",
+				);
+				// Fork sessions include parent context (model_change entries etc.)
+				assert.ok(
+					entries.length >= 2,
+					"Fork session should have context entries beyond header",
+				);
+			}
+		});
+
+		// ── caller_ping ──
+
+		it("subagent caller_ping sends notification back to the parent", async () => {
+			const id = uniqueId();
+
+			const surface = createTrackedSurface(env, `ping-${id}`);
+			await waitForPaneReady(surface);
+
+			const task = [
+				`Call the subagent tool with these EXACT parameters:`,
+				`  name: "Ping-${id}"`,
+				`  agent: "test-ping"`,
+				`  task: "PING_TEST_${id}"`,
+				`Just call the subagent tool once. Do not do anything else before calling it.`,
+			].join("\n");
+
+			startPi(surface, env.dir, task);
+
+			// The test-ping agent calls caller_ping, which steers a "needs help" message
+			// back to the outer pi. Look for it on screen.
+			const screen = await waitForScreen(
+				surface,
+				/needs help|PING|caller_ping|ping/i,
+				PI_TIMEOUT,
+			);
+
+			assert.ok(
+				/needs help|PING/i.test(screen),
+				`Screen should show ping notification. Got:\n${screen.slice(-800)}`,
+			);
+		});
+
+		it("rejects public resume of a legacy Pi session without a saved policy", async () => {
+			const id = uniqueId();
+			const sessionFile = join(env.dir, `resume-child-${id}.jsonl`);
+			const seedSurface = createTrackedSurface(env, `resume-seed-${id}`);
+			await waitForPaneReady(seedSurface);
+			startPi(seedSurface, env.dir, "BTW question: Say FIRST", {
+				extraArgs: `--print --session ${shellQuote(sessionFile)}`,
+			});
+			await waitForScreen(seedSurface, /FIRST/);
+			assert.equal(await waitForPiExit(seedSurface), 0);
+			assert.equal(existsSync(sessionFile), true);
+
+			const parentSession = join(env.dir, `resume-parent-${id}.jsonl`);
+			const parentSurface = createTrackedSurface(env, `resume-parent-${id}`);
+			await waitForPaneReady(parentSurface);
+			const panesBefore = JSON.parse(
+				execFileSync(
+					"herdr",
+					["pane", "list", "--workspace", env.workspaceId],
+					{ encoding: "utf8" },
+				),
+			)
+				.result.panes.map((pane: { pane_id: string }) => pane.pane_id)
+				.sort();
+			startPi(
+				parentSurface,
+				env.dir,
+				[
+					"Call the subagent_resume tool with these EXACT parameters:",
+					`  sessionPath: "${sessionFile}"`,
+					`  name: "Resume-${id}"`,
+					`  message: "RESUME_FOLLOWUP_INPUT: ${id}"`,
+					"  autoExit: true",
+					"Call the tool once and report its result.",
+				].join("\n"),
+				{ extraArgs: `--session ${shellQuote(parentSession)}` },
+			);
+
+			const transcript = await waitForFile(
+				parentSession,
+				PI_TIMEOUT,
+				/saved launch policy is missing/,
+			);
+			assert.match(transcript, /Cannot safely resume/);
+			const panesAfter = JSON.parse(
+				execFileSync(
+					"herdr",
+					["pane", "list", "--workspace", env.workspaceId],
+					{ encoding: "utf8" },
+				),
+			)
+				.result.panes.map((pane: { pane_id: string }) => pane.pane_id)
+				.sort();
+			assert.deepEqual(panesAfter, panesBefore);
+		});
+
+		it("preserves restricted child tools and spawning denial across public resume", async () => {
+			const id = uniqueId();
+			const parentSession = join(
+				env.dir,
+				`resume-restricted-parent-${id}.jsonl`,
+			);
+			const surface = createTrackedSurface(env, `resume-restricted-${id}`);
+			await waitForPaneReady(surface);
+			startPi(surface, env.dir, `INTEGRATION_RESUME_RESTRICTIONS:${id}`, {
+				extraArgs: `--session ${shellQuote(parentSession)}`,
+			});
+
+			await waitForFile(
+				parentSession,
+				PI_TIMEOUT,
+				new RegExp(`RESUME_RESTRICTIONS_COMPLETE_${id}`),
+			);
+			const deadline = Date.now() + PI_TIMEOUT;
+			let results: Array<{ content: string }> = [];
+			while (Date.now() < deadline) {
+				const entries = readFileSync(parentSession, "utf8")
+					.trim()
+					.split("\n")
+					.map((line) => JSON.parse(line));
+				results = entries.filter(
+					(entry) =>
+						entry.type === "custom_message" &&
+						entry.customType === "subagent_result",
+				);
+				if (results.length === 2) break;
+				await sleep(50);
+			}
+			assert.equal(results.length, 2, "each child run delivers one result");
+			assert.match(results[1].content, new RegExp(`RESTRICTED_RESUME_${id}`));
+			assert.doesNotMatch(
+				JSON.stringify(results),
+				new RegExp(`RESTRICTED_TOOL_LEAK_${id}`),
+			);
+			const restrictedRequests = getProviderRequests().filter(
+				(request) =>
+					request.tools?.includes("caller_ping") &&
+					request.tools.includes("read"),
+			);
+			assert.ok(
+				restrictedRequests.length >= 2,
+				"fresh and resumed children both reached the deterministic provider",
+			);
+			for (const request of restrictedRequests) {
+				assert.deepEqual(request.tools, ["caller_ping", "read"]);
+			}
+		});
+
+		// ── Agent discovery ──
+
+		it("subagent discovers project-local test agents", async () => {
+			const id = uniqueId();
+			const markerFile = `/tmp/pi-integ-discovery-${id}.txt`;
+			trackTempFile(env, markerFile);
+
+			const surface = createTrackedSurface(env, `discovery-${id}`);
+			await waitForPaneReady(surface);
+
+			// Use subagents_list to verify test agents are discoverable,
+			// then spawn one to prove it works end-to-end.
+			const task = [
+				`First, call the subagents_list tool to see available agents.`,
+				`Then call the subagent tool:`,
+				`  name: "Disco-${id}"`,
+				`  agent: "test-echo"`,
+				`  task: "Run: echo 'DISCO_${id}' > '${markerFile}'"`,
+				`After you receive the subagent result, say DISCOVERY_DONE.`,
+			].join("\n");
+
+			startPi(surface, env.dir, task);
+
+			// The test-echo agent (discovered from project .pi/agents/) should work
+			const content = await waitForFile(markerFile, PI_TIMEOUT, /DISCO/);
+			assert.ok(
+				content.includes(`DISCO_${id}`),
+				`Discovery test marker should exist`,
+			);
+		});
+
+		// ── Subagent with custom system prompt ──
+
+		it("passes systemPrompt to subagent", async () => {
+			const id = uniqueId();
+			const markerFile = `/tmp/pi-integ-sysprompt-${id}.txt`;
+			trackTempFile(env, markerFile);
+
+			const surface = createTrackedSurface(env, `sysprompt-${id}`);
+			await waitForPaneReady(surface);
+
+			const task = [
+				`Call the subagent tool with these parameters:`,
+				`  name: "SysP-${id}"`,
+				`  agent: "test-echo"`,
+				`  systemPrompt: "Always start your response with CUSTOM_PROMPT_ACTIVE."`,
+				`  task: "Write 'SYSPROMPT_${id}' to ${markerFile} using bash: echo 'SYSPROMPT_${id}' > '${markerFile}'"`,
+				`After the subagent completes, say SYSPROMPT_TEST_DONE.`,
+			].join("\n");
+
+			startPi(surface, env.dir, task);
+
+			const content = await waitForFile(markerFile, PI_TIMEOUT, /SYSPROMPT/);
+			assert.ok(
+				content.includes(`SYSPROMPT_${id}`),
+				`System prompt test marker should exist`,
+			);
+		});
+
+		it("falls back after a provider failure and delivers the selected model", async () => {
+			const id = uniqueId();
+			const markerFile = `/tmp/pi-integ-fallback-${id}.txt`;
+			const parentSession = join(env.dir, `fallback-parent-${id}.jsonl`);
+			trackTempFile(env, markerFile);
+			const surface = createTrackedSurface(env, `fallback-${id}`);
+			await waitForPaneReady(surface);
+			startPi(
+				surface,
+				env.dir,
+				[
+					`Call subagent once with name: "Fallback-${id}".`,
+					`agent: "test-echo".`,
+					`model: "pi-integration/fallback-primary, pi-integration/fallback-secondary".`,
+					`task: "Run: echo 'FALLBACK_${id}' > '${markerFile}'".`,
+				].join("\n"),
+				{ extraArgs: `--session ${shellQuote(parentSession)}` },
+			);
+			assert.match(
+				await waitForFile(markerFile, PI_TIMEOUT),
+				new RegExp(`FALLBACK_${id}`),
+			);
+			assert.ok(
+				getProviderRequests().some(
+					(request) =>
+						request.model === "fallback-primary" && request.status === 503,
+				),
+			);
+			assert.ok(
+				getProviderRequests().some(
+					(request) =>
+						request.model === "fallback-secondary" && request.status === 200,
+				),
+			);
+			await waitForFile(
+				parentSession,
+				PI_TIMEOUT,
+				/"customType":"subagent_result"/,
+			);
+			const result = readFileSync(parentSession, "utf8")
+				.trim()
+				.split("\n")
+				.map((line) => JSON.parse(line))
+				.find(
+					(entry) =>
+						entry.type === "custom_message" &&
+						entry.customType === "subagent_result",
+				);
+			assert.deepEqual(result.details.fallbackAttempts, [
+				"pi-integration/fallback-primary",
+				"pi-integration/fallback-secondary",
+			]);
+			assert.equal(
+				result.details.runtimePlan.model,
+				"pi-integration/fallback-secondary",
+			);
+			assert.equal(result.details.fallbackFailures.length, 1);
+			assert.equal(
+				result.details.fallbackFailures[0].model,
+				"pi-integration/fallback-primary",
+			);
+			assert.match(
+				result.details.fallbackFailures[0].error,
+				/deterministic fallback provider failure/,
+			);
+			assert.match(
+				result.content,
+				/Requested model: pi-integration\/fallback-primary/,
+			);
+			assert.match(
+				result.content,
+				/Model used: pi-integration\/fallback-secondary/,
+			);
+		});
+
+		it("advances after an account-style HTTP rejection without repeating that model", async () => {
+			const id = uniqueId();
+			const markerFile = `/tmp/pi-integ-account-fallback-${id}.txt`;
+			const parentSession = join(
+				env.dir,
+				`account-fallback-parent-${id}.jsonl`,
+			);
+			trackTempFile(env, markerFile);
+			const surface = createTrackedSurface(env, `account-fallback-${id}`);
+			await waitForPaneReady(surface);
+			startPi(
+				surface,
+				env.dir,
+				[
+					`Call subagent once with name: "AccountFallback-${id}".`,
+					'agent: "test-echo".',
+					`model: "pi-integration/account-rejected, pi-integration/fallback-secondary".`,
+					`task: "Run: echo 'ACCOUNT_FALLBACK_${id}' > '${markerFile}'".`,
+				].join("\n"),
+				{ extraArgs: `--session ${shellQuote(parentSession)}` },
+			);
+
+			assert.match(
+				await waitForFile(markerFile, PI_TIMEOUT),
+				new RegExp(`ACCOUNT_FALLBACK_${id}`),
+			);
+			await waitForFile(
+				parentSession,
+				PI_TIMEOUT,
+				/"customType":"subagent_result"/,
+			);
+			const entries = readFileSync(parentSession, "utf8")
+				.trim()
+				.split("\n")
+				.map((line) => JSON.parse(line));
+			const results = entries.filter(
+				(entry) =>
+					entry.type === "custom_message" &&
+					entry.customType === "subagent_result",
+			);
+			assert.equal(results.length, 1, "parent must receive one completion");
+			const result = results[0];
+			assert.deepEqual(result.details.fallbackAttempts, [
+				"pi-integration/account-rejected",
+				"pi-integration/fallback-secondary",
+			]);
+			assert.equal(
+				result.details.runtimePlan.model,
+				"pi-integration/fallback-secondary",
+			);
+			assert.equal(result.details.fallbackFailures.length, 1);
+			assert.equal(
+				result.details.fallbackFailures[0].model,
+				"pi-integration/account-rejected",
+			);
+			assert.match(
+				result.details.fallbackFailures[0].error,
+				/account-rejected.*not supported.*account/i,
+			);
+			assert.match(
+				result.content,
+				/Models attempted: pi-integration\/account-rejected, pi-integration\/fallback-secondary/,
+			);
+			assert.match(
+				result.content,
+				/Model used: pi-integration\/fallback-secondary/,
+			);
+			assert.doesNotMatch(result.content, /auto-retry exhausted/);
+			const rejectedRequests = getProviderRequests().filter(
+				(request) => request.model === "account-rejected",
+			);
+			assert.equal(rejectedRequests.length, 1);
+			assert.equal(rejectedRequests[0].status, 400);
+		});
+
+		it("reports every attempted model when all fallbacks fail", async () => {
+			const id = uniqueId();
+			const parentSession = join(env.dir, `fallback-fail-parent-${id}.jsonl`);
+			const surface = createTrackedSurface(env, `fallback-fail-${id}`);
+			await waitForPaneReady(surface);
+			startPi(
+				surface,
+				env.dir,
+				[
+					`Call subagent once with name: "FallbackFail-${id}".`,
+					`agent: "test-echo".`,
+					`model: "pi-integration/fallback-primary, pi-integration/fallback-fail".`,
+					`task: "Return exactly SHOULD_NOT_COMPLETE".`,
+				].join("\n"),
+				{ extraArgs: `--session ${shellQuote(parentSession)}` },
+			);
+			await waitForFile(
+				parentSession,
+				PI_TIMEOUT,
+				/"customType":"subagent_result"/,
+			);
+			const result = readFileSync(parentSession, "utf8")
+				.trim()
+				.split("\n")
+				.map((line) => JSON.parse(line))
+				.find(
+					(entry) =>
+						entry.type === "custom_message" &&
+						entry.customType === "subagent_result",
+				);
+			assert.deepEqual(result.details.fallbackAttempts, [
+				"pi-integration/fallback-primary",
+				"pi-integration/fallback-fail",
+			]);
+			const failedRequests = getProviderRequests().filter((request) =>
+				request.model?.startsWith("fallback-"),
+			);
+			assert.deepEqual(
+				[...new Set(failedRequests.map((request) => request.model))].sort(),
+				["fallback-fail", "fallback-primary"],
+			);
+			assert.equal(
+				failedRequests.every((request) => request.status === 503),
+				true,
+			);
+			assert.equal(result.details.fallbackFailures.length, 2);
+			assert.deepEqual(
+				result.details.fallbackFailures.map(
+					(failure: { model: string }) => failure.model,
+				),
+				["pi-integration/fallback-primary", "pi-integration/fallback-fail"],
+			);
+			assert.match(
+				result.details.fallbackFailures[0].error,
+				/deterministic fallback provider failure/,
+			);
+			assert.match(
+				result.details.fallbackFailures[1].error,
+				/deterministic fallback provider failure/,
+			);
+			assert.match(
+				result.content,
+				/Models attempted: pi-integration\/fallback-primary, pi-integration\/fallback-fail/,
+			);
+			assert.doesNotMatch(result.content, /auto-retry exhausted/);
+		});
+	});
+}

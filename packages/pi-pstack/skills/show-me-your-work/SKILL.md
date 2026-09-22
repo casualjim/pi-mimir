@@ -53,7 +53,7 @@ Commit it only when the work is ambitious enough that a reviewer needs the trail
 
 ## Audit the log against the transcript
 
-At the end of the run, before handing back, check the log told the truth. Read `$PI_SESSION_FILE` for this run. For an earlier same-project session, use `pstack_sessions`; do not glob Pi's global session directory. Walk the log against what actually happened:
+At the end of the run, before handing back, check the log told the truth. Read `$PI_SESSION_FILE` for this run. For an earlier same-project session, use the `recall` tool; do not glob Pi's global session directory. Walk the log against what actually happened:
 
 - Every row maps to a real action. Cut invented or aspirational entries.
 - Each row's evidence resolves and shows what the row claims.

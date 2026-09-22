@@ -1,20 +1,7 @@
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { StringEnum } from "@earendil-works/pi-ai";
-import {
-  SessionManager,
-  type ExtensionAPI,
-} from "@earendil-works/pi-coding-agent";
-import { Type } from "typebox";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { registerPstackRoles } from "./roles.js";
-import {
-  ROLE_NAMES,
-  configPath,
-  defaultConfig,
-  readConfig,
-  writeConfig,
-} from "./config.js";
-import { findVerification } from "./verify.js";
 
 const MODE_ENTRY = "pstack-mode";
 
@@ -39,23 +26,13 @@ export default function (pi: ExtensionAPI) {
   registerPstackRoles(pi);
 
   let potetoMode = false;
-  let todos: string[] = [];
 
   pi.on("session_start", (_event, ctx) => {
     potetoMode = false;
-    todos = [];
     for (const entry of ctx.sessionManager.getBranch()) {
       if (entry.type !== "custom") continue;
       if (entry.customType === MODE_ENTRY)
         potetoMode = Boolean((entry.data as { enabled?: boolean }).enabled);
-      if (entry.type === "custom" && entry.customType === "pstack-todo") {
-        const items = (entry.data as { items?: unknown }).items;
-        if (
-          Array.isArray(items) &&
-          items.every((item) => typeof item === "string")
-        )
-          todos = items;
-      }
     }
     if (ctx.hasUI)
       ctx.ui.setStatus(
@@ -75,7 +52,7 @@ export default function (pi: ExtensionAPI) {
   pi.on("before_agent_start", (event) => {
     if (!potetoMode) return;
     return {
-      systemPrompt: `${event.systemPrompt}\n\nPstack Poteto Mode is enabled for this session. Follow its persisted workflow: use pstack_todo for non-trivial work, select and read the matching playbook, delegate through the subagent tool when delegation helps, verify real behavior, and name only principles that changed a decision. The full skill is at ${path.join(packageRoot(), "skills/poteto-mode/SKILL.md")}.`,
+      systemPrompt: `${event.systemPrompt}\n\nPstack Poteto Mode is enabled for this session. Follow its persisted workflow: track non-trivial work in the session's task tools, select and read the matching playbook, delegate through the subagent tool when delegation helps, verify real behavior, and name only principles that changed a decision. The full skill is at ${path.join(packageRoot(), "skills/poteto-mode/SKILL.md")}.`,
     };
   });
 
@@ -119,145 +96,4 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  pi.registerCommand("setup-pstack", {
-    description:
-      "Interactively map pstack delegation roles to models available in Pi.",
-    handler: async (_args, ctx) => {
-      const config = await readConfig();
-      const available = (
-        ctx.scopedModels?.length
-          ? ctx.scopedModels.map((entry) => entry.model)
-          : ctx.modelRegistry.getAvailable()
-      ).map((model) => `${model.provider}/${model.id}`);
-      const choices = ["inherit-parent", ...new Set(available)];
-      if (!ctx.hasUI) {
-        await writeConfig(defaultConfig());
-        return;
-      }
-      for (const role of ROLE_NAMES) {
-        const current = config.roles[role];
-        const selected = await ctx.ui.select(
-          `Model for ${role}`,
-          choices.map((model) =>
-            model === current ? `${model} (current)` : model,
-          ),
-        );
-        if (!selected) break;
-        config.roles[role] = selected.replace(/ \(current\)$/, "");
-      }
-      await writeConfig(config);
-      ctx.ui.notify(`Saved pstack model settings to ${configPath()}.`, "info");
-      if (findVerification(ctx.cwd) === null) {
-        const approved = await ctx.ui.confirm(
-          "No verification skill or test harness found",
-          "pstack verifies real behavior before declaring done. Generate a project verification skill now via /skill:create-verification-skill?\nYou can run it yourself any time.",
-        );
-        if (approved) pi.sendUserMessage("/skill:create-verification-skill");
-      }
-    },
-  });
-
-  pi.registerTool({
-    name: "pstack_todo",
-    label: "Pstack Todo",
-    description:
-      "Maintain pstack's current task checklist. Use at the start of non-trivial multi-step work, then update it as work advances.",
-    parameters: Type.Object({
-      action: StringEnum(["get", "set", "add", "complete"] as const),
-      items: Type.Optional(Type.Array(Type.String())),
-      item: Type.Optional(Type.String()),
-    }),
-    async execute(_id, params) {
-      if (params.action === "set") todos = params.items ?? [];
-      if (params.action === "add" && params.item)
-        todos = [...todos, params.item];
-      if (params.action === "complete" && params.item)
-        todos = todos.map((item) =>
-          item === params.item ? `[done] ${item}` : item,
-        );
-      pi.appendEntry("pstack-todo", { items: todos });
-      return {
-        content: [
-          {
-            type: "text",
-            text: todos.length
-              ? todos.map((item, index) => `${index + 1}. ${item}`).join("\n")
-              : "No pstack todo items.",
-          },
-        ],
-        details: { items: todos },
-      };
-    },
-  });
-
-  pi.registerTool({
-    name: "pstack_sessions",
-    label: "Pstack Sessions",
-    description:
-      "List Pi session files for the current working directory. Use before reading prior Pi transcripts; never glob other project session directories.",
-    parameters: Type.Object({ action: StringEnum(["list"] as const) }),
-    async execute(_id, _params, _signal, _update, ctx) {
-      const sessions = await SessionManager.list(ctx.cwd);
-      const files = sessions.map((session) => session.path);
-      return {
-        content: [
-          {
-            type: "text",
-            text:
-              files.join("\n") ||
-              "No saved sessions for this working directory.",
-          },
-        ],
-        details: { files },
-      };
-    },
-  });
-
-  pi.registerTool({
-    name: "pstack_config",
-    label: "Pstack Config",
-    description:
-      "Read or update pstack's role-to-model configuration. Use list-models before setting a model. inherit-parent makes a subagent use the parent session model.",
-    parameters: Type.Object({
-      action: StringEnum(["get", "list-models", "set"] as const),
-      role: Type.Optional(Type.String()),
-      model: Type.Optional(Type.String()),
-      models: Type.Optional(
-        Type.Array(Type.String(), {
-          description:
-            "Optional ordered model pool for a parallel review role.",
-        }),
-      ),
-    }),
-    async execute(_id, params, _signal, _update, ctx) {
-      if (params.action === "list-models") {
-        const models = (
-          ctx.scopedModels?.length
-            ? ctx.scopedModels.map((entry) => entry.model)
-            : ctx.modelRegistry.getAvailable()
-        ).map((model) => `${model.provider}/${model.id}`);
-        return {
-          content: [
-            { type: "text", text: ["inherit-parent", ...models].join("\n") },
-          ],
-          details: { models },
-        };
-      }
-      const config = await readConfig();
-      if (params.action === "set") {
-        if (!params.role || (!params.model && !params.models?.length))
-          throw new Error(
-            "pstack_config set requires role plus model or models.",
-          );
-        config.roles[params.role] = params.models?.length
-          ? params.models
-          : params.model!;
-        await writeConfig(config);
-      }
-      return {
-        content: [{ type: "text", text: JSON.stringify(config, null, 2) }],
-        details: config,
-      };
-    },
-  });
 }

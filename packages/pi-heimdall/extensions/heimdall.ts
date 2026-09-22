@@ -33,6 +33,7 @@ import { registerCommandPolicyGuard } from "../lib/guards/command-policy-guard.j
 import { registerEnvProtect } from "../lib/guards/env-protect.js";
 import { registerKubectlSecretGuard } from "../lib/guards/kubectl-secret-guard.js";
 import { registerSopsSecretGuard } from "../lib/guards/sops-secret-guard.js";
+import { registerFnoxSecretGuard } from "../lib/guards/fnox-secret-guard.js";
 import { registerSandboxGuard } from "../lib/guards/sandbox-guard.js";
 
 export default function heimdall(pi: ExtensionAPI) {
@@ -80,4 +81,5 @@ export default function heimdall(pi: ExtensionAPI) {
 	registerEnvProtect(pi, disabledSet);
 	registerKubectlSecretGuard(pi, disabledSet);
 	registerSopsSecretGuard(pi, disabledSet);
+	registerFnoxSecretGuard(pi, disabledSet);
 }

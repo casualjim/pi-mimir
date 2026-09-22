@@ -6,7 +6,8 @@
   "scripts": {
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test",
-    "check:pack": "pnpm -r --if-present check:pack"
+    "check:pack": "pnpm -r --if-present check:pack",
+    "doctor": "node scripts/doctor.mjs"
   },
   "repository": {
     "type": "git",

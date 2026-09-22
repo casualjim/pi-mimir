@@ -1,0 +1,10 @@
+{
+  "packages": [
+    {
+      "source": "npm:pi-jj",
+      "extensions": [],
+      "skills": []
+    },
+    ".."
+  ]
+}

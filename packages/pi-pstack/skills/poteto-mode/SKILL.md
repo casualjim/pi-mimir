@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 ## Non-negotiables
 
-**Start every multi-step task with `pstack_todo`; its first item is to read the Principles section below in full.** The principles ground every trigger here. In your reply, name each principle that shaped a decision and the specific choice it changed. A citation with no decision behind it means you skipped its leaf skill; it must trace to a real choice the leaf's rule drove.
+**Start every multi-step task with `set_tasks`; its first item is to read the Principles section below in full.** The principles ground every trigger here. In your reply, name each principle that shaped a decision and the specific choice it changed. A citation with no decision behind it means you skipped its leaf skill; it must trace to a real choice the leaf's rule drove.
 
 Remaining triggers:
 
@@ -85,7 +85,7 @@ Read the leaf skill in full for any principle you apply. Each entry names when i
 
 **Use Pi's `subagent` tool with `agent: "poteto-agent"` for implementation delegates and ad-hoc helpers.** The bundled agent reads this skill in full before it works. Routed workflow skills (`how`, `why`, `interrogate`, `reflect`, `swarm`) may use other agents to preserve independent review.
 
-**Defaults for each `subagent` call.** Keep the task self-contained, point at files instead of inlining large payloads, and use `role` for model selection. Configure roles through `/setup-pstack` or `pstack_config`. Unconfigured roles inherit the parent Pi model. The tool supports single, `tasks` parallel, and `chain` sequential modes. It limits parallel work to eight tasks and four running child processes. Pi child processes run locally in isolated contexts; do not assume cloud execution, background resume, or a read-only sandbox.
+**Defaults for each `subagent` call.** Keep the task self-contained, point at files instead of inlining large payloads, and use `role` for model selection. Configure model pools through `subagents_write_task_models`; pin a specific agent via `models.agents` in `~/.pi/agent/herdr-agents/config.json`. Unconfigured roles inherit the parent Pi model. The tool supports single, `tasks` parallel, and `chain` sequential modes. It limits parallel work to eight tasks and four running child processes. Pi child processes run locally in isolated contexts; do not assume cloud execution, background resume, or a read-only sandbox.
 
 You own every subagent's work. Review the diff and write your own summary, don't pass through what it said. Interrupt-chained resumes silently drop directives, so fire a fresh subagent with consolidated scope rather than trusting a "done" summary. A second opinion is the same prompt against a different model. Agreement is high-signal.
 
@@ -109,7 +109,7 @@ Comments follow the same rule as the reply. Write them clean as you go; a flat "
 
 ## Playbooks
 
-Your first `pstack_todo` actions are the matched playbook's steps, copied in verbatim, before any task-specific todos and before you reason about the task. The failure mode is reading a playbook then writing a bespoke plan that drops its named steps (`architect`, the throughput checkpoint). A step you choose not to do stays in the list with a one-line `skip: <reason>`; skipping silently is not allowed. Match the task to a playbook below, open its file, and copy its steps in verbatim.
+Your first `set_tasks` actions are the matched playbook's steps, copied in verbatim, before any task-specific todos and before you reason about the task. The failure mode is reading a playbook then writing a bespoke plan that drops its named steps (`architect`, the throughput checkpoint). A step you choose not to do stays in the list with a one-line `skip: <reason>`; skipping silently is not allowed. Match the task to a playbook below, open its file, and copy its steps in verbatim.
 
 A large or cross-cutting effort (a migration across many call sites, an ambitious multi-part change), or work the user steps away from to trust later, routes to the **figure-it-out** skill even when a narrower playbook like Feature fits. Use **figure-it-out** whenever no bundled playbook fits. It designs a bespoke, rigorous playbook for the task. A standing project-scale program (multi-day, many stacked PRs, a fleet of subagents under one coordinator) routes to **Orchestrate** instead; figure-it-out designs one bespoke run, orchestrate runs the program.
 

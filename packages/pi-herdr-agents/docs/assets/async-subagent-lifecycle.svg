@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title description">
+  <title id="title">Pi Herdr Agents asynchronous subagent lifecycle</title>
+  <desc id="description">Four stages show the parent Pi session spawning a child, the child running in Herdr, supervision through process and activity signals, and one bounded result returning to the parent.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#060b13"/><stop offset="0.5" stop-color="#0b1624"/><stop offset="1" stop-color="#18121d"/></linearGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#54d8ff"/><stop offset="0.52" stop-color="#7e9cff"/><stop offset="1" stop-color="#ffbd73"/></linearGradient>
+    <linearGradient id="flow" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#54d8ff"/><stop offset="0.55" stop-color="#889fff"/><stop offset="1" stop-color="#ffbd73"/></linearGradient>
+    <radialGradient id="blueGlow"><stop offset="0" stop-color="#46d3ff" stop-opacity="0.25"/><stop offset="1" stop-color="#46d3ff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="amberGlow"><stop offset="0" stop-color="#ffb65d" stop-opacity="0.19"/><stop offset="1" stop-color="#ffb65d" stop-opacity="0"/></radialGradient>
+    <pattern id="grid" width="52" height="52" patternUnits="userSpaceOnUse"><path d="M52 0H0V52" fill="none" stroke="#ffffff" stroke-opacity="0.035"/></pattern>
+    <filter id="shadow" x="-25%" y="-35%" width="150%" height="180%"><feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000000" flood-opacity="0.4"/></filter>
+    <filter id="glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="8" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M1 1L10 6L1 11Z" fill="#9bafff"/></marker>
+    <clipPath id="frame"><rect width="1600" height="1000" rx="34"/></clipPath>
+  </defs>
+  <g clip-path="url(#frame)">
+    <rect width="1600" height="1000" fill="url(#background)"/>
+    <rect width="1600" height="1000" fill="url(#grid)"/>
+    <circle cx="1370" cy="120" r="520" fill="url(#blueGlow)"/>
+    <circle cx="1250" cy="920" r="500" fill="url(#amberGlow)"/>
+
+    <g transform="translate(76 58)">
+      <rect width="292" height="44" rx="22" fill="#ffffff" fill-opacity="0.065" stroke="#ffffff" stroke-opacity="0.13"/>
+      <circle cx="25" cy="22" r="5" fill="#55dcff" filter="url(#glow)"/>
+      <text x="43" y="28" fill="#d9e1ea" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" font-weight="700" letter-spacing="2">PI HERDR AGENTS</text>
+    </g>
+    <text x="1524" y="87" text-anchor="end" fill="#8591a4" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" letter-spacing="2.5">ASYNC LIFECYCLE</text>
+    <text x="76" y="176" fill="#f4f7f8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="60" font-weight="760" letter-spacing="-2">Delegate without blocking</text>
+    <text x="78" y="226" fill="#a6b0bf" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="25">Spawn once · supervise continuously · deliver one bounded result</text>
+
+    <g transform="translate(78 270)" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700" letter-spacing="1.4">
+      <rect width="176" height="38" rx="12" fill="#54d8ff" fill-opacity="0.08" stroke="#54d8ff" stroke-opacity="0.34"/><text x="88" y="25" text-anchor="middle" fill="#83e4ff">PARENT PI</text>
+      <path d="M192 19H258" stroke="#69768a" stroke-width="2" stroke-dasharray="4 7"/>
+      <rect x="274" width="178" height="38" rx="12" fill="#829dff" fill-opacity="0.09" stroke="#829dff" stroke-opacity="0.35"/><text x="363" y="25" text-anchor="middle" fill="#aebcff">HERDR</text>
+      <path d="M468 19H534" stroke="#69768a" stroke-width="2" stroke-dasharray="4 7"/>
+      <rect x="550" width="190" height="38" rx="12" fill="#ffbd73" fill-opacity="0.08" stroke="#ffbd73" stroke-opacity="0.34"/><text x="645" y="25" text-anchor="middle" fill="#ffd09a">CHILD PI</text>
+    </g>
+
+    <g fill="none" stroke="url(#flow)" stroke-width="3" stroke-opacity="0.72" marker-end="url(#arrow)"><path d="M402 526H432"/><path d="M784 526H814"/><path d="M1166 526H1196"/></g>
+
+    <g transform="translate(62 350)" filter="url(#shadow)">
+      <rect width="330" height="350" rx="24" fill="#09121b" fill-opacity="0.96" stroke="#54d8ff" stroke-opacity="0.38"/>
+      <circle cx="44" cy="50" r="23" fill="#54d8ff" fill-opacity="0.13" stroke="#54d8ff" stroke-opacity="0.44"/><text x="44" y="58" text-anchor="middle" fill="#83e4ff" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="21" font-weight="700">1</text>
+      <text x="82" y="46" fill="#83e4ff" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700" letter-spacing="1.5">TOOL CALL</text><text x="82" y="70" fill="#f0f4f6" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="24" font-weight="700">Spawn</text>
+      <path d="M28 99H302" stroke="#ffffff" stroke-opacity="0.08"/>
+      <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="18"><circle cx="37" cy="136" r="4" fill="#54d8ff"/><text x="53" y="142" fill="#cbd3dc">Resolve role and runtime</text><circle cx="37" cy="180" r="4" fill="#54d8ff"/><text x="53" y="186" fill="#cbd3dc">Create Herdr surface</text><circle cx="37" cy="224" r="4" fill="#54d8ff"/><text x="53" y="230" fill="#cbd3dc">Return immediately</text></g>
+      <rect x="28" y="275" width="274" height="46" rx="13" fill="#54d8ff" fill-opacity="0.07" stroke="#54d8ff" stroke-opacity="0.2"/><text x="165" y="304" text-anchor="middle" fill="#83bed0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">started · non-blocking</text>
+    </g>
+
+    <g transform="translate(444 350)" filter="url(#shadow)">
+      <rect width="330" height="350" rx="24" fill="#0d1220" fill-opacity="0.96" stroke="#829dff" stroke-opacity="0.4"/>
+      <circle cx="44" cy="50" r="23" fill="#829dff" fill-opacity="0.13" stroke="#829dff" stroke-opacity="0.45"/><text x="44" y="58" text-anchor="middle" fill="#aebcff" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="21" font-weight="700">2</text>
+      <text x="82" y="46" fill="#aebcff" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700" letter-spacing="1.5">DEDICATED PROCESS</text><text x="82" y="70" fill="#f0f4f6" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="24" font-weight="700">Run</text>
+      <path d="M28 99H302" stroke="#ffffff" stroke-opacity="0.08"/>
+      <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="18"><circle cx="37" cy="136" r="4" fill="#829dff"/><text x="53" y="142" fill="#cbd3dc">Launch child Pi session</text><circle cx="37" cy="180" r="4" fill="#829dff"/><text x="53" y="186" fill="#cbd3dc">Pane or worktree</text><circle cx="37" cy="224" r="4" fill="#829dff"/><text x="53" y="230" fill="#cbd3dc">Keep parent interactive</text></g>
+      <rect x="28" y="275" width="274" height="46" rx="13" fill="#829dff" fill-opacity="0.07" stroke="#829dff" stroke-opacity="0.21"/><text x="165" y="304" text-anchor="middle" fill="#9caad0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">no focus stealing</text>
+    </g>
+
+    <g transform="translate(826 350)" filter="url(#shadow)">
+      <rect width="330" height="350" rx="24" fill="#11121d" fill-opacity="0.96" stroke="#9f91e9" stroke-opacity="0.4"/>
+      <circle cx="44" cy="50" r="23" fill="#9f91e9" fill-opacity="0.13" stroke="#9f91e9" stroke-opacity="0.45"/><text x="44" y="58" text-anchor="middle" fill="#c2b7ff" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="21" font-weight="700">3</text>
+      <text x="82" y="46" fill="#c2b7ff" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700" letter-spacing="1.5">LIVE SIGNALS</text><text x="82" y="70" fill="#f0f4f6" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="24" font-weight="700">Supervise</text>
+      <path d="M28 99H302" stroke="#ffffff" stroke-opacity="0.08"/>
+      <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="18"><circle cx="37" cy="136" r="4" fill="#9f91e9"/><text x="53" y="142" fill="#cbd3dc">Inspect process state</text><circle cx="37" cy="180" r="4" fill="#9f91e9"/><text x="53" y="186" fill="#cbd3dc">Project activity detail</text><circle cx="37" cy="224" r="4" fill="#9f91e9"/><text x="53" y="230" fill="#cbd3dc">Interrupt one turn</text></g>
+      <rect x="28" y="275" width="274" height="46" rx="13" fill="#9f91e9" fill-opacity="0.07" stroke="#9f91e9" stroke-opacity="0.21"/><text x="165" y="304" text-anchor="middle" fill="#aba3cb" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">active · waiting · stalled</text>
+    </g>
+
+    <g transform="translate(1208 350)" filter="url(#shadow)">
+      <rect width="330" height="350" rx="24" fill="#17131a" fill-opacity="0.96" stroke="#ffbd73" stroke-opacity="0.4"/>
+      <circle cx="44" cy="50" r="23" fill="#ffbd73" fill-opacity="0.12" stroke="#ffbd73" stroke-opacity="0.44"/><text x="44" y="58" text-anchor="middle" fill="#ffd09a" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="21" font-weight="700">4</text>
+      <text x="82" y="46" fill="#ffd09a" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700" letter-spacing="1.5">ONE COMPLETION</text><text x="82" y="70" fill="#f0f4f6" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="24" font-weight="700">Deliver</text>
+      <path d="M28 99H302" stroke="#ffffff" stroke-opacity="0.08"/>
+      <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="18"><circle cx="37" cy="136" r="4" fill="#ffbd73"/><text x="53" y="142" fill="#cbd3dc">Extract bounded result</text><circle cx="37" cy="180" r="4" fill="#ffbd73"/><text x="53" y="186" fill="#cbd3dc">Wake parent once</text><circle cx="37" cy="224" r="4" fill="#ffbd73"/><text x="53" y="230" fill="#cbd3dc">Keep recovery evidence</text></g>
+      <rect x="28" y="275" width="274" height="46" rx="13" fill="#ffbd73" fill-opacity="0.07" stroke="#ffbd73" stroke-opacity="0.2"/><text x="165" y="304" text-anchor="middle" fill="#c7a578" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">result steered to parent</text>
+    </g>
+
+    <g transform="translate(62 758)">
+      <rect width="1476" height="164" rx="24" fill="#080d14" fill-opacity="0.9" stroke="#ffffff" stroke-opacity="0.11"/>
+      <g transform="translate(30 28)"><circle cx="14" cy="14" r="8" fill="#54d8ff" fill-opacity="0.16" stroke="#54d8ff" stroke-opacity="0.55"/><path d="M9 14L13 18L20 9" fill="none" stroke="#83e4ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><text x="38" y="20" fill="#ccecf4" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700" letter-spacing="1.3">PARENT GUARANTEE</text><text x="38" y="52" fill="#99a5b5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="18">The caller never polls or blocks; completion arrives asynchronously.</text><text x="38" y="88" fill="#717e91" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">reload · new · resume · fork → watchers transfer</text></g>
+      <path d="M738 24V140" stroke="#ffffff" stroke-opacity="0.09"/>
+      <g transform="translate(776 28)"><circle cx="14" cy="14" r="8" fill="#ffbd73" fill-opacity="0.16" stroke="#ffbd73" stroke-opacity="0.55"/><path d="M14 8V15M14 21V22" stroke="#ffd09a" stroke-width="2" stroke-linecap="round"/><text x="38" y="20" fill="#f0dcc1" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700" letter-spacing="1.3">WORKTREE BOUNDARY</text><text x="38" y="52" fill="#99a5b5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="18">Git checkout isolation, not process or security isolation.</text><text x="38" y="88" fill="#81796e" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">no automatic push · merge · cleanup</text></g>
+    </g>
+
+    <text x="78" y="966" fill="#717e91" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15">Pi processes · Herdr surfaces · explicit ownership</text>
+    <text x="1522" y="966" text-anchor="end" fill="#717e91" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15">npm:pi-herdr-agents</text>
+  </g>
+  <rect x="1" y="1" width="1598" height="998" rx="33" fill="none" stroke="#ffffff" stroke-opacity="0.13" stroke-width="2"/>
+</svg>

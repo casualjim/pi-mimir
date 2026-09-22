@@ -20,4 +20,5 @@ export type OptOutGuardId =
 	| "command-policy-guard"
 	| "env-protect"
 	| "kubectl-secret-guard"
-	| "sops-secret-guard";
+	| "sops-secret-guard"
+	| "fnox-secret-guard";

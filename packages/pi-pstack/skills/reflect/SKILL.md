@@ -16,7 +16,7 @@ Invoke when the user says "reflect" or "/reflect". Skip when the conversation is
 
 ### 1. Locate the active transcript
 
-The active transcript is `$PI_SESSION_FILE`. Use it directly when present. To choose an earlier transcript for this working directory, call `pstack_sessions` with `action: "list"` and read only a returned path. Never glob Pi's global session directory. If no session file resolves, write a tight digest of the current session and pass that instead.
+The active transcript is `$PI_SESSION_FILE`. Use it directly when present. To choose an earlier transcript for this working directory, use the `recall` tool and read only a path it returns. Never glob Pi's global session directory. If no session file resolves, write a tight digest of the current session and pass that instead.
 
 ### 2. Spawn three reviewers in parallel
 
