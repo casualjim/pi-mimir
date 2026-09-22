@@ -1,6 +1,6 @@
 ---
 name: setup-pstack
-description: Configure the Pi models pstack delegates to by role. Use for /setup-pstack, "configure pstack models", or changing pstack's model choices.
+description: Configure the Pi models pstack delegates to by role, and the reasoning budget. Use for /setup-pstack, "configure pstack models", "pstack budget", or changing pstack's model choices.
 disable-model-invocation: true
 ---
 
@@ -9,6 +9,10 @@ disable-model-invocation: true
 Use `/setup-pstack` to open the Pi-native interactive model picker. It lists models configured for this Pi session and writes the chosen role mappings to `~/.pi/agent/pstack/models.json`.
 
 If interactive UI is unavailable, call `pstack_config` with `action: "list-models"`, then set each needed role with `action: "set"`. Values use Pi's `provider/model` selector format. Set a role to `inherit-parent` to run that child with the parent session's selected model.
+
+## Budget
+
+A "pstack budget" answer picks one of `unlimited` (keep max), `large` (xhigh reasoning), `medium` (high reasoning), or `small` (medium reasoning). Apply it by choosing each role's model (and, where the harness exposes a thinking level for spawned subagents, that level) at or below the chosen tier, keeping `inherit-parent` entries unchanged. Record the budget as a `budget` field in `~/.pi/agent/pstack/models.json` so later runs reuse it.
 
 ## Rules
 

@@ -1,6 +1,6 @@
 ---
 name: swarm
-description: "Fan out N parallel workers, drain them, and return one report. Use for /skill:swarm, 'swarm this', or parallel coverage, races, gauntlets, and exploration."
+description: "Fan out N parallel workers, drain them, and return one report. Use for /swarm, 'swarm this', or parallel coverage, races, gauntlets, and exploration."
 disable-model-invocation: true
 ---
 
@@ -23,7 +23,7 @@ Open a todolist with one entry per phase before launching anything.
 2. Choose the shape. Partition into slices, race N workers on identical briefs, or mix both. For a race or mixed shape, declare `first pass`, `rank all`, or `best-of` before spawning.
 3. Set N from the user or derive it from the shape. N is total workers, not the cloud concurrency limit.
 4. Pick the worker model from `swarm workers` in `~/.pi/agent/pstack/models.json` when present. Otherwise use `inherit-parent`. For a model race, name each arm's model up front.
-5. Give each worker its own writable output when it writes. Use a worktree, branch, or `/tmp/swarm-<slug>/worker-<n>/`.
+5. Give each worker its own writable output when it writes.
 
 ## Phase B: Fan out
 
