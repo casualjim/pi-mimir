@@ -1,7 +1,7 @@
 {
   "name": "@casualjim/pi-pretty",
   "version": "0.7.1",
-  "description": "Pretty terminal output for pi built-in tools, composed with pi-heimdall — the bash tool renders like pi-pretty and executes through the heimdall sandbox.",
+  "description": "Pretty terminal output for pi built-in tools: shiki-highlighted read previews, ls tree with icons, FFF-accelerated find/grep, prompt editor and activity indicators.",
   "keywords": [
     "pi",
     "pi-extension",
@@ -9,9 +9,7 @@
     "pretty-print",
     "shiki",
     "syntax-highlighting",
-    "terminal",
-    "heimdall",
-    "sandbox"
+    "terminal"
   ],
   "homepage": "https://github.com/casualjim/pi-mimir/tree/main/packages/pi-pretty",
   "license": "MIT",
@@ -27,11 +25,7 @@
   ],
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./bash-renderers": {
-      "types": "./src/tools/bash.d.ts",
-      "default": "./src/tools/bash.ts"
-    }
+    ".": "./src/index.ts"
   },
   "engines": {
     "node": ">=22.0.0"

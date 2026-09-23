@@ -23,30 +23,30 @@ export type { ImageContent, TextContent };
 // ---------------------------------------------------------------------------
 
 export interface ThemeLike {
-	fg: (key: string, text: string) => string;
-	bold: (text: string) => string;
-	getBgAnsi?: (key: string) => string;
+ fg: (key: string, text: string) => string;
+ bold: (text: string) => string;
+ getBgAnsi?: (key: string) => string;
 }
 
 export interface RenderCtxLike {
-	lastComponent?: ComponentLike;
-	toolCallId?: string;
-	isError?: boolean;
-	state: Record<string, unknown>;
-	expanded?: boolean;
-	invalidate?: () => void;
+ lastComponent?: ComponentLike;
+ toolCallId?: string;
+ isError?: boolean;
+ state: Record<string, unknown>;
+ expanded?: boolean;
+ invalidate?: () => void;
 }
 
 export interface TextLike {
-	setText(v: string): void;
-	getText?(): string;
+ setText(v: string): void;
+ getText?(): string;
 }
 
 /** Minimal Component interface matching pi-tui's Component. */
 export interface ComponentLike {
-	setText(v: string): void;
-	render(width: number): string[];
-	invalidate?(): void;
+ setText(v: string): void;
+ render(width: number): string[];
+ invalidate?(): void;
 }
 
 // ---------------------------------------------------------------------------
@@ -54,73 +54,61 @@ export interface ComponentLike {
 // ---------------------------------------------------------------------------
 
 export type ReadDetails =
-	| { _type: "readImage"; filePath: string }
-	| { _type: "readFile"; filePath: string; content: string; offset: number; lineCount: number };
-
-export interface BashDetails extends Record<string, unknown> {
-	_type: "bashResult";
-	text: string;
-	exitCode: number | null;
-	command: string;
-}
+ | { _type: "readImage"; filePath: string }
+ | { _type: "readFile"; filePath: string; content: string; offset: number; lineCount: number };
 
 export interface LsDetails extends Record<string, unknown> {
-	_type: "lsResult";
-	text: string;
-	path: string;
-	entryCount: number;
+ _type: "lsResult";
+ text: string;
+ path: string;
+ entryCount: number;
 }
 
 export interface FindDetails extends Record<string, unknown> {
-	_type: "findResult";
-	text: string;
-	pattern: string;
-	matchCount: number;
-	notices?: string[];
+ _type: "findResult";
+ text: string;
+ pattern: string;
+ matchCount: number;
+ notices?: string[];
 }
 
 export interface GrepDetails extends Record<string, unknown> {
-	_type: "grepResult";
-	text: string;
-	pattern: string;
-	matchCount: number;
+ _type: "grepResult";
+ text: string;
+ pattern: string;
+ matchCount: number;
 }
 
-export type AnyDetails = ReadDetails | BashDetails | LsDetails | FindDetails | GrepDetails;
+export type AnyDetails = ReadDetails | LsDetails | FindDetails | GrepDetails;
 
 // ---------------------------------------------------------------------------
 // Tool input types
 // ---------------------------------------------------------------------------
 
 export interface ReadInput {
-	path: string;
-	offset?: number;
-	limit?: number;
-}
-
-export interface BashInput {
-	command: string;
-	timeout?: number;
+ path: string;
+ offset?: number;
+ limit?: number;
 }
 
 export interface LsInput {
-	path?: string;
+ path?: string;
 }
 
 export interface FindInput {
-	pattern: string;
-	path?: string;
-	limit?: number;
+ pattern: string;
+ path?: string;
+ limit?: number;
 }
 
 export interface GrepInput {
-	pattern: string;
-	path?: string;
-	glob?: string;
-	context?: number;
-	limit?: number;
-	literal?: boolean;
-	ignoreCase?: boolean;
+ pattern: string;
+ path?: string;
+ glob?: string;
+ context?: number;
+ limit?: number;
+ literal?: boolean;
+ ignoreCase?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -132,26 +120,26 @@ export interface GrepInput {
  * Accepts both the real SDK's ToolDefinition<> return type and test mocks.
  */
 export interface SdkToolDef {
-	name?: string;
-	description?: string;
-	label?: string;
-	parameters?: unknown;
-	promptSnippet?: string;
-	promptGuidelines?: string[];
-	constrainedSampling?: false | ConstrainedSamplingConfig;
-	execute: (...args: any[]) => Promise<AgentToolResult<any>>;
+ name?: string;
+ description?: string;
+ label?: string;
+ parameters?: unknown;
+ promptSnippet?: string;
+ promptGuidelines?: string[];
+ constrainedSampling?: false | ConstrainedSamplingConfig;
+ execute: (...args: any[]) => Promise<AgentToolResult<any>>;
 }
 
 export interface SdkTools {
-	createReadTool?: (cwd: string) => SdkToolDef;
-	createReadToolDefinition?: (cwd: string) => SdkToolDef;
-	createLsTool?: (cwd: string) => SdkToolDef;
-	createLsToolDefinition?: (cwd: string) => SdkToolDef;
-	createFindTool?: (cwd: string) => SdkToolDef;
-	createFindToolDefinition?: (cwd: string) => SdkToolDef;
-	createGrepTool?: (cwd: string) => SdkToolDef;
-	createGrepToolDefinition?: (cwd: string) => SdkToolDef;
-	getAgentDir?: () => string;
+ createReadTool?: (cwd: string) => SdkToolDef;
+ createReadToolDefinition?: (cwd: string) => SdkToolDef;
+ createLsTool?: (cwd: string) => SdkToolDef;
+ createLsToolDefinition?: (cwd: string) => SdkToolDef;
+ createFindTool?: (cwd: string) => SdkToolDef;
+ createFindToolDefinition?: (cwd: string) => SdkToolDef;
+ createGrepTool?: (cwd: string) => SdkToolDef;
+ createGrepToolDefinition?: (cwd: string) => SdkToolDef;
+ getAgentDir?: () => string;
 }
 
 // ---------------------------------------------------------------------------
@@ -160,27 +148,27 @@ export interface SdkTools {
 
 /** Minimal FFF service shape for tools that only need fileSearch. */
 export interface FffServiceLike {
-	readonly isAvailable: boolean;
-	readonly partialIndex: boolean;
-	getFinder(): import("@ff-labs/fff-node").FileFinder | null;
+ readonly isAvailable: boolean;
+ readonly partialIndex: boolean;
+ getFinder(): import("@ff-labs/fff-node").FileFinder | null;
 }
 
 /** Full FFF service for grep tools that also need cursor store. */
 export interface FffServiceWithCursor extends FffServiceLike {
-	getCursorStore(): CursorStore;
+ getCursorStore(): CursorStore;
 }
 
 /** FFF lifecycle interface (used by session lifecycle code). */
 export interface FffService extends FffServiceWithCursor {
-	ensureFinder(cwd: string, options?: FffInitOptions): Promise<void>;
-	destroy(): void;
-	isModuleLoaded(): boolean;
-	tryLoadModule(): Promise<boolean>;
+ ensureFinder(cwd: string, options?: FffInitOptions): Promise<void>;
+ destroy(): void;
+ isModuleLoaded(): boolean;
+ tryLoadModule(): Promise<boolean>;
 }
 
 export interface CursorStore {
-	store(cursor: unknown): string;
-	get(id: string): unknown | undefined;
+ store(cursor: unknown): string;
+ get(id: string): unknown | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -190,13 +178,13 @@ export interface CursorStore {
 export type CustomEditorConstructor = new (...args: ConstructorParameters<typeof CustomEditor>) => CustomEditor;
 
 export interface PiPrettyDeps {
-	sdk?: SdkTools;
-	TextComponent?: new (text?: string, x?: number, y?: number) => ComponentLike;
-	fffModule?: typeof import("@ff-labs/fff-node");
-	/** Host AssistantMessageComponent class for the per-row label patch; defaults
-	 * to the package export. Injectable so tests can verify against the exact
-	 * class instance they construct rows from. */
-	assistantMessageComponent?: unknown;
-	/** Host CustomEditor class for the live prompt icon; defaults to the package export. */
-	customEditorClass?: CustomEditorConstructor;
+ sdk?: SdkTools;
+ TextComponent?: new (text?: string, x?: number, y?: number) => ComponentLike;
+ fffModule?: typeof import("@ff-labs/fff-node");
+ /** Host AssistantMessageComponent class for the per-row label patch; defaults
+  * to the package export. Injectable so tests can verify against the exact
+  * class instance they construct rows from. */
+ assistantMessageComponent?: unknown;
+ /** Host CustomEditor class for the live prompt icon; defaults to the package export. */
+ customEditorClass?: CustomEditorConstructor;
 }

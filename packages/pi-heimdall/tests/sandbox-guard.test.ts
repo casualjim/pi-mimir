@@ -1,11 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import type { Mock } from "vitest";
 import { EventEmitter } from "node:events";
 import { tmpdir } from "node:os";
 import { mkdirSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { spawn } from "node:child_process";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { registerSandboxGuard } from "../lib/guards/sandbox-guard";
+import {
+	registerSandboxGuard,
+	suppressDuplicateCallRender,
+	type OmpBashRenderer,
+} from "../lib/guards/sandbox-guard";
 import { buildSandboxPolicy, normalizeSandboxConfig } from "../lib/sandbox/config";
 import {
 	MISSING_BINARY_MESSAGE,
@@ -277,15 +282,15 @@ describe("sandbox-guard", () => {
 		it("migrates paths/mode to filesystem deny/writable", () => {
 			const configPath = join(tmpDir, "heimdall.json");
 			writeFileSync(configPath, JSON.stringify({
-					sandbox: {
-						enabled: true,
-						paths: {
-							"~/github": { mode: "write" },
-							"~/.ssh": { mode: "deny" },
-							"~/Private": { mode: "deny" },
-						},
+				sandbox: {
+					enabled: true,
+					paths: {
+						"~/github": { mode: "write" },
+						"~/.ssh": { mode: "deny" },
+						"~/Private": { mode: "deny" },
 					},
-				}, null, 2));
+				},
+			}, null, 2));
 
 			const config = normalizeSandboxConfig(
 				{ enabled: true, paths: { "~/github": { mode: "write" }, "~/.ssh": { mode: "deny" }, "~/Private": { mode: "deny" } } },
@@ -604,7 +609,7 @@ describe("sandbox-guard", () => {
 	});
 });
 
-function createPiHarness(noSandboxFlag: boolean, cwd?: string) {
+function createPiHarness(noSandboxFlag: boolean, cwd?: string, host: "pi" | "omp" = "pi") {
 	const handlers = new Map<string, Array<(...args: unknown[]) => unknown>>();
 	const notify = vi.fn();
 	const setStatus = vi.fn();
@@ -623,6 +628,7 @@ function createPiHarness(noSandboxFlag: boolean, cwd?: string) {
 		on: vi.fn((name: string, handler: (...args: unknown[]) => unknown) => {
 			handlers.set(name, [...(handlers.get(name) ?? []), handler]);
 		}),
+		...(host === "omp" ? { zod: {} } : {}),
 	} as unknown as ExtensionAPI;
 
 	return {
@@ -672,6 +678,45 @@ function createPiHarness(noSandboxFlag: boolean, cwd?: string) {
 		},
 	};
 }
+
+interface SandboxHarness {
+	pi: ExtensionAPI;
+	registerTool: Mock;
+}
+
+describe("sandbox-guard bash renderers by host", () => {
+	function getBashTool(harness: SandboxHarness): Record<string, unknown> {
+		const call = harness.registerTool.mock.calls.find(
+			([def]: [Record<string, unknown>]) => typeof def?.label === "string",
+		);
+		if (!call) throw new Error("bash tool not registered");
+		const [definition] = call as [Record<string, unknown>];
+		return definition;
+	}
+
+	it("keeps the host definition's native renderers on Pi", () => {
+		const harness = createPiHarness(false);
+		registerSandboxGuard(harness.pi, () => ({ sandbox: { enabled: false } }));
+
+		const bash = getBashTool(harness);
+		expect(bash.renderCall).toBeTypeOf("function");
+		expect(bash.renderResult).toBeTypeOf("function");
+	});
+
+	it("attaches only the omp result renderer so the merged card is the single card", () => {
+		const harness = createPiHarness(false, undefined, "omp");
+		const ompRenderResult = () => undefined;
+		registerSandboxGuard(harness.pi, () => ({ sandbox: { enabled: false } }), undefined, {
+			renderCall: () => undefined,
+			renderResult: ompRenderResult,
+		});
+
+		const bash = getBashTool(harness);
+		expect(bash.renderCall).toBeUndefined();
+		expect(bash.renderShell).toBeUndefined();
+		expect(bash.renderResult).toBe(ompRenderResult);
+	});
+});
 
 describe("sandbox-guard escalation (heimdall-allow)", () => {
 	function getAllowTool(harness: ReturnType<typeof createPiHarness>) {

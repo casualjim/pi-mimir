@@ -156,6 +156,9 @@ function createHarness(cwd: string) {
 	const ctx = {
 		cwd,
 		hasUI: true,
+		model: { provider: "test", id: "test-model" },
+		sessionManager: { getSessionId: () => "test-session", getSessionFile: () => undefined },
+		thinkingLevel: "off",
 		ui: {
 			notify,
 			setStatus: vi.fn(),

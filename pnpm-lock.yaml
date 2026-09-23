@@ -93,9 +93,6 @@ importers:
       '@casualjim/heimdall-sandbox':
         specifier: ^0.2.6
         version: 0.2.6
-      '@casualjim/pi-pretty':
-        specifier: workspace:*
-        version: link:../pi-pretty
       ignore:
         specifier: ^7.0.9
         version: 7.0.9

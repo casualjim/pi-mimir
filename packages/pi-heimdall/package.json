@@ -57,7 +57,6 @@
   },
   "dependencies": {
     "@casualjim/heimdall-sandbox": "^0.2.6",
-    "@casualjim/pi-pretty": "workspace:*",
     "ignore": "^7.0.9",
     "jsonc-parser": "^3.3.1",
     "shell-quote": "^1.10.0"

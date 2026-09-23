@@ -1,39 +1,27 @@
 # @casualjim/pi-pretty
 
 Fork of [@heyhuynhgiabuu/pi-pretty](https://github.com/heyhuynhgiabuu/pi-pretty)
-(MIT) that composes with
-[@casualjim/pi-heimdall](https://github.com/casualjim/pi-mimir/tree/main/packages/pi-heimdall):
-pretty rendering AND the heimdall sandbox on the same `bash` tool.
+(MIT) trimmed to the display tools it owns.
 
-## How they compose
+## What it does
+
+Shiki-highlighted `read` previews, `ls` tree views with file-type icons,
+FFF-accelerated `find`/`grep`, a prompt editor, and activity indicators.
+
+## Bash
+
+pi-pretty does not render, register, or substitute `bash`. That tool belongs to
+pi-heimdall (sandboxed execute), and each host renders bash with its own
+renderer: Pi's native bash definition carries `renderCall`/`renderResult`, and
+Oh My Pi attaches its own from `@oh-my-pi/pi-tui/tools`.
 
 Since pi 0.87.1, two extensions registering the same tool or flag is a hard
-load error, so exactly one extension may own `bash`:
-
-- **pi-heimdall** owns the `bash` tool (sandboxed execute via
-  `@casualjim/heimdall-sandbox`) and the `--no-sandbox` flag.
-- **pi-pretty** never registers `bash` or any flag. It exports its bash
-  renderers from the `@casualjim/pi-pretty/bash-renderers` subpath, and
-  pi-heimdall attaches them to its tool — so `bash` output keeps pi-pretty
-  styling while executing through the sandbox.
-
-Load order does not matter. All other pi-pretty features (shiki `read`
-previews, `ls` icons, FFF-powered `find`/`grep`, working indicator, thinking
-shimmer) are unchanged.
-
-Trade-offs of heimdall owning `bash`:
-
-- bash rows show no elapsed-time line (the sandboxed execute does not record
-  pretty's timing metadata)
-- pi-pretty's extra ripgrep prompt guidance for bash is gone; the tool keeps
-  the host SDK's description and guidelines
-- mid-session `/sandbox on|off` works — the toggle and the tool live in the
-  same extension now
+load error, so heimdall owns `bash` and the `--no-sandbox` flag, and pi-pretty
+never touches either. Load order does not matter.
 
 ## Install
 
 ```bash
-pi install git:github.com/casualjim/pi-mimir#subdirectory=packages/pi-heimdall
 pi install git:github.com/casualjim/pi-mimir#subdirectory=packages/pi-pretty
 ```
 
