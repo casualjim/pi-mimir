@@ -41,6 +41,7 @@ import type { PiPrettyDeps, SdkTools } from "./types.js";
 import {
  createThinkingLabelAnimator,
  createThinkingTimer,
+ formatThinkingDuration,
  installPerRowThinkingLabels,
  installWorkingIndicator,
  type PerRowThinkingLabels,
@@ -272,6 +273,38 @@ export default async function piPrettyExtension(pi: ExtensionAPI, deps?: PiPrett
   }
  };
 
+ /** Elapsed-turn clock cadence: sub-second counts stay legible, and the suffix
+  * is written only when its text changes, so most ticks cost one comparison. */
+ const WORKING_CLOCK_MS = 250;
+ let workingStartedAt: number | undefined;
+ let workingClockInterval: ReturnType<typeof setInterval> | undefined;
+
+ /** Re-assert the elapsed suffix on the current controller. Safe to call on a
+  * fresh controller (mid-turn reinstall after a session rename). */
+ const syncWorkingClock = (): void => {
+  const startedAt = workingStartedAt;
+  if (startedAt === undefined) return;
+  workingController?.setSuffix(`· ${formatThinkingDuration(Date.now() - startedAt)}`);
+ };
+
+ const stopWorkingClock = (): void => {
+  if (workingClockInterval) {
+   clearInterval(workingClockInterval);
+   workingClockInterval = undefined;
+  }
+  workingStartedAt = undefined;
+  workingController?.setSuffix("");
+ };
+
+ /** Start the clock on the first streaming event of a turn; a turn that is
+  * already running keeps its origin so a reinstall does not rewind the row. */
+ const startWorkingClock = (): void => {
+  if (workingStartedAt !== undefined) return;
+  workingStartedAt = Date.now();
+  syncWorkingClock();
+  workingClockInterval = setInterval(syncWorkingClock, WORKING_CLOCK_MS);
+ };
+
  // (Re-)install the working indicator: new session, reload, or session rename
  // (the accent tint tracks the name, omp-style). Preserves streaming state so a
  // mid-stream rename does not drop the row.
@@ -281,7 +314,11 @@ export default async function piPrettyExtension(pi: ExtensionAPI, deps?: PiPrett
   try {
    const controller = await installWorkingIndicator(ctx.ui, workingSettings, undefined, workingSessionName);
    workingController = controller;
-   if (workingStreaming) controller.start();
+   // Mid-turn reinstall (session rename) resumes the elapsed count on the new row.
+   if (workingStreaming) {
+    syncWorkingClock();
+    controller.start();
+   }
    // Noop install (disabled/blank) after a previous install → restore pi's loader.
    if (controller.frames.length === 0) ctx.ui.setWorkingVisible?.(true);
   } catch (error: unknown) {
@@ -358,10 +395,12 @@ export default async function piPrettyExtension(pi: ExtensionAPI, deps?: PiPrett
   if (ctx.mode !== "tui") return;
   workingStreaming = true;
   workingController?.start();
+  startWorkingClock();
  });
  const stopStreaming = async (_event: unknown, ctx: ExtensionContext): Promise<void> => {
   if (ctx.mode !== "tui") return;
   workingStreaming = false;
+  stopWorkingClock();
   workingController?.stop();
   stopThinkingShimmer();
  };
@@ -504,6 +543,7 @@ export default async function piPrettyExtension(pi: ExtensionAPI, deps?: PiPrett
   }
   // Tear down the indicator animation; pi re-runs session_start (and our
   // install) after resume or session switching.
+  stopWorkingClock();
   workingController?.dispose();
   workingController = undefined;
   stopThinkingShimmer();

@@ -349,4 +349,37 @@ describe("thinking timer lifecycle wiring", () => {
 		await events.get("agent_start")!({}, ctx);
 		expect(statsWrites).toEqual([]);
 	});
+
+	it("counts elapsed turn time in the working row and clears it at turn end", async () => {
+		const ctx = await loadExtension();
+		const widgetCalls = (ctx.ui.setWidget as ReturnType<typeof vi.fn>).mock.calls as Array<{
+			0: string;
+			1: (tui: { requestRender(): void }, theme: unknown) => { render(w: number): string[] };
+		}>;
+		// Reinstall (rename, session switch) replaces the component; read the newest.
+		const currentWidget = () => {
+			const call = widgetCalls.filter((c) => c[0] === "pi-pretty-working").at(-1);
+			return call![1]({ requestRender() {} }, undefined) as { render(w: number): string[] };
+		};
+		const row = () => stripAnsi(currentWidget().render(120)[0] ?? "");
+
+		// loadExtension already fired agent_start: the clock is running.
+		expect(row()).toContain("· 0ms");
+
+		vi.setSystemTime(Date.now() + 65_000);
+		vi.advanceTimersByTime(250);
+		expect(row()).toContain("· 1m 05s");
+
+		// The count survives a mid-turn reinstall (session rename).
+		const before = widgetCalls.length;
+		await events.get("session_info_changed")!({ name: "renamed" }, ctx);
+		expect(widgetCalls.length).toBeGreaterThan(before);
+		expect(row()).toContain("· 1m 05s");
+
+		await events.get("agent_end")!({}, ctx);
+		expect(row()).toBe("");
+		vi.advanceTimersByTime(2000);
+		await events.get("agent_start")!({}, ctx);
+		expect(row()).toContain("· 0ms");
+	});
 });

@@ -400,11 +400,19 @@ export class WorkingWidget {
 	#tui: WidgetTuiLike | undefined;
 	#started = false;
 	#disposed = false;
+	#suffix = "";
 
 	setFrames(frames: string[], intervalMs: number): void {
 		this.#frames = frames;
 		this.#intervalMs = intervalMs;
 		this.#index = 0;
+	}
+
+	/** Trailing label (the elapsed turn clock); plain text, dimmed at render. */
+	setSuffix(text: string): void {
+		if (text === this.#suffix) return;
+		this.#suffix = text;
+		this.#tui?.requestRender();
 	}
 
 	attach(tui: WidgetTuiLike): void {
@@ -445,7 +453,9 @@ export class WorkingWidget {
 	render(width: number): string[] {
 		if (!this.#started || this.#frames.length === 0) return [];
 		const frame = this.#frames[this.#index % this.#frames.length] ?? "";
-		return [truncateToWidth(frame, Math.max(1, width))];
+		// The native host appends its own space after the frame; this row does not.
+		const suffix = this.#suffix === "" ? "" : ` ${FG_DIM}${this.#suffix}${RESET_FG}`;
+		return [truncateToWidth(`${frame}${suffix}`, Math.max(1, width))];
 	}
 
 	invalidate(): void {
@@ -773,6 +783,8 @@ export interface WorkingIndicatorController {
 	stop(): void;
 	/** Remove the indicator and stop the animation. */
 	dispose(): void;
+	/** Update the trailing label (the elapsed turn clock); "" clears it. */
+	setSuffix(text: string): void;
 	/** @deprecated Token stats are owned by Pi and are no longer rendered here. */
 	setStats(text: string | undefined): void;
 	/** Request a host render for consumers that drive another animated label. */
@@ -802,6 +814,7 @@ export async function installWorkingIndicator(
 		start() {},
 		stop() {},
 		dispose() {},
+		setSuffix() {},
 		setStats() {},
 		requestRender() {},
 		frames: [],
@@ -835,10 +848,12 @@ export async function installWorkingIndicator(
 	if (typeof setWorkingIndicator === "function" && typeof setWorkingMessage === "function") {
 		let started = false;
 		let disposed = false;
+		let suffix = "";
 		const updateNativeMessage = (): void => {
-			// Keep Pi's built-in message hidden because the custom frame already
-			// supplies the working label; no hint or token suffix is added here.
-			setWorkingMessage.call(ui, "");
+			// The host renders `frame + " " + message`, so the elapsed clock rides
+			// the message slot: appending there leaves the sweep untouched, unlike
+			// re-calling setWorkingIndicator, which would reset the frame index.
+			setWorkingMessage.call(ui, suffix);
 		};
 
 		try {
@@ -878,6 +893,11 @@ export async function installWorkingIndicator(
 				setWorkingIndicator.call(ui);
 				setWorkingMessage.call(ui);
 			},
+			setSuffix: (text: string) => {
+				if (disposed || text === suffix) return;
+				suffix = text;
+				updateNativeMessage();
+			},
 			setStats: (_text: string | undefined) => {},
 			requestRender: () => updateNativeMessage(),
 			frames,
@@ -905,6 +925,7 @@ export async function installWorkingIndicator(
 			widget.dispose();
 			ui.setWidget(WIDGET_KEY, undefined);
 		},
+		setSuffix: (text: string) => widget.setSuffix(text),
 		setStats: (_text: string | undefined) => {},
 		requestRender: () => widget.requestRender(),
 		frames,

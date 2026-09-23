@@ -294,6 +294,18 @@ describe("WorkingWidget", () => {
 		expect(line).toBe(`${H}Working…${RESET}`);
 		expect(line).not.toContain("tokens");
 	});
+
+	it("appends the elapsed suffix after the frame and drops it when cleared", async () => {
+		const { WorkingWidget } =
+			await freshModule<typeof import("../src/working-indicator.js")>("../src/working-indicator.js");
+		const widget = new WorkingWidget();
+		widget.setFrames([`${H}Working…${RESET}`], 33);
+		widget.start();
+		widget.setSuffix("· 1m 05s");
+		expect(stripAnsi(widget.render(80)[0] ?? "")).toBe("Working… · 1m 05s");
+		widget.setSuffix("");
+		expect(widget.render(80)).toEqual([`${H}Working…${RESET}`]);
+	});
 });
 
 describe("resolveWorkingIndicatorSettings", () => {
@@ -468,9 +480,18 @@ describe("installWorkingIndicator", () => {
 		expect(visible).toEqual([false, true, false]);
 		expect(messages.at(-1)).toBe("");
 
+		// The elapsed clock rides the message slot; re-calling setWorkingIndicator
+		// would reset the frame index and restart the sweep.
+		controller.start();
+		const framesBefore = workingIndicators.length;
+		controller.setSuffix("· 12s");
+		expect(messages.at(-1)).toBe("· 12s");
+		expect(workingIndicators).toHaveLength(framesBefore);
+		controller.stop();
+
 		controller.start();
 		controller.dispose();
-		expect(visible).toEqual([false, true, false, true, false]);
+		expect(visible).toEqual([false, true, false, true, false, true, false]);
 		expect(workingIndicators.at(-1)).toBeUndefined();
 		expect(messages.at(-1)).toBeUndefined();
 	});
