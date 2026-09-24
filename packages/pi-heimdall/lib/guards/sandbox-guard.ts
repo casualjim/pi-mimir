@@ -38,6 +38,22 @@ export function isOmpHost(pi: ExtensionAPI): boolean {
  return candidate !== null && typeof candidate === "object" && "zod" in candidate && candidate.zod !== undefined;
 }
 
+/**
+ * Global claim a companion extension sets after registering its own
+ * sandbox-aware `bash` (e.g. @casualjim/pi-bg-tasks). Pi treats the same
+ * tool name from two extensions as a fatal load conflict, so ownership must
+ * be exclusive: when the claim is present we skip our bash registration,
+ * and when we register we mark BASH_REGISTERED_SYMBOL so a companion
+ * loading later skips its own instead of crashing the host. Guards, the
+ * --no-sandbox flag, heimdall-allow, user_bash sandboxing, and /sandbox
+ * stay active either way.
+ */
+export const COMPANION_BASH_SYMBOL = Symbol.for("pi-heimdall.companion-bash");
+
+/** Set after this guard registers its bash; companions check it before
+ * registering theirs to avoid the fatal duplicate-tool conflict. */
+export const BASH_REGISTERED_SYMBOL = Symbol.for("pi-heimdall.bash-registered");
+
 /** omp's own bash transcript renderer, injected by the extension entry under omp. */
 export interface OmpBashRenderer {
  renderCall: NonNullable<ToolDefinition<any, any, any>["renderCall"]>;
@@ -130,34 +146,43 @@ export function registerSandboxGuard(
   return sandboxedBash.execute(id, params, signal, onUpdate, ctx);
  };
 
- if (isOmpHost(pi)) {
-  // omp: Pi's renderers do not work here (their contract is
-  // `(args, theme, ctx)`; omp calls `(args, options, theme)`), so drop them
-  // and attach the host's own result renderer. Its bash result card is the
-  // merged native view (`$ cd … && <command>` plus output), so a separate
-  // call card would duplicate the command. The extension ToolDefinition
-  // contract cannot forward `mergeCallAndResult`, so an attached renderCall
-  // always renders its own card — hence none.
-  pi.registerTool({
-   ...localBash,
-   label: "bash (heimdall sandbox)",
-   renderCall: undefined,
-   renderShell: undefined,
-   ...(ompBashRenderer
-    ? {
-     renderResult: ompBashRenderer.renderResult as unknown as ToolDefinition<any, any, any>["renderResult"],
-    }
-    : {}),
-   execute: executeBash,
-  });
+ // A companion that claimed bash ownership supersedes this registration; see
+ // COMPANION_BASH_SYMBOL. The flag, guards, heimdall-allow, user_bash, and
+ // /sandbox below still register.
+ const companionClaim: unknown = (globalThis as Record<PropertyKey, unknown>)[COMPANION_BASH_SYMBOL];
+ if (typeof companionClaim === "string") {
+  // Companion owns bash; nothing to register.
  } else {
-  // Pi: keep the host definition's own renderers as-is, which is what makes
-  // the sandboxed tool render exactly like Pi's native bash.
-  pi.registerTool({
-   ...localBash,
-   label: "bash (heimdall sandbox)",
-   execute: executeBash,
-  });
+  if (isOmpHost(pi)) {
+   // omp: Pi's renderers do not work here (their contract is
+   // `(args, theme, ctx)`; omp calls `(args, options, theme)`), so drop them
+   // and attach the host's own result renderer. Its bash result card is the
+   // merged native view (`$ cd … && <command>` plus output), so a separate
+   // call card would duplicate the command. The extension ToolDefinition
+   // contract cannot forward `mergeCallAndResult`, so an attached renderCall
+   // always renders its own card — hence none.
+   pi.registerTool({
+    ...localBash,
+    label: "bash (heimdall sandbox)",
+    renderCall: undefined,
+    renderShell: undefined,
+    ...(ompBashRenderer
+     ? {
+      renderResult: ompBashRenderer.renderResult as unknown as ToolDefinition<any, any, any>["renderResult"],
+     }
+     : {}),
+    execute: executeBash,
+   });
+  } else {
+   // Pi: keep the host definition's own renderers as-is, which is what makes
+   // the sandboxed tool render exactly like Pi's native bash.
+   pi.registerTool({
+    ...localBash,
+    label: "bash (heimdall sandbox)",
+    execute: executeBash,
+   });
+  }
+  (globalThis as Record<PropertyKey, unknown>)[BASH_REGISTERED_SYMBOL] = "bash (heimdall sandbox)";
  }
 
  pi.on("user_bash", async (_event) => {

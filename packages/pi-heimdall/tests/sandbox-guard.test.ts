@@ -7,6 +7,8 @@ import { join } from "node:path";
 import type { spawn } from "node:child_process";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
+	COMPANION_BASH_SYMBOL,
+	BASH_REGISTERED_SYMBOL,
 	registerSandboxGuard,
 	suppressDuplicateCallRender,
 	type OmpBashRenderer,
@@ -715,6 +717,38 @@ describe("sandbox-guard bash renderers by host", () => {
 		expect(bash.renderCall).toBeUndefined();
 		expect(bash.renderShell).toBeUndefined();
 		expect(bash.renderResult).toBe(ompRenderResult);
+	});
+});
+
+describe("sandbox-guard companion bash claim", () => {
+	const toolNames = (harness: SandboxHarness) =>
+		harness.registerTool.mock.calls.map(([def]: [Record<string, unknown>]) => def?.name);
+
+	it("skips its bash registration when a companion claimed ownership", () => {
+		const harness = createPiHarness(false);
+		const globals = globalThis as { [COMPANION_BASH_SYMBOL]?: unknown };
+		globals[COMPANION_BASH_SYMBOL] = "@casualjim/pi-bg-tasks";
+		try {
+			delete (globalThis as { [BASH_REGISTERED_SYMBOL]?: unknown })[BASH_REGISTERED_SYMBOL];
+			registerSandboxGuard(harness.pi, () => ({ sandbox: { enabled: false } }));
+
+			expect(toolNames(harness)).not.toContain("bash");
+			expect((globalThis as { [BASH_REGISTERED_SYMBOL]?: unknown })[BASH_REGISTERED_SYMBOL]).toBeUndefined();
+			expect(toolNames(harness)).toContain("heimdall-allow");
+			expect(harness.registerFlag.mock.calls.map(([name]: [string]) => name)).toContain("no-sandbox");
+		} finally {
+			delete globals[COMPANION_BASH_SYMBOL];
+		}
+	});
+
+	it("registers bash when no companion claimed ownership", () => {
+		const harness = createPiHarness(false);
+		registerSandboxGuard(harness.pi, () => ({ sandbox: { enabled: false } }));
+
+		expect(toolNames(harness).filter((name) => name === "bash")).toHaveLength(1);
+		const markers = globalThis as { [BASH_REGISTERED_SYMBOL]?: unknown };
+		expect(markers[BASH_REGISTERED_SYMBOL]).toBe("bash (heimdall sandbox)");
+		delete markers[BASH_REGISTERED_SYMBOL];
 	});
 });
 
