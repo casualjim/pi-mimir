@@ -14,12 +14,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/manojlds/pi-jj.git"
+    "url": "git+https://github.com/casualjim/pi-mimir.git"
   },
   "bugs": {
-    "url": "https://github.com/manojlds/pi-jj/issues"
+    "url": "https://github.com/casualjim/pi-mimir/issues"
   },
-  "homepage": "https://github.com/manojlds/pi-jj#readme",
+  "homepage": "https://github.com/casualjim/pi-mimir/tree/main/packages/pi-jj#readme",
   "files": [
     "index.ts",
     "src",
