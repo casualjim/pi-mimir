@@ -64,6 +64,7 @@ jobs:
           }
 
           publish_if_missing @casualjim/pi-headroom packages/pi-headroom
+          publish_if_missing @casualjim/pi-bg-tasks packages/pi-bg-tasks
           publish_if_missing @casualjim/pi-jj packages/pi-jj
           publish_if_missing @casualjim/pi-pretty packages/pi-pretty
           publish_if_missing @casualjim/pi-todo-herdr packages/pi-todo-herdr
