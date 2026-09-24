@@ -10,10 +10,10 @@ Ported from the equivalent [opencode](https://opencode.ai) plugins.
 
 ## What it does
 
-pi-heimdall ships:
+pi-heimdall ships a **core Heimdall extension** (`extensions/heimdall.ts`).
 
-- a **core Heimdall extension** (`extensions/heimdall.ts`) enabled by default
-- an **optional sandboxed background-task extension** (`extensions/heimdall-bg-tasks.ts`) that you enable explicitly when you want Heimdall's safe replacement for `@ifi/pi-background-tasks`
+Sandboxed background tasks live in the companion package
+[`@casualjim/pi-bg-tasks`](https://github.com/casualjim/pi-mimir/tree/main/packages/pi-bg-tasks).
 
 The core extension provides six independent guards. Each one intercepts tool
 calls before they run (and, in one case, after they return) and blocks or
@@ -31,10 +31,6 @@ redacts anything that would leak secrets to the LLM context.
 
 `sandbox-guard` is always-on when enabled in config. The other five are opt-out
 via the `disabled` array (see below).
-
-The optional background-task extension adds sandboxed `bg_task`, `bg_status`,
-`/bg`, and `Ctrl+Shift+B` compatibility without changing ordinary foreground
-`bash` behavior.
 
 ## Install
 
@@ -66,80 +62,33 @@ pi install ~/src/pi-heimdall
 pi -e git:github.com/casualjim/pi-heimdall
 ```
 
-## Optional background-task extension
+## Background tasks
 
-A normal `pi install` of `@casualjim/pi-heimdall` enables only the core
-Heimdall extension.
+Sandboxed background tasks (`bash` auto-backgrounding, `bash_bg`, `jobs`,
+`monitor`, Ctrl+Shift+B) are provided by the companion package
+[`@casualjim/pi-bg-tasks`](https://github.com/casualjim/pi-mimir/tree/main/packages/pi-bg-tasks),
+which routes every shell spawn through this package's sandbox and follows the
+same config. Install both:
 
-To enable Heimdall's optional sandboxed background-task replacement, use `pi
-config` and enable the `heimdall-bg-tasks.ts` extension resource for this
-package, or edit settings manually.
-
-Example user settings:
-
-```json
-{
-  "packages": [
-    {
-      "source": "npm:@casualjim/pi-heimdall",
-      "extensions": [
-        "+extensions/heimdall.ts",
-        "+extensions/heimdall-bg-tasks.ts"
-      ]
-    }
-  ]
-}
+```bash
+pi install npm:@casualjim/pi-heimdall
+pi install npm:@casualjim/pi-bg-tasks
 ```
 
-To keep the package installed but disable the background-task extension again:
-
-```json
-{
-  "packages": [
-    {
-      "source": "npm:@casualjim/pi-heimdall",
-      "extensions": [
-        "+extensions/heimdall.ts",
-        "-extensions/heimdall-bg-tasks.ts"
-      ]
-    }
-  ]
-}
-```
-
-The background-task extension does **not** need an extra
-`backgroundTasks.enabled` config flag. Enabling the extension resource is
-sufficient.
-
-### Background-task compatibility notes
-
-Heimdall's background-task extension follows the public `@ifi/pi-background-tasks`
-surface, but intentionally differs in a few safety-critical ways:
-
-- every task launches through `heimdall-sandbox exec --policy -`
-- launch fails closed when sandboxing is disabled, unavailable, or misconfigured
-- background commands run Heimdall command preflight checks before launch
-- model-visible task output is redacted with the same secret redaction used for foreground `bash`
-- task logs are written to private Heimdall runtime storage instead of public temp paths
+Either load order works: the two packages negotiate exclusive `bash`
+ownership through global symbols, so exactly one sandbox-aware `bash` tool is
+registered. Installing either package alone also works.
 
 ## Troubleshooting
 
-### `@ifi/pi-background-tasks` conflicts
+### Background-task packages
 
-Heimdall's optional background-task extension intentionally uses the same public
-names as `@ifi/pi-background-tasks`:
-
-- `bg_task`
-- `bg_status`
-- `/bg`
-- `Ctrl+Shift+B`
-
-That conflict is intentional. Heimdall's implementation is meant to be the safe
-replacement when you require sandboxed background execution.
-
-If you enable `extensions/heimdall-bg-tasks.ts`, disable the upstream
-`@ifi/pi-background-tasks` extension/package resource so Pi does not load both
-implementations at once.
+pi-heimdall no longer ships a background-task extension. Use
+`@casualjim/pi-bg-tasks` for sandboxed background tasks; it negotiates
+exclusive `bash` ownership with this package, so both can be installed
+together. Do not also enable `@ifi/pi-background-tasks` or the upstream
+`pi-patty-bg-tasks` alongside `@casualjim/pi-bg-tasks` — they register the
+same tool names.
 
 ### oh-pi conflicts
 
@@ -501,13 +450,9 @@ the block in real time.
 
 ```
 extensions/
-├── heimdall-bg-tasks.ts # optional background-task entry point
 └── heimdall.ts          # core guard entry point
 
 lib/
-├── background-tasks/
-│   ├── extension.ts
-│   └── shared.ts
 ├── guards/
 │   ├── command-policy-guard.ts
 │   ├── env-protect.ts
@@ -526,8 +471,8 @@ lib/
 └── types.ts
 ```
 
-The core guard extension and the optional background-task extension share config
-loading plus sandbox/preflight helpers from `lib/`, but keep their runtime state separate.
+The core guard extension and the `@casualjim/pi-bg-tasks` companion package
+share config loading plus sandbox/preflight helpers from `lib/`.
 
 ## Development
 
