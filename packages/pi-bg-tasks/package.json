@@ -1,0 +1,59 @@
+{
+    "name": "@casualjim/pi-bg-tasks",
+    "version": "0.1.0",
+    "description": "Heimdall-enabled fork of pi-patty-bg-tasks: Claude Code-parity background tasks for pi whose shell spawns run inside the heimdall sandbox. Add-on to @casualjim/pi-heimdall — installing either package alone works; together, exactly one sandbox-aware bash tool is registered. No-op under omp, which ships native background jobs.",
+    "type": "module",
+    "keywords": [
+        "pi-package",
+        "pi-extension",
+        "background-tasks",
+        "bash-bg",
+        "monitor",
+        "heimdall",
+        "sandbox"
+    ],
+    "author": "Patrick Rho",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/casualjim/pi-mimir.git"
+    },
+    "files": [
+        "src/",
+        "!src/__tests__/**",
+        "index.ts",
+        "README.md"
+    ],
+    "pi": {
+        "extensions": [
+            "./index.ts"
+        ]
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "scripts": {
+        "test": "node --experimental-strip-types --test --test-force-exit 'src/__tests__/*.test.ts'",
+        "typecheck": "tsc --noEmit"
+    },
+    "peerDependencies": {
+        "@earendil-works/pi-agent-core": ">=0.79.0",
+        "@earendil-works/pi-ai": ">=0.79.0",
+        "@earendil-works/pi-coding-agent": ">=0.79.0",
+        "@casualjim/pi-heimdall": ">=0.3.7"
+    },
+    "peerDependenciesMeta": {
+        "@casualjim/pi-heimdall": {
+            "optional": true
+        }
+    },
+    "devDependencies": {
+        "@earendil-works/pi-agent-core": "^0.87.1",
+        "@earendil-works/pi-ai": "^0.87.1",
+        "@earendil-works/pi-coding-agent": "^0.87.1",
+        "@casualjim/pi-heimdall": "workspace:*",
+        "@types/node": "25.6.2",
+        "typebox": "^1.1.24",
+        "typescript": "6.0.3"
+    }
+}
