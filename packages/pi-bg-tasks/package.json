@@ -1,6 +1,6 @@
 {
   "name": "@casualjim/pi-bg-tasks",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Heimdall-enabled fork of pi-patty-bg-tasks: Claude Code-parity background tasks for pi whose shell spawns run inside the heimdall sandbox. Add-on to @casualjim/pi-heimdall — installing either package alone works; together, exactly one sandbox-aware bash tool is registered. No-op under omp, which ships native background jobs.",
   "type": "module",
   "keywords": [

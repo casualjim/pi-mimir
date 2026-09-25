@@ -1,6 +1,6 @@
 {
   "name": "@casualjim/pi-pretty",
-  "version": "0.7.4",
+  "version": "0.7.5",
   "description": "Pretty terminal output for pi built-in tools: shiki-highlighted read previews, ls tree with icons, FFF-accelerated find/grep, prompt editor and activity indicators.",
   "keywords": [
     "pi",
