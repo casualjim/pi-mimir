@@ -178,10 +178,10 @@ function createSessionFile(dir: string, entries: object[]): string {
 	return file;
 }
 
-function withTempDir(run: (dir: string) => void) {
+async function withTempDir(run: (dir: string) => void | Promise<void>) {
 	const dir = createTestDir();
 	try {
-		run(dir);
+		await run(dir);
 	} finally {
 		rmSync(dir, { recursive: true, force: true });
 	}
@@ -4087,9 +4087,9 @@ describe("subagent discovery", () => {
 							{ name: "Valid override", task: "Inspect", agent },
 							new AbortController().signal,
 							() => {},
-							{},
+							{ sessionManager: { getSessionFile: () => undefined } },
 						);
-						assert.equal(launch.details.error, "herdr not available");
+						assert.equal(launch.details.error, "no session file");
 						assert.doesNotMatch(
 							launch.content[0].text,
 							/invalid capability declaration/i,
@@ -7129,6 +7129,47 @@ describe("subagent parent lifecycle", () => {
 		}
 	});
 
+	it("watches a child to completion through the module's own watcher wiring", async () => {
+		const testApi = subagentsModule.__test__;
+		await withTempDir(async (dir) => {
+			const sessionFile = createSessionFile(dir, [
+				SESSION_HEADER,
+				{
+					type: "message",
+					id: "a1",
+					message: {
+						role: "assistant",
+						content: [{ type: "text", text: "scout findings delivered" }],
+					},
+				},
+			]);
+			writeFileSync(`${sessionFile}.exit`, JSON.stringify({ type: "done" }));
+			const running = {
+				id: "watched",
+				name: "Watched",
+				task: "recon",
+				surface: "headless:watched",
+				startTime: Date.now(),
+				sessionFile,
+				headless: true,
+				lifecycle: createLifecycle(Date.now()),
+				interactive: false,
+				runtimePlan: undefined,
+			};
+			testApi.runningSubagents.set(running.id, running);
+			try {
+				const result = await testApi.watchSubagent(
+					running,
+					new AbortController().signal,
+				);
+				assert.equal(result.exitCode, 0);
+				assert.equal(result.summary, "scout findings delivered");
+			} finally {
+				testApi.runningSubagents.delete(running.id);
+			}
+		});
+	});
+
 	it("aborts and clears active subagents during final shutdown", () => {
 		for (const reason of ["quit", undefined]) {
 			const abortController = new AbortController();
@@ -7354,8 +7395,8 @@ describe("subagent activity snapshots", () => {
 describe("persistent subagent send", () => {
 	const testApi = subagentsModule.__test__;
 
-	it("rejects a follow-up while its dispatched task is logically active", () => {
-		withTempDir((dir) => {
+	it("rejects a follow-up while its dispatched task is logically active", async () => {
+		await withTempDir(async (dir) => {
 			const sessionFile = join(dir, "active-task.jsonl");
 			const policy = writeSubagentSessionPolicy(sessionFile, {
 				owner: "public",
@@ -7387,11 +7428,11 @@ describe("persistent subagent send", () => {
 					turn: { kind: "waiting", startedAt: now },
 				},
 			});
-			const first = testApi.handleSubagentSend({
+			const first = await testApi.handleSubagentSend({
 				id: "logical-active",
 				message: "second",
 			});
-			const second = testApi.handleSubagentSend({
+			const second = await testApi.handleSubagentSend({
 				id: "logical-active",
 				message: "third",
 			});
@@ -7402,8 +7443,8 @@ describe("persistent subagent send", () => {
 		});
 	});
 
-	it("marks a dispatched follow-up busy and accepts sends after help", () => {
-		withTempDir((dir) => {
+	it("marks a dispatched follow-up busy and accepts sends after help", async () => {
+		await withTempDir(async (dir) => {
 			const sessionFile = join(dir, "dispatch.jsonl");
 			const policy = writeSubagentSessionPolicy(sessionFile, {
 				owner: "public",
@@ -7435,7 +7476,7 @@ describe("persistent subagent send", () => {
 				},
 			};
 			testApi.runningSubagents.set(running.id, running);
-			const dispatched = testApi.handleSubagentSend({
+			const dispatched = await testApi.handleSubagentSend({
 				id: running.id,
 				message: "second",
 			});
@@ -7445,8 +7486,8 @@ describe("persistent subagent send", () => {
 				dispatched.details.task,
 			);
 			assert.equal(
-				testApi.handleSubagentSend({ id: running.id, message: "third" }).details
-					.outcome,
+				(await testApi.handleSubagentSend({ id: running.id, message: "third" }))
+					.details.outcome,
 				"rejected-busy",
 			);
 			appendPersistentTaskEvent(sessionFile, {
@@ -7461,8 +7502,8 @@ describe("persistent subagent send", () => {
 			);
 			assert.equal(testApi.runningSubagents.get(running.id)?.taskId, undefined);
 			assert.equal(
-				testApi.handleSubagentSend({ id: running.id, message: "reply" }).details
-					.outcome,
+				(await testApi.handleSubagentSend({ id: running.id, message: "reply" }))
+					.details.outcome,
 				"dispatched",
 			);
 			testApi.runningSubagents.clear();
@@ -7649,8 +7690,8 @@ describe("persistent subagent send", () => {
 		});
 	});
 
-	it("rejects sends after a stop request", () => {
-		withTempDir((dir) => {
+	it("rejects sends after a stop request", async () => {
+		await withTempDir(async (dir) => {
 			const sessionFile = join(dir, "stopping.jsonl");
 			const policy = writeSubagentSessionPolicy(sessionFile, {
 				owner: "public",
@@ -7683,16 +7724,20 @@ describe("persistent subagent send", () => {
 				},
 			});
 			assert.equal(
-				testApi.handleSubagentSend({ id: "logical-stopping", message: "nope" })
-					.details.outcome,
+				(
+					await testApi.handleSubagentSend({
+						id: "logical-stopping",
+						message: "nope",
+					})
+				).details.outcome,
 				"rejected-busy",
 			);
 			testApi.runningSubagents.clear();
 		});
 	});
 
-	it("fails closed after an unconfirmed stop without dispatching", () => {
-		withTempDir((dir) => {
+	it("fails closed after an unconfirmed stop without dispatching", async () => {
+		await withTempDir(async (dir) => {
 			const sessionFile = join(dir, "unconfirmed-stop.jsonl");
 			const policy = writeSubagentSessionPolicy(sessionFile, {
 				owner: "public",
@@ -7725,7 +7770,7 @@ describe("persistent subagent send", () => {
 				},
 			});
 
-			const result = testApi.handleSubagentSend({
+			const result = await testApi.handleSubagentSend({
 				id: "logical-unconfirmed-stop",
 				message: "next",
 			});
@@ -7746,8 +7791,8 @@ describe("persistent subagent send", () => {
 		});
 	});
 
-	it("records one busy rejection without creating an inbox", () => {
-		withTempDir((dir) => {
+	it("records one busy rejection without creating an inbox", async () => {
+		await withTempDir(async (dir) => {
 			const sessionFile = join(dir, "persistent.jsonl");
 			const policy = writeSubagentSessionPolicy(sessionFile, {
 				owner: "public",
@@ -7776,7 +7821,7 @@ describe("persistent subagent send", () => {
 					turn: { kind: "active", startedAt: Date.now(), source: "fallback" },
 				},
 			});
-			const result = testApi.handleSubagentSend({
+			const result = await testApi.handleSubagentSend({
 				id: "logical-1",
 				message: "second",
 			});

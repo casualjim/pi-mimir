@@ -94,6 +94,14 @@ A `subagent` call selects the target checkout, reuses its Herdr workspace, and g
 
 When the child completes, the parent receives one bounded `subagent_result` message and starts a new turn with that result in context. Disposable ordinary panes close after result delivery; Herdr removes a tab when its last pane closes. Persistent specialists keep their pane between tasks, and managed worktree roots return to retained interactive shells. Callers never need to poll, tail session files, or wait in a shell loop.
 
+### Control channel
+
+The parent also listens on a per-process Unix domain socket (`/tmp/pi-herdr-agents-control-<pid>.sock`). Every launched child receives its path in `PI_SUBAGENT_CONTROL_SOCK` and connects back with its run id. The channel carries only wakeups and receipts: when `subagent_send` writes a task inbox, it sends an `inbox` wake over the channel and reports the child's acknowledgment in the result's `controlReceipt` detail (`consumed`, `delivered`, `timeout`, or `missed` when the child is not connected). Task payloads still live in session files, so a disconnected child simply falls back to the one-second inbox poll and nothing is lost. The socket never keeps the process alive and is not required for any delivery path.
+
+### Headless operation
+
+When pi runs outside herdr, the `subagent` tool still works: each child is spawned as a detached background `pi --print` process instead of a pane. Children keep the same session file, activity snapshots, control channel, and `.exit` completion sidecar, so result delivery to the parent is unchanged. Each headless run records a launch script, a `.log` capture, and a `.pid` file next to the session artifacts; liveness is probed through the pid, and a child that dies without publishing a sidecar is reported as a failed run. `subagent_interrupt` sends SIGINT to a headless child. Worktree isolation, handoffs, pre-created surfaces, persistent specialists, interactive children, and `subagent_resume` still require herdr.
+
 ## Troubleshooting completion delivery
 
 If a child finishes but the parent returns an empty or unrelated response, first verify that the result reached the parent session:
@@ -123,9 +131,9 @@ Subagent tabs, panes, and worktree workspaces are created without stealing keybo
 
 | Tool                 | Description                                                                                 |
 | -------------------- | ------------------------------------------------------------------------------------------- |
-| `subagent`           | Spawn a sub-agent in a dedicated herdr pane (async — returns immediately)             |
-| `subagent_interrupt` | Interrupt a running Pi-backed subagent's current turn                                       |
-| `subagent_send`      | Deliver a follow-up task to an idle persistent specialist                                   |
+| `subagent`           | Spawn a sub-agent in a dedicated herdr pane, or a detached headless process outside herdr (async — returns immediately) |
+| `subagent_interrupt` | Interrupt a running Pi-backed subagent's current turn (Escape via herdr; SIGINT for headless children) |
+| `subagent_send`      | Deliver a follow-up task to an idle persistent specialist; reports the control-channel receipt when the child is connected |
 | `subagent_stop`      | Gracefully stop a persistent specialist after its active task settles                      |
 | `subagents_list`     | List available agent definitions                                                            |
 | `worktree_list` | Parent-only inspect-only inventory of managed worktrees and cleanup blockers |
@@ -145,7 +153,7 @@ Subagent tabs, panes, and worktree workspaces are created without stealing keybo
 | `/btw <question>`          | Open an ephemeral side-question session in a background tab |
 | `/btw-close`               | Close the current BTW session        |
 | `/worktree <name> [task]`  | Continue this session in a new managed worktree (`/worktree list` lists them) |
-| `/subagent <agent> <task>` | Spawn a named agent directly (`/subagent list` lists available agents) |
+| `/subagent <agent> <task>` | Spawn a named agent directly (`/subagent list` lists available agents; `/subagent view [name]` opens a live transcript overlay for running children — ↑↓ scroll, `n`/`p` switch child, `q` close) |
 | `/subagents-init [preferences]` | Draft task-category model preferences from the live authenticated registry, with optional ranking preferences |
 
 ### Taxonomy and discovery

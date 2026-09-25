@@ -10,10 +10,12 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import {
 	launchPiSubagent,
 	launchPiWorktreeHandoff,
+	probeHeadlessPid,
+	readHeadlessPid,
 	type FreshPiLaunchRequest,
 	type PiLaunchOperations,
 	type ResumePiLaunchRequest,
@@ -1344,5 +1346,153 @@ describe("Pi launch", () => {
 				parentBefore,
 			);
 		});
+	});
+});
+
+describe("headless launch", () => {
+	interface CapturedSpawn {
+		cwd?: string;
+		env?: Record<string, string>;
+		args?: readonly string[];
+		logFile?: string;
+	}
+
+	function headlessOperations(captured: CapturedSpawn): PiLaunchOperations {
+		return {
+			createPane() {
+				throw new Error("headless launches must not create panes");
+			},
+			createWorktree() {
+				throw new Error("unexpected worktree creation");
+			},
+			async waitForShellReady() {
+				throw new Error("headless launches skip shell readiness");
+			},
+			runScript() {
+				throw new Error("headless launches do not run pane scripts");
+			},
+			closePane() {
+				throw new Error("headless launches own no panes");
+			},
+			spawnHeadless(launch) {
+				captured.cwd = launch.cwd;
+				captured.env = launch.env;
+				captured.args = launch.args;
+				captured.logFile = launch.logFile;
+				return 4242;
+			},
+		};
+	}
+
+	it("spawns a detached print-mode child without a pane", async () => {
+		await withFixture(async ({ request, project }) => {
+			request.headless = true;
+			const captured: CapturedSpawn = {};
+			const running = await launchPiSubagent(
+				request,
+				headlessOperations(captured),
+			);
+
+			assert.equal(running.surface, "headless:child-1");
+			assert.equal(running.headless, true);
+			assert.ok(running.pidFile?.endsWith("child-1.pid"));
+			assert.equal(readFileSync(running.pidFile ?? "", "utf8").trim(), "4242");
+			assert.ok(running.logFile?.endsWith("child-1.log"));
+			assert.equal(captured.cwd, project);
+			assert.ok(captured.args?.includes("--print"));
+			assert.ok(captured.args?.includes("pi"));
+			assert.ok(captured.args?.includes("-e"));
+			assert.equal(captured.env?.PI_SUBAGENT_ID, "child-1");
+			assert.equal(captured.env?.PI_SUBAGENT_AUTO_EXIT, "1");
+			assert.equal(captured.env?.PI_SUBAGENT_SURFACE, "headless:child-1");
+			assert.equal(captured.env?.PI_SUBAGENT_CONTROL_SOCK, undefined);
+
+			const script = readFileSync(running.launchScriptFile, "utf8");
+			assert.match(script, /^# /m);
+			assert.match(script, /--print/);
+			assert.doesNotMatch(script, /__SUBAGENT_DONE_/);
+			assert.equal(
+				readSubagentSessionPolicy(running.sessionFile).owner,
+				"public",
+			);
+		});
+	});
+
+	it("rejects herdr-only surfaces and behaviors", async () => {
+		await withFixture(async ({ request }) => {
+			const rejections: Array<[FreshPiLaunchRequest, RegExp]> = [
+				[
+					{ ...request, headless: true, worktree: { branch: "b" } },
+					/Worktree isolation requires herdr/,
+				],
+				[
+					{ ...request, headless: true, surface: "pane-9" },
+					/pre-created surface requires herdr/,
+				],
+				[
+					{ ...request, headless: true, handoff: { leafId: "leaf" } },
+					/handoffs require herdr/,
+				],
+				[
+					{
+						...request,
+						headless: true,
+						behavior: { ...request.behavior, persistent: true },
+					},
+					/Persistent specialists require herdr/,
+				],
+				[
+					{
+						...request,
+						headless: true,
+						behavior: { ...request.behavior, interactive: true },
+					},
+					/Interactive subagents require herdr/,
+				],
+			];
+			for (const [rejected, pattern] of rejections) {
+				await assert.rejects(
+					launchPiSubagent(rejected, headlessOperations({})),
+					pattern,
+				);
+			}
+		});
+	});
+
+	it("fails closed when the spawn seam is unavailable", async () => {
+		await withFixture(async ({ request }) => {
+			request.headless = true;
+			const { spawnHeadless: _omitted, ...operations } = headlessOperations({});
+			await assert.rejects(
+				launchPiSubagent(request, operations),
+				/Headless subagent spawn is unavailable/,
+			);
+		});
+	});
+
+	it("probes recorded pid liveness", async () => {
+		const root = mkdtempSync(join(tmpdir(), "headless-probe-"));
+		try {
+			const pidFile = join(root, "child.pid");
+			writeFileSync(pidFile, `${process.pid}\n`);
+			const ownPid = readHeadlessPid(pidFile);
+			assert.equal(ownPid, process.pid);
+			assert.equal(probeHeadlessPid(ownPid ?? 0).kind, "present");
+
+			const dying = spawn("sleep", ["5"], { stdio: "ignore" });
+			const childPid = dying.pid ?? 0;
+			const { promise: exited, resolve: markExited } =
+				Promise.withResolvers<void>();
+			dying.on("exit", markExited);
+			dying.kill("SIGKILL");
+			await exited;
+			const probe = probeHeadlessPid(childPid);
+			assert.equal(probe.kind, "missing");
+
+			writeFileSync(pidFile, "not-a-pid");
+			assert.equal(readHeadlessPid(pidFile), undefined);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
 	});
 });

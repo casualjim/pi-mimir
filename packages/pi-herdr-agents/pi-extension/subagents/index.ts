@@ -36,6 +36,7 @@ import {
 	listPanes,
 	waitForShellReady,
 } from "./terminal.ts";
+import { getSharedControlServer, stopSharedControlServer } from "./control.ts";
 import { listHerdrWorktrees } from "./herdr.ts";
 import { waitForCompletion } from "./completion.ts";
 import {
@@ -136,6 +137,8 @@ import {
 	captureWorktreeHandoff,
 	launchPiSubagent,
 	launchPiWorktreeHandoff,
+	probeHeadlessPid,
+	readHeadlessPid,
 	persistWorktreeResult,
 	runSubagentScript,
 	writeWorktreeManifest,
@@ -143,6 +146,7 @@ import {
 	type WorktreeHandoff,
 	type WorktreeLaunch,
 } from "./launch.ts";
+import { TranscriptViewer, type ViewerTarget } from "./viewer.ts";
 
 /** Absolute path to `pi-extension/subagents`. https://github.com/nodejs/node/issues/37845 */
 const SUBAGENTS_DIR = dirname(fileURLToPath(import.meta.url));
@@ -1088,6 +1092,7 @@ function finalizeSubagentWorktree(
 
 function closeCompletedPanes(panes: Iterable<string>): void {
 	for (const pane of panes) {
+		if (pane.startsWith("headless:")) continue;
 		try {
 			closePane(pane);
 		} catch {
@@ -1376,6 +1381,9 @@ interface RunningSubagent {
 	sessionFile: string;
 	launchScriptFile?: string;
 	activityFile?: string;
+	headless?: boolean;
+	pidFile?: string;
+	logFile?: string;
 	activity?: SubagentActivityState;
 	activityRead?: {
 		ok: boolean;
@@ -1979,6 +1987,7 @@ interface SubagentSendDetails {
 	task?: string;
 	inbox?: string;
 	outcome?: "dispatched" | "rejected-busy";
+	controlReceipt?: string;
 }
 
 interface PersistentSpecialistFacts {
@@ -2149,11 +2158,11 @@ function handleSubagentStop(
 	};
 }
 
-function handleSubagentSend(params: {
+async function handleSubagentSend(params: {
 	id?: string;
 	name?: string;
 	message: string;
-}): AgentToolResult<SubagentSendDetails> {
+}): Promise<AgentToolResult<SubagentSendDetails>> {
 	const resolved = resolvePersistentTarget(params);
 	if ("error" in resolved)
 		return {
@@ -2204,6 +2213,14 @@ function handleSubagentSend(params: {
 		logicalId: running.logicalId!,
 		policyHash: running.policyHash!,
 	});
+	const control = getSharedControlServer();
+	const receipt = control?.isConnected(running.id)
+		? await control.deliver(
+				running.id,
+				{ kind: "wake", reason: "inbox" },
+				{ awaitConsumed: true },
+			)
+		: undefined;
 	return {
 		content: [
 			{
@@ -2211,7 +2228,13 @@ function handleSubagentSend(params: {
 				text: `Task ${task} dispatched to persistent specialist "${running.name}".`,
 			},
 		],
-		details: { id: running.id, task, inbox, outcome: "dispatched" },
+		details: {
+			id: running.id,
+			task,
+			inbox,
+			outcome: "dispatched",
+			controlReceipt: receipt?.state,
+		},
 	};
 }
 
@@ -2219,6 +2242,21 @@ function requestSubagentInterrupt(
 	running: RunningSubagent,
 	interruptPaneKey: (surface: string) => void = interruptPane,
 ): { ok: true } | { error: string } {
+	if (running.headless) {
+		const pid = running.pidFile ? readHeadlessPid(running.pidFile) : undefined;
+		if (pid === undefined)
+			return { error: `Headless subagent "${running.name}" has no live pid.` };
+		try {
+			process.kill(pid, "SIGINT");
+			return { ok: true };
+		} catch (error: any) {
+			return {
+				error:
+					`Failed to signal headless subagent "${running.name}" (pid ${pid}): ` +
+					`${error?.message ?? String(error)}`,
+			};
+		}
+	}
 	try {
 		interruptPaneKey(running.surface);
 		return { ok: true };
@@ -2414,6 +2452,7 @@ export const __test__ = {
 	resolveInterruptTarget,
 	requestSubagentInterrupt,
 	handleSubagentInterrupt,
+	watchSubagent,
 	handleSubagentSend,
 	handleSubagentStop,
 	persistentSpecialistState,
@@ -2521,6 +2560,7 @@ async function launchSubagent(
 		cwd: params.cwd,
 		worktree: params.worktree,
 		fork: params.fork,
+		headless: !isTerminalAvailable(),
 		surface: options?.surface,
 		parent: {
 			cwd: ctx.cwd,
@@ -2774,15 +2814,35 @@ function notifyPersistentCrash(
 	);
 }
 
+/** Resolve a headless surface id to its pid and probe process liveness. */
+function probeHeadlessSurface(surface: string): Promise<PaneInspection> {
+	const child = [...runtime.runningSubagents.values()].find(
+		(candidate) => candidate.surface === surface,
+	);
+	const pid = child?.pidFile ? readHeadlessPid(child.pidFile) : undefined;
+	if (pid === undefined) {
+		return Promise.resolve({
+			kind: "unavailable",
+			error: "headless pid unavailable",
+		});
+	}
+	return Promise.resolve(probeHeadlessPid(pid));
+}
+
 function getSupervisionCoordinator(): SupervisionCoordinator {
 	if (runtime.supervision) return runtime.supervision;
+	// Outside herdr every child is headless: an empty pane snapshot sends all
+	// probes through the pid liveness fallback instead of herdr pane lookups.
+	const headless = !isTerminalAvailable();
 	runtime.supervision = new SupervisionCoordinator(
-		async () => {
-			const panes = await listPanes();
-			if (!panes) return { complete: false, panes: [] };
-			return { complete: true, panes };
-		},
-		inspectPane,
+		headless
+			? async () => ({ complete: true, panes: [] })
+			: async () => {
+					const panes = await listPanes();
+					if (!panes) return { complete: false, panes: [] };
+					return { complete: true, panes };
+				},
+		headless ? probeHeadlessSurface : inspectPane,
 		supervisionConfig.forcePolling,
 	);
 	return runtime.supervision;
@@ -2813,7 +2873,9 @@ async function watchSubagent(
 			intervalMs: 1000,
 			sessionFile,
 			waitForNextCheck: supervision.wait,
-			readTerminalTail: () => readPaneAsync(surface, 5),
+			readTerminalTail: running.headless
+				? async () => ""
+				: () => readPaneAsync(surface, 5),
 			inspectPane: supervision.inspectPane,
 			onLocalEvidence: () => drainPersistentEventsSafely(running),
 			onPaneInspection: (inspection: PaneInspection, observedAt: number) => {
@@ -3169,6 +3231,7 @@ export default function subagentsExtension(
 		if (!shouldPreserveSubagentsOnShutdown(event.reason)) {
 			runtime.supervision?.close();
 			runtime.supervision = undefined;
+			void stopSharedControlServer();
 		}
 		try {
 			await closeBtw();
@@ -3293,7 +3356,7 @@ export default function subagentsExtension(
 			name: "subagent",
 			label: "Subagent",
 			description:
-				"Spawn a sub-agent in a dedicated terminal herdr pane, or in an isolated Herdr-managed Git worktree when worktree is provided. " +
+				"Spawn a sub-agent in a dedicated terminal herdr pane (or as a headless background process when herdr is unavailable), or in an isolated Herdr-managed Git worktree when worktree is provided. " +
 				"Use ordinary panes for read-only tasks; a single or sequential writer can work in the parent checkout without a worktree. " +
 				"Reserve unique worktree branches for parallel independent writers starting from committed state — the worktree base is committed HEAD, so uncommitted parent changes are not copied. " +
 				"Worktree runs retain their workspace after completion for parent review; they are not pushed, merged, or removed automatically. " +
@@ -3304,7 +3367,7 @@ export default function subagentsExtension(
 				"DO NOT fabricate, assume, or summarize results after calling this tool. " +
 				"After spawning, either end your turn immediately, or work on other independent tasks (including spawning more subagents in parallel). The harness will wake you with the result when it is ready.",
 			promptSnippet:
-				"Spawn a sub-agent in a dedicated terminal herdr pane, or in an isolated Herdr-managed Git worktree when worktree is provided. " +
+				"Spawn a sub-agent in a dedicated terminal herdr pane (or as a headless background process when herdr is unavailable), or in an isolated Herdr-managed Git worktree when worktree is provided. " +
 				"Use ordinary panes for read-only tasks; a single or sequential writer can work in the parent checkout without a worktree. " +
 				"Reserve unique worktree branches for parallel independent writers starting from committed state — the worktree base is committed HEAD, so uncommitted parent changes are not copied. " +
 				"Worktree runs retain their workspace after completion for parent review; they are not pushed, merged, or removed automatically. " +
@@ -3364,11 +3427,6 @@ export default function subagentsExtension(
 						content: [{ type: "text", text: capError }],
 						details: { error: "persistent-cap" },
 					};
-				}
-
-				// Validate prerequisites
-				if (!isTerminalAvailable()) {
-					return muxUnavailableResult();
 				}
 
 				if (!ctx.sessionManager.getSessionFile()) {
@@ -3777,11 +3835,11 @@ export default function subagentsExtension(
 			name: "subagent_interrupt",
 			label: "Interrupt Subagent",
 			description:
-				"Send Escape to the active turn of a currently running Pi-backed subagent. " +
+				"Interrupt the active turn of a currently running Pi-backed subagent (Escape via herdr, SIGINT for headless children). " +
 				"The child pane, session, watcher, and running entry remain alive; this returns only a local acknowledgement " +
 				"and does not emit a subagent_result solely because of this request.",
 			promptSnippet:
-				"Send Escape to the active turn of a currently running Pi-backed subagent. " +
+				"Interrupt the active turn of a currently running Pi-backed subagent (Escape via herdr, SIGINT for headless children). " +
 				"The child pane, session, watcher, and running entry remain alive; this returns only a local acknowledgement " +
 				"and does not emit a subagent_result solely because of this request.",
 			parameters: Type.Object({
@@ -4403,9 +4461,42 @@ export default function subagentsExtension(
 	// /subagent command — spawn a subagent by name, or list available agents
 	pi.registerCommand("subagent", {
 		description:
-			"Spawn a subagent: /subagent <agent> <task>; list agents: /subagent list",
+			"Spawn a subagent: /subagent <agent> <task>; list agents: /subagent list; inspect live children: /subagent view [name]",
 		handler: async (args, ctx) => {
 			const trimmed = args.trim();
+			if (trimmed === "view" || trimmed.startsWith("view ")) {
+				const query = trimmed.slice(4).trim().toLowerCase();
+				const targets: ViewerTarget[] = Array.from(
+					runningSubagents.values(),
+				).map((child) => ({
+					name: child.name,
+					sessionFile: child.sessionFile,
+				}));
+				if (targets.length === 0) {
+					ctx.ui.notify("No running subagents to view.", "warning");
+					return;
+				}
+				const initial = query
+					? targets.findIndex((target) =>
+							target.name.toLowerCase().includes(query),
+						)
+					: 0;
+				if (query && initial === -1) {
+					ctx.ui.notify(`No running subagent matches "${query}".`, "error");
+					return;
+				}
+				if (!ctx.hasUI) return;
+				await ctx.ui.custom(
+					(_tui, _theme, _keybindings, done) =>
+						new TranscriptViewer({
+							targets,
+							initial,
+							done: () => done(undefined),
+						}),
+					{ overlay: true },
+				);
+				return;
+			}
 			if (trimmed === "list") {
 				const catalog = discoverAgentCatalog(pi);
 				const lines = [

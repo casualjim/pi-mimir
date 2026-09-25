@@ -1,7 +1,9 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import {
+	closeSync,
 	existsSync,
 	mkdirSync,
+	openSync,
 	readFileSync,
 	renameSync,
 	writeFileSync,
@@ -9,8 +11,13 @@ import {
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
+import { getSharedControlServer, startSharedControlServer } from "./control.ts";
 import { getSubagentActivityFile } from "./activity.ts";
-import { createLifecycle, type SubagentLifecycle } from "./lifecycle.ts";
+import {
+	createLifecycle,
+	type PaneInspection,
+	type SubagentLifecycle,
+} from "./lifecycle.ts";
 import type { ResolvedRuntimePlan } from "./runtime-routing.ts";
 import { createSubagentPaneFactory, loadPaneConfig } from "./pane-config.ts";
 import { HerdrWorktreeCreateError } from "./herdr.ts";
@@ -86,6 +93,8 @@ export interface FreshPiLaunchRequest {
 	cwd?: string;
 	worktree?: { branch: string; base?: string };
 	fork?: boolean;
+	/** Spawn detached without a terminal surface; the parent sets this outside herdr. */
+	headless?: boolean;
 	handoff?: { leafId: string };
 	surface?: string;
 	parent: {
@@ -142,6 +151,9 @@ export interface PiRunningChild {
 	sessionFile: string;
 	launchScriptFile: string;
 	activityFile: string;
+	headless?: boolean;
+	pidFile?: string;
+	logFile?: string;
 	interactive: boolean;
 	runtimePlan: ResolvedRuntimePlan | undefined;
 	worktree?: WorktreeLaunch;
@@ -182,6 +194,15 @@ export interface PiLaunchOperations {
 		cwd: string,
 	): Promise<void>;
 	focusWorkspace?(workspaceId: string): void;
+	/** Starts the shared control channel before the first child launch. */
+	startControlServer?(): Promise<void>;
+	/** Spawns one detached headless child; returns its process id. */
+	spawnHeadless?(launch: {
+		cwd: string;
+		env: Record<string, string>;
+		args: readonly string[];
+		logFile: string;
+	}): number;
 }
 
 const paneConfig = loadPaneConfig();
@@ -199,6 +220,26 @@ const defaultOperations: PiLaunchOperations = {
 	closePane,
 	waitForPiReady,
 	focusWorkspace,
+	startControlServer: () => startSharedControlServer(),
+	spawnHeadless: ({ cwd, env, args, logFile }) => {
+		mkdirSync(dirname(logFile), { recursive: true });
+		const logFd = openSync(logFile, "a");
+		try {
+			const child = spawn(args[0], args.slice(1), {
+				cwd,
+				env: { ...process.env, ...env },
+				detached: true,
+				stdio: ["ignore", logFd, logFd],
+			});
+			// Spawn failures (e.g. missing binary) surface asynchronously; the
+			// pid liveness probe reports the dead child to the parent instead.
+			child.on("error", () => {});
+			child.unref();
+			return child.pid;
+		} finally {
+			closeSync(logFd);
+		}
+	},
 };
 
 interface ResolvedLaunch {
@@ -219,6 +260,7 @@ interface PreparedSurface {
 	effectiveAgentDir: string;
 	localAgentDir: string | null;
 	worktree?: WorktreeLaunch;
+	headless?: boolean;
 }
 
 interface PreparedSession extends PreparedSurface {
@@ -229,6 +271,8 @@ interface PreparedSession extends PreparedSurface {
 interface PreparedArtifacts extends PreparedSession {
 	taskArg: string;
 	systemPromptFile?: string;
+	pidFile?: string;
+	logFile?: string;
 }
 
 /**
@@ -239,6 +283,11 @@ export async function launchPiSubagent(
 	request: PiLaunchRequest,
 	operations: PiLaunchOperations = defaultOperations,
 ): Promise<PiRunningChild> {
+	// The control channel starts with the first delegation, not at extension
+	// load, so sessions that never delegate hold no socket handle.
+	await operations.startControlServer?.().catch(() => {
+		// Children fall back to the file-inbox poller without the channel.
+	});
 	return request.kind === "resume"
 		? launchResumedPiSubagent(request, operations)
 		: launchFreshPiSubagent(request, operations);
@@ -276,23 +325,27 @@ async function launchFreshPiSubagent(
 	operations: PiLaunchOperations,
 ): Promise<PiRunningChild> {
 	const resolved = resolveLaunchRequest(request);
+	const headless = request.headless === true;
 	let surface: PreparedSurface | undefined;
 
 	try {
-		surface = prepareLaunchSurface(resolved, operations);
+		surface = prepareLaunchSurface(resolved, operations, headless);
 		const session = prepareChildSession(resolved, surface);
 		const handoffArtifacts = request.handoff
 			? prepareTaskArtifacts(resolved, session)
 			: undefined;
-		await confirmShellReady(session, operations);
+		await confirmShellReady(session, operations, headless);
 		const artifacts =
 			handoffArtifacts ?? prepareTaskArtifacts(resolved, session);
-		const command = buildPiCommand(resolved, artifacts);
+		const spec = buildPiLaunchSpec(resolved, artifacts, headless);
+		const command = renderPiCommand(resolved, spec);
 		const launchScriptFile = startPiProcess(
 			resolved,
 			artifacts,
 			command,
+			spec,
 			operations,
+			headless,
 		);
 		if (request.handoff) {
 			if (!operations.waitForPiReady) {
@@ -309,7 +362,7 @@ async function launchFreshPiSubagent(
 		}
 		return createRunningChild(resolved, artifacts, launchScriptFile);
 	} catch (error) {
-		if (!surface) throw error;
+		if (!surface || surface.headless) throw error;
 		if (!surface.worktree) {
 			if (!request.surface) {
 				try {
@@ -374,8 +427,33 @@ function resolveLaunchRequest(request: FreshPiLaunchRequest): ResolvedLaunch {
 function prepareLaunchSurface(
 	resolved: ResolvedLaunch,
 	operations: PiLaunchOperations,
+	headless: boolean,
 ): PreparedSurface {
 	const { request } = resolved;
+	if (headless) {
+		if (request.worktree)
+			throw new Error(
+				"Worktree isolation requires herdr. Retry inside herdr or drop the worktree option.",
+			);
+		if (request.handoff) throw new Error("Worktree handoffs require herdr.");
+		if (request.surface)
+			throw new Error("A pre-created surface requires herdr.");
+		if (request.behavior.persistent)
+			throw new Error(
+				"Persistent specialists require herdr. Headless subagents are one-shot.",
+			);
+		if (request.behavior.interactive)
+			throw new Error(
+				"Interactive subagents require herdr. Headless subagents are one-shot.",
+			);
+		return {
+			surface: `headless:${resolved.id}`,
+			targetCwd: resolved.sourceCwd,
+			effectiveAgentDir: resolved.localAgentDir ?? resolved.agentDir,
+			localAgentDir: resolved.localAgentDir,
+			headless: true,
+		};
+	}
 	if (!request.worktree) {
 		return {
 			surface:
@@ -504,7 +582,9 @@ function prepareChildSession(
 async function confirmShellReady(
 	session: PreparedSession,
 	operations: PiLaunchOperations,
+	headless: boolean,
 ): Promise<void> {
+	if (headless) return;
 	await operations.waitForShellReady(session.surface);
 }
 
@@ -604,83 +684,113 @@ function prepareTaskArtifacts(
 	return { ...session, taskArg, systemPromptFile };
 }
 
-function buildPiCommand(
+export interface PiLaunchSpec {
+	cwd: string;
+	env: Record<string, string>;
+	args: string[];
+	headless: boolean;
+}
+
+function buildPiLaunchSpec(
 	resolved: ResolvedLaunch,
 	artifacts: PreparedArtifacts,
-): string {
+	headless: boolean,
+): PiLaunchSpec {
 	const { request } = resolved;
-	const parts = [
+	const args: string[] = [
 		"pi",
 		"--session",
-		shellQuote(artifacts.sessionFile),
-		...(request.handoff
-			? []
-			: ["-e", shellQuote(join(SUBAGENTS_DIR, "subagent-done.ts"))]),
+		artifacts.sessionFile,
+		...(request.handoff ? [] : ["-e", join(SUBAGENTS_DIR, "subagent-done.ts")]),
+		// Headless children run print mode: process the prompt, then exit.
+		...(headless ? ["--print"] : []),
 		"--model",
-		shellQuote(request.runtimePlan.model),
+		request.runtimePlan.model,
 		"--thinking",
-		shellQuote(request.runtimePlan.thinking),
+		request.runtimePlan.thinking,
 	];
 	if (artifacts.systemPromptFile) {
-		parts.push(
+		args.push(
 			request.behavior.systemPromptMode === "replace"
 				? "--system-prompt"
 				: "--append-system-prompt",
-			shellQuote(artifacts.systemPromptFile),
+			artifacts.systemPromptFile,
 		);
 	}
 	const toolAllowlist = buildSubagentToolAllowlist(
 		request.behavior.tools,
 		request.behavior.autoExit,
 	);
-	if (toolAllowlist) parts.push("--tools", shellQuote(toolAllowlist));
+	if (toolAllowlist) args.push("--tools", toolAllowlist);
 	if (!request.handoff) {
-		for (const prompt of buildPromptArgs(
-			request.behavior.skills,
-			resolved.taskDelivery,
-			artifacts.taskArg,
-		)) {
-			parts.push(shellQuote(prompt));
-		}
+		args.push(
+			...buildPromptArgs(
+				request.behavior.skills,
+				resolved.taskDelivery,
+				artifacts.taskArg,
+			),
+		);
 	}
 
-	const env: string[] = [];
+	const env: Record<string, string> = {};
 	if (artifacts.localAgentDir) {
-		env.push(`PI_CODING_AGENT_DIR=${shellQuote(artifacts.localAgentDir)}`);
+		env.PI_CODING_AGENT_DIR = artifacts.localAgentDir;
 	} else if (process.env.PI_CODING_AGENT_DIR) {
-		env.push(
-			`PI_CODING_AGENT_DIR=${shellQuote(process.env.PI_CODING_AGENT_DIR)}`,
-		);
+		env.PI_CODING_AGENT_DIR = process.env.PI_CODING_AGENT_DIR;
 	}
 	if (!request.handoff) {
 		if (request.behavior.deniedTools.length > 0) {
-			env.push(
-				`PI_DENY_TOOLS=${shellQuote(request.behavior.deniedTools.join(","))}`,
-			);
+			env.PI_DENY_TOOLS = request.behavior.deniedTools.join(",");
 		}
-		env.push(`PI_SUBAGENT_NAME=${shellQuote(request.name)}`);
-		if (request.agent)
-			env.push(`PI_SUBAGENT_AGENT=${shellQuote(request.agent)}`);
-		env.push(`PI_SUBAGENT_AUTO_EXIT=${request.behavior.autoExit ? "1" : "0"}`);
+		env.PI_SUBAGENT_NAME = request.name;
+		if (request.agent) env.PI_SUBAGENT_AGENT = request.agent;
+		env.PI_SUBAGENT_AUTO_EXIT = request.behavior.autoExit ? "1" : "0";
 		if (request.behavior.persistent) {
-			env.push("PI_SUBAGENT_PERSISTENT=1");
-			env.push(
-				`PI_SUBAGENT_GENERATION_ID=${shellQuote(request.behavior.generationId ?? "")}`,
-			);
-			env.push(
-				`PI_SUBAGENT_TASK_ID=${shellQuote(request.behavior.taskId ?? "")}`,
-			);
+			env.PI_SUBAGENT_PERSISTENT = "1";
+			env.PI_SUBAGENT_GENERATION_ID = request.behavior.generationId ?? "";
+			env.PI_SUBAGENT_TASK_ID = request.behavior.taskId ?? "";
 		}
-		env.push(`PI_SUBAGENT_SESSION=${shellQuote(artifacts.sessionFile)}`);
-		env.push(`PI_SUBAGENT_ID=${shellQuote(resolved.id)}`);
-		env.push(`PI_SUBAGENT_ACTIVITY_FILE=${shellQuote(artifacts.activityFile)}`);
-		env.push(`PI_SUBAGENT_SURFACE=${shellQuote(artifacts.surface)}`);
+		env.PI_SUBAGENT_SESSION = artifacts.sessionFile;
+		env.PI_SUBAGENT_ID = resolved.id;
+		env.PI_SUBAGENT_ACTIVITY_FILE = artifacts.activityFile;
+		env.PI_SUBAGENT_SURFACE = artifacts.surface;
+		const controlSocketPath = getSharedControlServer()?.path;
+		if (controlSocketPath) {
+			env.PI_SUBAGENT_CONTROL_SOCK = controlSocketPath;
+		}
 	}
+	return { cwd: artifacts.targetCwd, env, args, headless };
+}
 
-	const piCommand =
-		`cd ${shellQuote(artifacts.targetCwd)} && ` +
-		`${env.join(" ")} ${parts.join(" ")}`;
-	return request.handoff
+/** Option tokens rendered bare; every other argv value is shell-quoted. */
+const BARE_ARG_TOKENS = {
+	pi: true,
+	"--session": true,
+	"-e": true,
+	"--print": true,
+	"--model": true,
+	"--thinking": true,
+	"--system-prompt": true,
+	"--append-system-prompt": true,
+	"--tools": true,
+} satisfies Record<string, true>;
+
+/** Render a launch spec as the shell command recorded in launch scripts. */
+export function renderPiCommand(
+	resolved: ResolvedLaunch,
+	spec: PiLaunchSpec,
+): string {
+	const envShell = Object.entries(spec.env).map(([key, value]) =>
+		// Legacy rendering: bare flags and 0/1 env values, quoted everything else.
+		value === "0" || value === "1"
+			? `${key}=${value}`
+			: `${key}=${shellQuote(value)}`,
+	);
+	const argsShell = spec.args
+		.map((arg) => (arg in BARE_ARG_TOKENS ? arg : shellQuote(arg)))
+		.join(" ");
+	const piCommand = `cd ${shellQuote(spec.cwd)} && ${envShell.join(" ")} ${argsShell}`;
+	return resolved.request.handoff || spec.headless
 		? piCommand
 		: `${piCommand}; echo '__SUBAGENT_DONE_'$?'__'`;
 }
@@ -689,25 +799,52 @@ function startPiProcess(
 	resolved: ResolvedLaunch,
 	artifacts: PreparedArtifacts,
 	command: string,
+	spec: PiLaunchSpec,
 	operations: PiLaunchOperations,
+	headless: boolean,
 ): string {
+	const scriptDir = join(resolved.artifactDir, "subagent-scripts");
 	const launchScriptFile = join(
-		resolved.artifactDir,
-		"subagent-scripts",
+		scriptDir,
 		`${safeName(resolved.request.name) || "subagent"}-${resolved.id}.sh`,
 	);
 	if (artifacts.worktree && !resolved.request.handoff) {
 		persistWorktreeResult(artifacts.worktree, "running");
 	}
-	return operations.runScript(artifacts.surface, command, {
-		scriptPath: launchScriptFile,
-		scriptPreamble: [
-			shellComment(`Subagent launch script for ${resolved.request.name}`),
-			shellComment(`Generated: ${new Date().toISOString()}`),
-			shellComment(`Session: ${artifacts.sessionFile}`),
-			shellComment(`Surface: ${artifacts.surface}`),
-		].join("\n"),
+	const scriptPreamble = [
+		shellComment(`Subagent launch script for ${resolved.request.name}`),
+		shellComment(`Generated: ${new Date().toISOString()}`),
+		shellComment(`Session: ${artifacts.sessionFile}`),
+		shellComment(`Surface: ${artifacts.surface}`),
+	].join("\n");
+	if (!headless) {
+		return operations.runScript(artifacts.surface, command, {
+			scriptPath: launchScriptFile,
+			scriptPreamble,
+		});
+	}
+	if (!operations.spawnHeadless)
+		throw new Error("Headless subagent spawn is unavailable");
+	mkdirSync(scriptDir, { recursive: true });
+	writeFileSync(launchScriptFile, `${scriptPreamble}\n${command}\n`);
+	const logFile = join(
+		scriptDir,
+		`${safeName(resolved.request.name) || "subagent"}-${resolved.id}.log`,
+	);
+	const pidFile = join(
+		scriptDir,
+		`${safeName(resolved.request.name) || "subagent"}-${resolved.id}.pid`,
+	);
+	const pid = operations.spawnHeadless({
+		cwd: spec.cwd,
+		env: spec.env,
+		args: spec.args,
+		logFile,
 	});
+	writeFileSync(pidFile, `${pid}\n`);
+	artifacts.pidFile = pidFile;
+	artifacts.logFile = logFile;
+	return launchScriptFile;
 }
 
 function createRunningChild(
@@ -725,11 +862,47 @@ function createRunningChild(
 		sessionFile: artifacts.sessionFile,
 		launchScriptFile,
 		activityFile: artifacts.activityFile,
+		headless: artifacts.headless,
+		pidFile: artifacts.pidFile,
+		logFile: artifacts.logFile,
 		interactive: resolved.request.behavior.interactive,
 		runtimePlan: resolved.request.runtimePlan,
 		worktree: artifacts.worktree,
 		lifecycle: createLifecycle(resolved.startTime),
 	};
+}
+
+/** Read the pid recorded for one headless child, if present and well-formed. */
+export function readHeadlessPid(pidFile: string): number | undefined {
+	try {
+		const pid = Number.parseInt(readFileSync(pidFile, "utf8").trim(), 10);
+		return Number.isInteger(pid) && pid > 0 ? pid : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+/** Liveness probe for a detached headless child process. */
+export function probeHeadlessPid(pid: number): PaneInspection {
+	try {
+		process.kill(pid, 0);
+		return {
+			kind: "present",
+			agentStatus: "unknown",
+			observedAt: Date.now(),
+		};
+	} catch (error) {
+		// SAFETY: NodeJS exceptions carry a numeric `code`; only ESRCH proves
+		// the process is gone. EPERM means alive but owned by another user.
+		const code = (error as NodeJS.ErrnoException).code;
+		if (code === "ESRCH")
+			return { kind: "missing", error: `pid ${pid} exited` };
+		return {
+			kind: "present",
+			agentStatus: "unknown",
+			observedAt: Date.now(),
+		};
+	}
 }
 
 async function launchResumedPiSubagent(

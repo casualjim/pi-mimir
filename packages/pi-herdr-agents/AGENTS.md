@@ -23,8 +23,11 @@ Bundled role prompts live in [`agents/`](agents/). The native `/skill:orchestrat
 - `pi-extension/subagents/index.ts` — public tools/commands, agent discovery, launch/watch lifecycle, completion delivery, worktree manifests and handoffs
 - `pi-extension/subagents/herdr.ts` — Herdr CLI calls, response parsing, and ID-based Agents tab placement and capacity
 - `pi-extension/subagents/terminal.ts` — terminal adapter used by the lifecycle
+- `pi-extension/subagents/launch.ts` — child launch transaction: herdr pane placement or detached headless `pi --print` spawn, launch specs, pid liveness probes
 - `pi-extension/subagents/lifecycle.ts`, `status.ts`, `activity.ts` — process/turn state and widget projection
 - `pi-extension/subagents/wake.ts`, `supervision.ts`, `supervision-config.ts` — file wake-ups, shared pane reconciliation, polling fallback, and supervision configuration
+- `pi-extension/subagents/control.ts` — Unix-domain-socket control channel carrying `subagent_send` wakeups and delivery receipts between parent and running children
+- `pi-extension/subagents/viewer.ts` — fleet transcript overlay (`/subagent view`): bounded child-session rendering, scroll, and child switching
 - `pi-extension/subagents/persistent-config.ts` — strict persistent-specialist cap configuration
 - `pi-extension/subagents/completion.ts`, `session.ts`, `subagent-done.ts` — child completion, transcript handling, `caller_ping`, and `subagent_done`
 - `CONTEXT.md` — orchestration-domain glossary

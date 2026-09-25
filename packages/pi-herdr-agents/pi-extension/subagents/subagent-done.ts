@@ -6,6 +6,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Box, Text } from "@earendil-works/pi-tui";
 import { Type } from "@sinclair/typebox";
+import { ControlClient } from "./control.ts";
 import { writeFileSync } from "node:fs";
 import {
 	appendPersistentTaskEvent,
@@ -331,6 +332,7 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("session_shutdown", (event) => {
 		if (inboxPoller) clearInterval(inboxPoller);
+		controlClient?.stop();
 		recorder.sessionShutdown(event.reason);
 	});
 
@@ -393,33 +395,46 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	let inboxPoller: ReturnType<typeof setInterval> | undefined;
+	const pollPersistentInbox = (): boolean => {
+		const sessionFile = process.env.PI_SUBAGENT_SESSION;
+		if (!persistent || !sessionFile || currentTask) return false;
+		const inbox = consumePersistentTaskInbox(sessionFile);
+		if (!inbox) return false;
+		if (isPersistentStopDirective(inbox)) {
+			try {
+				writeFileSync(`${sessionFile}.exit`, JSON.stringify({ type: "done" }));
+			} catch {
+				// The parent can still confirm the shell exit marker.
+			}
+			completionFinalized = true;
+			recorder.subagentDone();
+			sessionContext?.shutdown();
+			return true;
+		}
+		currentTask = inbox.task;
+		pi.sendUserMessage(inbox.message);
+		return true;
+	};
 	if (persistent) {
 		inboxPoller = setInterval(() => {
 			try {
-				const sessionFile = process.env.PI_SUBAGENT_SESSION;
-				if (!sessionFile || currentTask) return;
-				const inbox = consumePersistentTaskInbox(sessionFile);
-				if (!inbox) return;
-				if (isPersistentStopDirective(inbox)) {
-					try {
-						writeFileSync(
-							`${sessionFile}.exit`,
-							JSON.stringify({ type: "done" }),
-						);
-					} catch {
-						// The parent can still confirm the shell exit marker.
-					}
-					completionFinalized = true;
-					recorder.subagentDone();
-					sessionContext?.shutdown();
-					return;
-				}
-				currentTask = inbox.task;
-				pi.sendUserMessage(inbox.message);
+				pollPersistentInbox();
 			} catch {
 				// A malformed or transiently unavailable inbox must not kill the poller.
 			}
 		}, 1000);
+	}
+
+	const controlSock = process.env.PI_SUBAGENT_CONTROL_SOCK;
+	let controlClient: ControlClient | undefined;
+	if (controlSock) {
+		controlClient = new ControlClient({
+			socketPath: controlSock,
+			runId: process.env.PI_SUBAGENT_ID ?? "",
+			onDelivery: (delivery) =>
+				delivery.kind === "wake" ? pollPersistentInbox() : false,
+		});
+		void controlClient.connect();
 	}
 
 	if (autoExit) return;
