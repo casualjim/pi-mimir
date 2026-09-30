@@ -1,0 +1,31 @@
+{
+  "name": "@casualjim/pi-hindsight",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "Pi extension that wraps the official hindsight-coding-agents pi.js and adds template-aware recall/reflect tags for shared-bank setups (per-project filter + untagged global layer)",
+  "keywords": [
+    "pi-package"
+  ],
+  "type": "module",
+  "main": "extensions/hindsight/index.js",
+  "files": [
+    "extensions/",
+    "README.md",
+    "LICENSE"
+  ],
+  "pi": {
+    "extensions": [
+      "extensions/hindsight"
+    ]
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.87.1",
+    "@types/node": "^24.13.4",
+    "typescript": "^5.7.2",
+    "vitest": "^5.0.0"
+  }
+}
