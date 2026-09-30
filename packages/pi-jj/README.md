@@ -52,6 +52,10 @@ Advanced/manual (extension path only):
 }
 ```
 
+## Host compatibility
+
+Works on upstream Pi (`@earendil-works/pi-coding-agent`) and on oh-my-pi (omp) through omp's legacy Pi extension shim (it rewrites `@earendil-works/*` imports onto host copies). Fork/checkpoint restore registers under both `session_before_fork` (upstream Pi) and `session_before_branch` (omp) — same payload and result contract; each host emits exactly one.
+
 ## How it works
 
 ### Onboarding
