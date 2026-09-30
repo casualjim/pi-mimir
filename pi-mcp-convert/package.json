@@ -1,0 +1,23 @@
+{
+  "name": "pi-mcp-convert",
+  "version": "1.0.0",
+  "description": "Convert pi-mcp-adapter MCP config files to pi's built-in MCP format",
+  "type": "module",
+  "bin": {
+    "pi-mcp-convert": "convert-mcp-adapter-config.mjs"
+  },
+  "files": [
+    "convert-mcp-adapter-config.mjs"
+  ],
+  "keywords": [
+    "pi",
+    "pi-coding-agent",
+    "mcp",
+    "pi-mcp-adapter",
+    "migration"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  }
+}
