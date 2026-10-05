@@ -40,7 +40,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "check:pack": "pnpm pack --dry-run",
-    "test": "bun tests/agents-contract.ts && bun test"
+    "test": "bun tests/agents-contract.ts && bun tests/extension-contract.ts && bun test"
   },
   "devDependencies": {
     "@earendil-works/pi-ai": "^0.87.1",

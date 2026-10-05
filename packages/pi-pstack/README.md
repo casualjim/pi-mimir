@@ -34,6 +34,8 @@ subagent({ name: "Fix retry regression", agent: "poteto-agent", task: "investiga
 
 The extension requests confirmation for recognizable shell commands that push, alter pull requests, merge, deploy, mutate infrastructure, or recursively delete files. In non-interactive mode it blocks these commands. This is a guardrail, not a complete shell-security sandbox.
 
+To run without approval prompts, set `confirmExternalActions` to `false` in the pstack config file: `$PI_CODING_AGENT_DIR/pstack/config.json` when that env var is set, otherwise `~/.omp/agent/pstack/config.json` under omp or `~/.pi/agent/pstack/config.json` under pi (same resolution as pi-headroom's settings). Restart the host after a config change. A missing, malformed, or non-boolean config keeps the guard enabled. With the guard disabled, agents are told to run recognized external commands without asking and still pause for irreversible writes (force-pushes to shared branches, deployments, data deletion, customer messages).
+
 ## License and provenance
 
 Derived from Cursor's pstack, licensed under MIT. See [LICENSE](LICENSE).
