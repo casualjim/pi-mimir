@@ -194,7 +194,7 @@ The flow is accessible to the LLM via two mechanisms:
 
 ## Configuration
 
-Add optional settings under `piJj` in `~/.pi/agent/settings.json`:
+Add optional settings under `piJj` in the host settings file. Resolution: `$PI_CODING_AGENT_DIR/settings.json` when that env var is set, otherwise `~/.omp/agent/settings.json` under omp or `~/.pi/agent/settings.json` under pi (same precedence as pi-headroom/pi-pstack). `/jj-settings` shows and edits the resolved file:
 
 ```json
 {

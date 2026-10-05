@@ -2,7 +2,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { checkpointLine, formatAge } from "./format.js";
-import { createSettingsStore } from "./settings.js";
+import { createSettingsStore, resolveSettingsFile, type SettingsStore } from "./settings.js";
 import {
   CHECKPOINT_ENTRY_TYPE,
   DEFAULT_CHECKPOINT_LIST_LIMIT,
@@ -115,9 +115,11 @@ export class PiJjRuntime {
   private initPromptShown = false;
   private initInProgress = false;
 
-  private readonly settingsStore = createSettingsStore();
+  private readonly settingsStore: SettingsStore;
 
-  constructor(private readonly pi: ExtensionAPI) {}
+  constructor(private readonly pi: ExtensionAPI) {
+    this.settingsStore = createSettingsStore(resolveSettingsFile(pi));
+  }
 
   private loadSettings() {
     return this.settingsStore.getSettings();
