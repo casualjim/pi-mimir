@@ -19,6 +19,7 @@ Remaining triggers:
 - Parallel fan-out → the **swarm** skill for coverage matrices, races, gauntlets, and exploration partitions. Use **arena** for design or code bakeoffs with base selection and grafting.
 - Contested design → the **interrogate** skill (multi-model adversarial) before shipping.
 - Nontrivial multi-step → write the throughput checkpoint (Feature step 3).
+- Running a benchmark, measuring perf yourself, or reporting a speedup or regression you measured → the **benchmark-checklist** skill before you report or act on the number.
 - Any prose surface → the **unslop** skill. Your reply is a prose surface. Agent-facing skill prose follows the Pi Agent Skills standard.
 - Docs, RFCs, readmes, PR descriptions, or commit messages → the **technical-writing** skill (`/skill:technical-writing`).
 - Before commit, inspect the diff and apply the **unslop** and **no-comments** skills. If another cleanup or UI-control skill is installed, detect and use it rather than assuming any optional package exists.
@@ -61,6 +62,7 @@ Read the leaf skill in full for any principle you apply. Each entry names when i
 - **Fix Root Causes** (**principle-fix-root-causes**). Debugging. Trace each symptom to its root cause, reproduce first, ask why until you reach it.
 - **Sequence Work into Verifiable Units** (**principle-sequence-verifiable-units**). Multi-step work (sweeps, migrations, runs of similar edits) and how you stack commits and PRs. Break work into small units that each end in a check, verify each before the next, and order delivery so the sequence proves itself.
 - **Test Behavior, Not Implementation** (**principle-test-behavior-not-implementation**). Writing, changing, or keeping a test. Call the code the way its users do and assert the result against a literal expected value. If the test would still pass when every imported function returns `undefined`, rewrite the assertion or delete the test.
+- **Explain the Number** (**principle-explain-the-number**). Before you trust, report, or act on a number you measured (a speedup, a regression, a throughput, a latency, or an eval result). Find what limits it, and rule out that it measured something other than the work you think.
 
 **Delegation**
 
@@ -87,7 +89,9 @@ Read the leaf skill in full for any principle you apply. Each entry names when i
 
 **Defaults for each `subagent` call.** Keep the task self-contained, point at files instead of inlining large payloads, and use `role` for model selection. Configure model pools through `subagents_write_task_models`; pin a specific agent via `models.agents` in `~/.pi/agent/herdr-agents/config.json`. Unconfigured roles inherit the parent Pi model. The tool supports single, `tasks` parallel, and `chain` sequential modes. It limits parallel work to eight tasks and four running child processes. Pi child processes run locally in isolated contexts; do not assume cloud execution, background resume, or a read-only sandbox.
 
-You own every subagent's work. Review the diff and write your own summary, don't pass through what it said. Interrupt-chained resumes silently drop directives, so fire a fresh subagent with consolidated scope rather than trusting a "done" summary. A second opinion is the same prompt against a different model. Agreement is high-signal.
+You own every subagent's work. Review the diff and write your own summary, don't pass through what it said. A second opinion is the same prompt against a different model. Agreement is high-signal.
+
+**Fresh subagents by default.** Give new work to a fresh subagent with consolidated scope, meaning the original brief, every later directive, and the prior agent's report and branch. This holds for a fix round, a follow-up, a retry, and the next queue item. Resume, message, or queue a follow-up on an existing subagent only when the new work strictly needs state that lives in that agent and is costly to move: its local checkout, its uncommitted changes, or a process it still runs, such as a dev server, a simulator, or a babysit watcher. A stop or hold order to a running agent is not reuse. A role such as a PR owner outlives its agent. Once that agent returns, a fresh agent takes the role's next round.
 
 ## Writing the reply
 

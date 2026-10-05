@@ -156,23 +156,29 @@ export function registerSandboxGuard(
   if (isOmpHost(pi)) {
    // omp: Pi's renderers do not work here (their contract is
    // `(args, theme, ctx)`; omp calls `(args, options, theme)`), so drop them
-   // and attach the host's own result renderer. Its bash result card is the
-   // merged native view (`$ cd … && <command>` plus output), so a separate
-   // call card would duplicate the command. The extension ToolDefinition
-   // contract cannot forward `mergeCallAndResult`, so an attached renderCall
-   // always renders its own card — hence none.
-   pi.registerTool({
+   // and attach the host's own renderers. renderCall draws the command card
+   // while the call runs — the only window in which escape can interrupt, so
+   // the command must be visible there. mergeCallAndResult makes omp drop
+   // that card once a result exists, leaving the host's merged
+   // command+output card as the settled row with no duplication. The flag
+   // travels because the extension wrapper proxies every own key of this
+   // definition onto the AgentTool omp's ToolExecutionComponent reads;
+   // upstream Pi ignores the extra field.
+   const ompBashDefinition = {
     ...localBash,
     label: "bash (heimdall sandbox)",
     renderCall: undefined,
     renderShell: undefined,
     ...(ompBashRenderer
      ? {
-      renderResult: ompBashRenderer.renderResult as unknown as ToolDefinition<any, any, any>["renderResult"],
+      renderCall: ompBashRenderer.renderCall,
+      renderResult: ompBashRenderer.renderResult,
+      mergeCallAndResult: true,
      }
      : {}),
     execute: executeBash,
-   });
+   } as ToolDefinition<any, any, any>;
+   pi.registerTool(ompBashDefinition);
   } else {
    // Pi: keep the host definition's own renderers as-is, which is what makes
    // the sandboxed tool render exactly like Pi's native bash.

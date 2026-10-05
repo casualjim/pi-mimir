@@ -33,7 +33,7 @@ Write one clear paragraph. If you're unsure about the intent, ask the user befor
 
 ## Step 3, Spawn Reviewers
 
-Launch all reviewers through one parallel `subagent` call. Use the `interrogate reviewers` list from `~/.pi/agent/pstack/models.json` when present, one reviewer per entry, extending or shrinking the Reviewer A/B/C/D labels below to the configured entry count. Otherwise use the table defaults.
+Launch all reviewers through one parallel `subagent` call. Use your configured `interrogate reviewers` models, one reviewer per entry, extending or shrinking the reviewer labels below to the configured entry count. With no configuration, use the table defaults.
 
 | Subagent | Default model |
 |----------|---------------|

@@ -1,6 +1,6 @@
 # pi-pstack
 
-A pi-mimir fork of [pstack](https://github.com/cursor/plugins/tree/main/pstack). It keeps all upstream skills that are platform-portable (46; `make-bot-ui` is Cursor-platform-only and excluded), the sticky Poteto Mode, and the bundled `poteto-agent` and `comment-sicko` agents — but it delegates through [pi-herdr-agents](https://github.com/giuseppecrj/pi-herdr-agents) instead of shipping its own `subagent` tool.
+A pi-mimir fork of [pstack](https://github.com/cursor/plugins/tree/main/pstack). It keeps all upstream skills that are platform-portable (48; `make-bot-ui` is Cursor-platform-only and `setup-pstack` configures Cursor's model rule, both excluded), the sticky Poteto Mode, and the bundled `poteto-agent` and `comment-sicko` agents — but it delegates through [pi-herdr-agents](https://github.com/giuseppecrj/pi-herdr-agents) instead of shipping its own `subagent` tool.
 
 ## Why this fork exists
 
@@ -20,7 +20,7 @@ subagent({ name: "Fix retry regression", agent: "poteto-agent", task: "investiga
 
 ## What's included
 
-- 46 skills under `skills/`, matching the upstream inventory minus Cursor-only `make-bot-ui` (prose adapted where Pi differs).
+- 48 skills under `skills/`, matching the upstream inventory minus Cursor-only `make-bot-ui` and `setup-pstack` (prose adapted where Pi differs).
 - `poteto-agent` and `comment-sicko` agent definitions under `agents/`, published to pi-herdr-agents as a role pack.
 - Commands: `/poteto-mode` (sticky Poteto Mode for the session).
 - Tools: none. Task tracking, session recall, and subagent model routing use the host environment (`set_tasks` family, `recall`, `subagents_write_task_models`).

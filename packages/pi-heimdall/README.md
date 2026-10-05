@@ -474,6 +474,15 @@ lib/
 The core guard extension and the `@casualjim/pi-bg-tasks` companion package
 share config loading plus sandbox/preflight helpers from `lib/`.
 
+## Host compatibility
+
+Under omp, the sandboxed `bash` tool attaches the host's own bash renderers plus
+`mergeCallAndResult`, so the command is visible in a running call card (the
+window in which escape can interrupt) and the settled row collapses to the
+host's merged command+output card without duplication. Under Pi, the host
+definition's own renderers are kept as-is. The extension wrapper's definition
+proxy forwards the extra field; upstream Pi ignores it.
+
 ## Development
 
 ```bash

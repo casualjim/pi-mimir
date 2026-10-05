@@ -10,7 +10,6 @@ import {
 	COMPANION_BASH_SYMBOL,
 	BASH_REGISTERED_SYMBOL,
 	registerSandboxGuard,
-	suppressDuplicateCallRender,
 	type OmpBashRenderer,
 } from "../lib/guards/sandbox-guard";
 import { buildSandboxPolicy, normalizeSandboxConfig } from "../lib/sandbox/config";
@@ -705,18 +704,30 @@ describe("sandbox-guard bash renderers by host", () => {
 		expect(bash.renderResult).toBeTypeOf("function");
 	});
 
-	it("attaches only the omp result renderer so the merged card is the single card", () => {
+	it("attaches the omp renderers with mergeCallAndResult so the running command is visible", () => {
 		const harness = createPiHarness(false, undefined, "omp");
+		const ompRenderCall = () => undefined;
 		const ompRenderResult = () => undefined;
 		registerSandboxGuard(harness.pi, () => ({ sandbox: { enabled: false } }), undefined, {
-			renderCall: () => undefined,
+			renderCall: ompRenderCall,
 			renderResult: ompRenderResult,
 		});
 
 		const bash = getBashTool(harness);
+		expect(bash.renderCall).toBe(ompRenderCall);
+		expect(bash.renderResult).toBe(ompRenderResult);
+		expect(bash.mergeCallAndResult).toBe(true);
+		expect(bash.renderShell).toBeUndefined();
+	});
+
+	it("drops Pi renderers when the omp renderer is unavailable", () => {
+		const harness = createPiHarness(false, undefined, "omp");
+		registerSandboxGuard(harness.pi, () => ({ sandbox: { enabled: false } }));
+
+		const bash = getBashTool(harness);
 		expect(bash.renderCall).toBeUndefined();
 		expect(bash.renderShell).toBeUndefined();
-		expect(bash.renderResult).toBe(ompRenderResult);
+		expect(bash.mergeCallAndResult).toBeUndefined();
 	});
 });
 
