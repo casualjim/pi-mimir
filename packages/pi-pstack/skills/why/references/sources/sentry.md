@@ -2,7 +2,7 @@
 
 ## What this source contains
 
-Sentry is the archive of things that went wrong. For defensive, corrective, or error-handling code, it often holds the direct motivation: the specific exceptions, stack traces, and frequencies that pushed someone to add a check, catch, retry, or fallback.
+For defensive, corrective, or error-handling code, Sentry often holds the direct motivation: the specific exceptions, stack traces, and frequencies that pushed someone to add a check, catch, retry, or fallback.
 
 - **Issues.** Grouped errors with counts, first/last seen timestamps, affected releases, and comments
 - **Events.** Individual error instances within an issue (stack traces, tags, user context)
@@ -30,7 +30,7 @@ Use the Sentry MCP.
    search_issues (natural language, e.g., "errors in PaymentService timeout", "unhandled exceptions in uploadFile")
    ```
 
-   Good query components: exception class names the target handles, the function or class name of the target, error message strings the target checks for, the file path of the target.
+   Build queries from the exception class names the target handles, its function or class name, the error message strings it checks for, and its file path.
 
 3. **Narrow by release and time window.**
 
@@ -39,11 +39,7 @@ Use the Sentry MCP.
    get_issue_tag_values (for an issue, see distribution across versions, users, environments)
    ```
 
-   For a suspected issue, check:
-   - **First seen.** When did the error start appearing?
-   - **Last seen.** When did it stop? Does it line up with the target's ship date?
-   - **Affected releases.** Which versions saw it? Which was the fix?
-   - **Frequency trajectory.** Did it spike, then get resolved?
+   For a suspected issue, check **first seen** and **last seen** (does the stop line up with the target's ship date?), the **affected releases** (which saw it, and which was the fix?), and the **frequency trajectory** (did it spike, then get resolved?).
 
 4. **Pull the full event for context.**
 
@@ -67,7 +63,7 @@ Use the Sentry MCP.
    analyze_issue_with_seer
    ```
 
-   Seer produces AI root-cause analyses. Useful as a hypothesis generator, but treat them as inference, not authoritative. The actual events and stack traces are the primary evidence. Seer's narrative is secondary.
+   Seer's AI root-cause analyses are a hypothesis generator. Treat them as inference, not authoritative. The actual events and stack traces are the primary evidence.
 
 ## What good evidence looks like here
 
@@ -79,12 +75,12 @@ Use the Sentry MCP.
 
 ## Common pitfalls
 
-- **Grouping drift.** Sentry groups errors by fingerprint. Refactors or renames can track the "same" error under a new issue ID. If an issue ends abruptly, the error may have just been regrouped. Check for new issues immediately after.
-- **Release correlation is noisy.** A release contains many commits. An issue stopping at v2.14.0 doesn't prove the target fixed it. Another change in the same release might have. Cross-reference with the target's exact commit.
-- **Silent fixes.** Sometimes the error stops because upstream changed, not because of the defensive code. The correlation suggests the fix. It doesn't prove authorship.
+- **Grouping drift.** Sentry groups errors by fingerprint, so refactors or renames can track the "same" error under a new issue ID. If an issue ends abruptly, the error may have just been regrouped. Check for new issues immediately after.
+- **Release correlation is noisy.** A release contains many commits, so an issue stopping at v2.14.0 doesn't prove the target fixed it. Another change in the same release might have. Cross-reference with the target's exact commit.
+- **Silent fixes.** The error may stop because upstream changed, not because of the defensive code. The correlation suggests the fix but doesn't prove authorship.
 - **Resolved != fixed.** Issues can be marked "resolved" manually without any code change. Treat `resolved` as a human marker, not evidence that code fixed it.
-- **Seer hallucinations.** Seer can generate confident-sounding explanations that aren't right. Fall back to the actual events, stack traces, and timestamps when making claims.
-- **Sampling.** Some projects sample events aggressively. A low event count may just mean high sampling, not a rare error. If in doubt, note the gap.
+- **Seer hallucinations.** Seer can sound confident and be wrong. Fall back to the actual events, stack traces, and timestamps when making claims.
+- **Sampling.** Some projects sample events aggressively, so a low event count doesn't mean the error was rare. If in doubt, note the gap.
 
 ## What to return
 
