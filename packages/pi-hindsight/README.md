@@ -25,13 +25,61 @@ node packages/pi-hindsight/patch-dist.mjs                 # patch ~/.hindsight/c
 node packages/pi-hindsight/patch-dist.mjs --restore       # undo (originals kept as *.orig-pirecalltags)
 ```
 
+- Defaults to `$HOME/.hindsight/coding-agents/dist` (override with `--dist <dir>`), so the same command works on every machine
 - Originals backed up once per file; `node --check` verifies every write (failures auto-revert)
 - Idempotent — safe to re-run any time, including after `hindsight-coding-agents update` (which overwrites the dist)
 - Same config keys as below; the patched bundles resolve `recallTags`/`recallTagsMatch` themselves, including for claude/codex/… hooks
+- Also patches `applyTemplate` itself so **any** `<name>Lower` placeholder (`{gitProjectLower}` = `{gitProject}` lowercased) resolves in `bankIdTemplate`, `retainTags` and `retainMetadata`, in every bundle that expands templates — including entry points that resolve bank ids outside `applyBankConfig` (`status.js`, `deepen.js`, `hindsight-seed.js`, `dsh.js`). Without this, an unpatched dist substitutes the literal `"unknown"` for the placeholder (bank `omp-unknown`).
+
+> **Self-update is disabled by the patch itself**: the official runtime re-stages `~/.hindsight/coding-agents` in the background (daily auto-update, and every `install`/`update` command re-copies it), which silently wipes this patch — with a `{gitProjectLower}` bank template every bank collapses into `omp-unknown` until the patcher is re-run. The patched `maybeAutoUpdate` returns early (escape hatch: `HINDSIGHT_ALLOW_SELF_UPDATE=1`). Manual update flow: `npx @vectorize-io/hindsight-coding-agents update && node packages/pi-hindsight/patch-dist.mjs`.
+
+## Importing session history (per repo)
+
+Backfill a repo's past coding-agent conversations into its bank:
+
+```bash
+cd <repo>
+npx @vectorize-io/hindsight-coding-agents install pi --import-conversations
+node packages/pi-hindsight/patch-dist.mjs   # the install command re-staged the runtime — re-patch
+```
+
+- Run it **from inside the repo**. Sessions are attributed by their recorded cwd; from `~` it prefix-matches every session and then no-ops for directories that aren't opted in (`optInOnly`).
+- On interruption the importer prints a re-runnable `node …/dist/deepen.js --repo … --conversations …` line; that path never touches the runtime and needs no re-patch.
+- oh-my-pi's own store (`~/.omp/agent/sessions`) has a divergent format the importer cannot read — omp history does not backfill.
+
+## Per-project banks shared with oh-my-pi (current setup)
+
+Every coding agent and oh-my-pi write one bank per repo, named `omp-<repo>`. No tags anywhere — isolation is physical, and the plugin's knowledge pages / seeds / survey work per repo as designed.
+
+```jsonc
+// ~/.hindsight/coding-agent.json — all plugin harnesses (pi, claude, codex, zcode, …)
+{
+  "serverMode": "self-hosted",
+  "apiUrl": "http://aristotle:8888",
+  "bankIdTemplate": "omp-{gitProjectLower}",   // requires the dist patch
+  "autoUpdate": false,
+  "observationScopes": "per_source",
+  "optInOnly": true,
+  "optInPaths": ["~/wagyu", "~/codeberg", "~/github/casualjim", "~/github/lotsaai", "~/gitea"]
+}
+```
+
+```yaml
+# ~/.omp/agent/config.yml — oh-my-pi
+memory:
+  backend: hindsight
+hindsight:
+  apiUrl: http://aristotle:8888
+  scoping: per-project      # bank id = "omp-" + lowercased repo root basename
+```
+
+Both sides derive the same id: the plugin templates `omp-{gitProjectLower}`, omp builds `` `${base}-${projectLabel}` `` with a lowercased primary-root basename (`packages/coding-agent/src/hindsight/bank.ts`). Worktrees resolve to the main root on both sides.
+
+Verify on any machine: `node ~/.hindsight/coding-agents/dist/status.js --repo <repo> --api-url <url>` → `"bank":"omp-<repo>"`.
 
 ## Config
 
-Reads the same file the official plugin uses (`HINDSIGHT_CONFIG` or `~/.hindsight/coding-agent.json`), as a superset:
+Reads the same file the official plugin uses (`HINDSIGHT_CONFIG` or `~/.hindsight/coding-agent.json`), as a superset. Alternative to per-project banks: the shared-bank model (one bank, per-project tags + untagged globals — omp's `per-project-tagged` semantics):
 
 ```json
 {

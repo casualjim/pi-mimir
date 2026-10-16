@@ -6,16 +6,29 @@
  * not just the pi wrapper extension.
  *
  * What it changes (surgical string patches, backed up, node --check verified):
- *   1. Injects two helpers (`__piRecallTag`, `__piReflectTags`) at the top of
- *      each bundle.
- *   2. Wraps the two success returns of `applyBankConfig` so the config gains:
+ *   1. Injects helpers (`__piLowerResolvers`, `__piRecallTag`, `__piReflectTags`)
+ *      at the top of each bundle.
+ *   2. `applyTemplate` learns `<name>Lower` placeholders ({gitProjectLower} =
+ *      {gitProject} lowercased) by wrapping its resolvers — one anchor that
+ *      covers bankIdTemplate, retainTags and retainMetadata in EVERY bundle,
+ *      including entry points that resolve banks outside applyBankConfig
+ *      (status.js, deepen.js, hindsight-seed.js, dsh.js, …).
+ *   3. Wraps the two success returns of `applyBankConfig` so the config gains:
  *        - `recallTags` (template-aware: {gitProject}, {gitProjectLower},
  *          {project}, {channel}, {user}) baked into `recallOptions.tags`
  *        - `recallTagsMatch` baked into `recallOptions.tags_match` (default "any")
  *        - `{gitProjectLower}` pre-resolved inside `retainTags`
  *      (recallOptions.tags set explicitly wins, verbatim)
- *   3. Teaches the client's `reflect()` to send those tags (upstream hardcodes
+ *   4. Teaches the client's `reflect()` to send those tags (upstream hardcodes
  *      none). Recall already spreads `recallOptions`.
+ *   5. Disables the runtime's self-update staging (`maybeAutoUpdate` returns
+ *      early). The daily background re-stage replaces the dist with stock
+ *      code, silently wiping this patch — and with a `{gitProjectLower}`
+ *      bank template every bank collapses into `omp-unknown` until the
+ *      patcher is re-run. Long-running hosts hold the config they loaded at
+ *      startup, so a config-level `autoUpdate: false` cannot protect them.
+ *      Escape hatch: HINDSIGHT_ALLOW_SELF_UPDATE=1 (update manually, then
+ *      re-run this script).
  *
  * Idempotent (markers), re-runnable after `hindsight-coding-agents update`.
  * Originals kept once as `<file>.orig-pirecalltags`. `--restore` puts them back.
@@ -45,7 +58,15 @@ if (!existsSync(dist)) {
 	process.exit(1);
 }
 
-const HELPERS = `function __piReflectTags(client) {
+const HELPERS = `function __piLowerResolvers(resolvers) {
+  const out = Object.assign(Object.create(null), resolvers);
+  for (const k of Object.keys(out)) {
+    const lower = k + "Lower";
+    if (!(lower in out)) out[lower] = () => String(out[k]()).toLowerCase();
+  }
+  return out;
+}
+function __piReflectTags(client) {
   const ro = client && client.recallOptions;
   return Array.isArray(ro == null ? void 0 : ro.tags) && ro.tags.length ? { tags: ro.tags, tags_match: ro.tags_match } : {};
 }
@@ -77,6 +98,10 @@ function __piRecallTag(res, directory) {
 }
 `;
 
+const ANCHOR_TEMPLATE = "function applyTemplate(template, resolvers, what) {";
+const PATCH_TEMPLATE = "function applyTemplate(template, resolvers, what) {\n  resolvers = __piLowerResolvers(resolvers);";
+const ANCHOR_AUTOUPDATE = '    if (!cfg.autoUpdate) return "";';
+const PATCH_AUTOUPDATE = '    if (!cfg.autoUpdate) return "";\n    if (process.env.HINDSIGHT_ALLOW_SELF_UPDATE !== "1") return ""; /* pi-hindsight: patched runtime must not self-replace; update manually, then re-run patch-dist.mjs */';
 const ANCHOR_NO_SECTION = "  if (!section) return { cfg, bankId: resolvedId };";
 const PATCH_NO_SECTION = "  if (!section) return __piRecallTag({ cfg, bankId: resolvedId }, directory);";
 const ANCHOR_TAIL = "  return { cfg: { ...cfg, ...resolvePartial(cfg, safe) }, bankId };";
@@ -114,11 +139,23 @@ for (const name of readdirSync(dist).filter((f) => f.endsWith(".js") && !f.endsW
 		continue;
 	}
 
-	// Hook bundles start with a shebang — helpers must go AFTER it, not before.
-	const bodyStart = src.startsWith("#!") ? src.indexOf("\n") + 1 : 0;
-	let out = src.slice(0, bodyStart);
-	let body = src.slice(bodyStart);
-	if (body.includes(ANCHOR_NO_SECTION)) {
+    // Hook bundles start with a shebang — helpers must go AFTER it, not before.
+    const bodyStart = src.startsWith("#!") ? src.indexOf("\n") + 1 : 0;
+    let out = src.slice(0, bodyStart);
+    let body = src.slice(bodyStart);
+    if (body.includes(ANCHOR_TEMPLATE)) {
+      body = body.replace(ANCHOR_TEMPLATE, PATCH_TEMPLATE);
+      report.patches++;
+    } else if (body.includes("function applyTemplate")) {
+      report.skipped.push("applyTemplate anchor");
+    }
+    if (body.includes(ANCHOR_AUTOUPDATE)) {
+      body = body.replace(ANCHOR_AUTOUPDATE, PATCH_AUTOUPDATE);
+      report.patches++;
+    } else if (body.includes("maybeAutoUpdate")) {
+      report.skipped.push("autoUpdate guard anchor");
+    }
+    if (body.includes(ANCHOR_NO_SECTION)) {
 		body = body.replace(ANCHOR_NO_SECTION, PATCH_NO_SECTION);
 		report.patches++;
 	} else if (body.includes("function applyBankConfig")) {
