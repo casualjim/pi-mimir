@@ -49,17 +49,17 @@
     "@earendil-works/pi-tui": "*"
   },
   "devDependencies": {
-    "@earendil-works/pi-ai": "^0.87.1",
-    "@earendil-works/pi-coding-agent": "^0.87.1",
-    "@earendil-works/pi-tui": "^0.87.0",
-    "@types/node": "^24.13.4",
+    "@earendil-works/pi-ai": "^1.2.0",
+    "@earendil-works/pi-coding-agent": "^1.2.0",
+    "@earendil-works/pi-tui": "^1.2.0",
+    "@types/node": "^26.6.5",
     "jiti": "^2.7.0",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.4"
   },
   "dependencies": {
-    "@ff-labs/fff-node": "^0.10.0",
-    "@shikijs/cli": "^4.0.2",
-    "shiki": "4.0.2"
+    "@ff-labs/fff-node": "^0.11.0",
+    "@shikijs/cli": "^4.5.0",
+    "shiki": "4.5.0"
   }
 }
