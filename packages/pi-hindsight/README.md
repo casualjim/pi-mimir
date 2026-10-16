@@ -33,18 +33,30 @@ node packages/pi-hindsight/patch-dist.mjs --restore       # undo (originals kept
 
 > **Self-update is disabled by the patch itself**: the official runtime re-stages `~/.hindsight/coding-agents` in the background (daily auto-update, and every `install`/`update` command re-copies it), which silently wipes this patch — with a `{gitProjectLower}` bank template every bank collapses into `omp-unknown` until the patcher is re-run. The patched `maybeAutoUpdate` returns early (escape hatch: `HINDSIGHT_ALLOW_SELF_UPDATE=1`). Manual update flow: `npx @vectorize-io/hindsight-coding-agents update && node packages/pi-hindsight/patch-dist.mjs`.
 
-## Importing session history (per repo)
+## Importing session history
 
-Backfill a repo's past coding-agent conversations into its bank:
+**All conversations, one command, from anywhere** — `import-all.mjs` reads every transcript's own recorded cwd in the pi/omp/claude stores, groups sessions **by git repo** (worktrees fold into the main repo's bank), respects `optInPaths`, and imports each group:
+
+```bash
+node packages/pi-hindsight/import-all.mjs --dry-run   # show the grouping, import nothing
+node packages/pi-hindsight/import-all.mjs             # import everything
+node packages/pi-hindsight/import-all.mjs --sources pi,omp
+```
+
+omp transcripts are converted natively (its `title` first line breaks the official reader); pi/claude/codex/dsh go through the staged installer's own readers. Idempotent — re-runs upsert by session id.
+
+**Single repo, by hand** — invoke the staged installer directly, never via `npx`:
 
 ```bash
 cd <repo>
-npx @vectorize-io/hindsight-coding-agents install pi --import-conversations
-node packages/pi-hindsight/patch-dist.mjs   # the install command re-staged the runtime — re-patch
+node ~/.hindsight/coding-agents/dist/installer.js install all --import-conversations
 ```
 
+Why direct invocation: `npx` runs the installer from its cache, so `pkgRoot ≠ staged runtime dir` and `stageRuntime` **re-copies the dist first, wiping this patch** — then the import's `deepen.js` runs as stock code and files every conversation into `omp-unknown`. Invoked from the staged path, staging self-skips (`same(pkgRoot, target)`) and the import spawns the patched `deepen.js`. No re-patch needed, before or after.
+
 - Run it **from inside the repo**. Sessions are attributed by their recorded cwd; from `~` it prefix-matches every session and then no-ops for directories that aren't opted in (`optInOnly`).
-- On interruption the importer prints a re-runnable `node …/dist/deepen.js --repo … --conversations …` line; that path never touches the runtime and needs no re-patch.
+- `install all` imports every detected harness's on-disk history for that repo (pi, claude-code, codex, dsh, …). Harnesses without on-disk transcripts (zcode, traecode, sqlite-backed ones) are skipped with a notice.
+- On interruption the importer prints a re-runnable `node …/dist/deepen.js --repo … --conversations …` line — that path never touches the runtime either.
 - oh-my-pi's own store (`~/.omp/agent/sessions`) has a divergent format the importer cannot read — omp history does not backfill.
 
 ## Per-project banks shared with oh-my-pi (current setup)
