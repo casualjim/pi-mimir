@@ -61,9 +61,9 @@ export class DreddError extends Error {
 const LOOPBACK = /^(?:localhost|127(?:\.\d+){3}|::1|\[::1\])(?::\d+)?$/;
 
 /**
- * Validate a custom backend the way pi-typesafe does (api.md:51-62): https
- * only off loopback, origin-only host, valid keyEnv identifier that is never
- * TYPESAFE_API_KEY.
+ * Validate a custom backend the way pi-typesafe does (its backends.js
+ * resolveBackend): https only off loopback, origin-only host, valid keyEnv
+ * identifier that is never TYPESAFE_API_KEY.
  */
 export function resolveEndpoint(config: BackendConfig, env: NodeJS.ProcessEnv): ResolvedEndpoint {
 	const backend = config.backend;
