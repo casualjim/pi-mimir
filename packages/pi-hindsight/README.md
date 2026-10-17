@@ -39,11 +39,11 @@ node packages/pi-hindsight/patch-dist.mjs --restore       # undo (originals kept
 
 ```bash
 node packages/pi-hindsight/import-all.mjs --dry-run   # show the grouping, import nothing
-node packages/pi-hindsight/import-all.mjs             # import everything
+node packages/pi-hindsight/import-all.mjs             # enqueue every bank, report failures
 node packages/pi-hindsight/import-all.mjs --sources pi,omp
 ```
 
-omp transcripts are converted natively (its `title` first line breaks the official reader); pi/claude/codex/dsh go through the staged installer's own readers. Idempotent — re-runs upsert by session id.
+Imports enqueue only: children run with `HINDSIGHT_NO_WAIT=1`, the env the patched dist honors by skipping deepen's client-side extraction drain — every session is POSTed with `async:true` (hindsight's server queue owns extraction from there) and the run ends. Requires the patched dist (`patch-dist.mjs`); unpatched, deepen waits as before. Per-bank logs land in `~/.hindsight/coding-agents-logs/import-all-<bank>.log`. omp transcripts are converted natively (its `title` first line breaks the official reader); pi/claude/codex/dsh go through the staged installer's own readers. Idempotent — re-runs upsert by session id.
 
 **Single repo, by hand** — invoke the staged installer directly, never via `npx`:
 

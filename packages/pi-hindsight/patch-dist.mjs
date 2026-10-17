@@ -106,6 +106,11 @@ const ANCHOR_NO_SECTION = "  if (!section) return { cfg, bankId: resolvedId };";
 const PATCH_NO_SECTION = "  if (!section) return __piRecallTag({ cfg, bankId: resolvedId }, directory);";
 const ANCHOR_TAIL = "  return { cfg: { ...cfg, ...resolvePartial(cfg, safe) }, bankId };";
 const PATCH_TAIL = "  return __piRecallTag({ cfg: { ...cfg, ...resolvePartial(cfg, safe) }, bankId }, directory);";
+const ANCHOR_DRAIN = "  async drain(ids, label, maxMs = 60 * 60 * 1e3) {";
+const PATCH_DRAIN = ANCHOR_DRAIN + '\n    if (process.env.HINDSIGHT_NO_WAIT === "1") { this.log("[wait] HINDSIGHT_NO_WAIT=1 — enqueued, skipping drain"); return; } /* pi-hindsight: import-all enqueues only; hindsight owns the queue */';
+const ANCHOR_ACTIVE = "  async activeOperations() {";
+const PATCH_ACTIVE = ANCHOR_ACTIVE + '\n    if (process.env.HINDSIGHT_NO_WAIT === "1") return 0; /* pi-hindsight: settles nothing under NO_WAIT — nothing is being waited on */';
+const NO_WAIT_MARKER = "HINDSIGHT_NO_WAIT";
 const ANCHOR_REFLECT = 'body: JSON.stringify({ query, budget: opts.budget ?? "high" }),';
 const PATCH_REFLECT = 'body: JSON.stringify({ query, budget: opts.budget ?? "high", ...__piReflectTags(this) }),';
 
@@ -133,7 +138,10 @@ for (const name of readdirSync(dist).filter((f) => f.endsWith(".js") && !f.endsW
 		continue;
 	}
 
-	if (src.includes(MARKER)) {
+	// partial patching: a file may already carry the recall-tag patches but
+	// lack newer ones (e.g. NO_WAIT) — only skip when fully current
+	const alreadyHelpers = src.includes(MARKER);
+	if (alreadyHelpers && src.includes(NO_WAIT_MARKER)) {
 		report.status = "already patched";
 		results.push(report);
 		continue;
@@ -164,13 +172,21 @@ for (const name of readdirSync(dist).filter((f) => f.endsWith(".js") && !f.endsW
 	if (body.includes(ANCHOR_TAIL)) {
 		body = body.replace(ANCHOR_TAIL, PATCH_TAIL);
 		report.patches++;
+	if (body.includes(ANCHOR_DRAIN)) {
+		body = body.replace(ANCHOR_DRAIN, PATCH_DRAIN);
+		report.patches++;
+	}
+	if (body.includes(ANCHOR_ACTIVE)) {
+		body = body.replace(ANCHOR_ACTIVE, PATCH_ACTIVE);
+		report.patches++;
+	}
 	} else if (body.includes("function applyBankConfig")) {
 		report.skipped.push("applyBankConfig tail anchor");
 	}
 	if (body.includes(ANCHOR_REFLECT)) {
 		body = body.replace(ANCHOR_REFLECT, PATCH_REFLECT);
 		report.patches++;
-	} else {
+	} else if (!alreadyHelpers) {
 		report.skipped.push("reflect anchor");
 	}
 
@@ -180,7 +196,7 @@ for (const name of readdirSync(dist).filter((f) => f.endsWith(".js") && !f.endsW
 		continue;
 	}
 
-	out += HELPERS + body;
+	out += (alreadyHelpers ? "" : HELPERS) + body;
 
 	const backup = path + BACKUP_SUFFIX;
 	if (!existsSync(backup)) copyFileSync(path, backup);

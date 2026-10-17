@@ -15,14 +15,19 @@
  * - omp sessions are converted natively (its store has a "title" line before
  *   the session header, which the official reader rejects) and sent to the
  *   staged deepen.js directly.
+ * - Imports ENQUEUE ONLY: children run with HINDSIGHT_NO_WAIT=1, the env the
+   patched dist (patch-dist.mjs) honors by skipping deepen's client-side
+   extraction drain — every session is POSTed with async:true (the server owns
+   the queue) and the run ends there. Requires a patched dist; an unpatched
+   deepen simply waits as before. Per-bank logs land in
+   ~/.hindsight/coding-agents-logs/import-all-<bank>.log
  *
  * Usage:
  *   node import-all.mjs --dry-run        # show the grouping, import nothing
- *   node import-all.mjs                  # import everything
- *   node import-all.mjs --sources pi     # limit discovery to pi (or omp, claude)
+ *   node import-all.mjs                  # enqueue every bank, report failures
  */
-import { spawnSync } from "node:child_process";
-import { closeSync, existsSync, mkdtempSync, openSync, readdirSync, readFileSync, readSync, writeFileSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, readSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
@@ -278,9 +283,20 @@ if (dropped.noDir) console.log(`skipped — recorded cwd no longer exists: ${dro
 if (!sessions.length) { console.log("nothing found"); process.exit(0); }
 if (dryRun) { console.log("\n--dry-run — nothing imported"); process.exit(0); }
 
-let failed = 0;
+const LOG_DIR = join(HOME, ".hindsight", "coding-agents-logs");
+const shq = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
+
+mkdirSync(LOG_DIR, { recursive: true });
+
+// enqueue-only: HINDSIGHT_NO_WAIT=1 makes the patched dist skip deepen's
+// client-side extraction drain (deepen POSTs every retain with async:true and
+// exits) — hindsight's server queue owns everything after that. Children run
+// concurrently across banks; within a bank the omp deepen is chained before
+// the delegated installer because deepen's per-bank lease would otherwise make
+// the second run silently skip its import.
+const runs = [];
 for (const g of opted) {
-  console.log(`\n===== ${g.bank} — ${g.root} =====`);
+  const cmds = [];
 
   // omp transcripts: official reader cannot parse them — convert + deepen directly
   if (g.ompFiles.length) {
@@ -292,17 +308,36 @@ for (const g of opted) {
     if (converted.length) {
       const file = join(mkdtempSync(join(tmpdir(), "hindsight-import-")), "conversations.json");
       writeFileSync(file, JSON.stringify(converted));
-      console.log(`omp: importing ${converted.length} sessions (${converted.reduce((n, s) => n + s.turns.length, 0)} turns)`);
-      const r = spawnSync("node", [DEEPEN, "--repo", g.root, "--conversations", file], { stdio: "inherit" });
-      if (r.status !== 0) { console.error(`!! omp import failed for ${g.root}`); failed++; }
+      console.log(`omp: ${g.bank} — ${converted.length} sessions (${converted.reduce((n, s) => n + s.turns.length, 0)} turns)`);
+      cmds.push(`node ${shq(DEEPEN)} --repo ${shq(g.root)} --conversations ${shq(file)}`);
     }
   }
 
   // pi/claude/codex/dsh: the staged installer's own readers, run at the repo root
   if (g.delegated) {
-    const r = spawnSync("node", [INSTALLER, "install", "pi", "claude-code", "codex", "dsh", "--import-conversations"], { cwd: g.root, stdio: "inherit" });
-    if (r.status !== 0) { console.error(`!! delegated import failed for ${g.root}`); failed++; }
+    cmds.push(`node ${shq(INSTALLER)} install pi claude-code codex dsh --import-conversations`);
   }
+  if (!cmds.length) continue;
+
+  const log = join(LOG_DIR, `import-all-${g.bank}.log`);
+  const fd = openSync(log, "a");
+  console.log(`enqueuing ${g.bank.padEnd(34)} → ${log}`);
+  runs.push(new Promise((resolve) => {
+    const child = spawn("sh", ["-c", cmds.join(" ; ")], {
+      cwd: g.root,
+      env: { ...process.env, HINDSIGHT_NO_WAIT: "1" },
+      stdio: ["ignore", fd, fd],
+    });
+    const done = (result) => { closeSync(fd); resolve(result); };
+    child.on("exit", (code) => done(code === 0 ? null : g.bank));
+    child.on("error", (e) => done(`${g.bank} (${e.message})`));
+  }));
 }
-console.log(`\ndone — ${opted.length} groups imported, ${failed} failures`);
-process.exit(failed ? 1 : 0);
+
+const failures = (await Promise.all(runs)).filter(Boolean);
+console.log(`\ndone — enqueued ${runs.length - failures.length}/${runs.length} banks; hindsight drains the queue from here`);
+if (failures.length) {
+  console.log(`failed (see ${LOG_DIR}/import-all-<bank>.log):`);
+  for (const f of failures) console.log(`  ${f}`);
+}
+process.exit(failures.length ? 1 : 0);
