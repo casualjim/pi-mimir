@@ -151,44 +151,25 @@ for (const name of readdirSync(dist).filter((f) => f.endsWith(".js") && !f.endsW
     const bodyStart = src.startsWith("#!") ? src.indexOf("\n") + 1 : 0;
     let out = src.slice(0, bodyStart);
     let body = src.slice(bodyStart);
-    if (body.includes(ANCHOR_TEMPLATE)) {
-      body = body.replace(ANCHOR_TEMPLATE, PATCH_TEMPLATE);
-      report.patches++;
-    } else if (body.includes("function applyTemplate")) {
-      report.skipped.push("applyTemplate anchor");
-    }
-    if (body.includes(ANCHOR_AUTOUPDATE)) {
-      body = body.replace(ANCHOR_AUTOUPDATE, PATCH_AUTOUPDATE);
-      report.patches++;
-    } else if (body.includes("maybeAutoUpdate")) {
-      report.skipped.push("autoUpdate guard anchor");
-    }
-    if (body.includes(ANCHOR_NO_SECTION)) {
-		body = body.replace(ANCHOR_NO_SECTION, PATCH_NO_SECTION);
-		report.patches++;
-	} else if (body.includes("function applyBankConfig")) {
-		report.skipped.push("applyBankConfig no-section anchor");
-	}
-	if (body.includes(ANCHOR_TAIL)) {
-		body = body.replace(ANCHOR_TAIL, PATCH_TAIL);
-		report.patches++;
-	if (body.includes(ANCHOR_DRAIN)) {
-		body = body.replace(ANCHOR_DRAIN, PATCH_DRAIN);
-		report.patches++;
-	}
-	if (body.includes(ANCHOR_ACTIVE)) {
-		body = body.replace(ANCHOR_ACTIVE, PATCH_ACTIVE);
-		report.patches++;
-	}
-	} else if (body.includes("function applyBankConfig")) {
-		report.skipped.push("applyBankConfig tail anchor");
-	}
-	if (body.includes(ANCHOR_REFLECT)) {
-		body = body.replace(ANCHOR_REFLECT, PATCH_REFLECT);
-		report.patches++;
-	} else if (!alreadyHelpers) {
-		report.skipped.push("reflect anchor");
-	}
+    // idempotent: skip when the patch is already present — several anchors are
+    // prefixes of their own patches and would otherwise re-apply to
+    // already-patched files, doubling every injected line
+    const applyAnchor = (name, anchor, patch) => {
+      if (body.includes(patch)) return;
+      if (body.includes(anchor)) {
+        body = body.replace(anchor, patch);
+        report.patches++;
+      } else if (!alreadyHelpers) {
+        report.skipped.push(name);
+      }
+    };
+    applyAnchor("applyTemplate anchor", ANCHOR_TEMPLATE, PATCH_TEMPLATE);
+    applyAnchor("autoUpdate guard anchor", ANCHOR_AUTOUPDATE, PATCH_AUTOUPDATE);
+    applyAnchor("applyBankConfig no-section anchor", ANCHOR_NO_SECTION, PATCH_NO_SECTION);
+    applyAnchor("applyBankConfig tail anchor", ANCHOR_TAIL, PATCH_TAIL);
+    applyAnchor("drain guard anchor", ANCHOR_DRAIN, PATCH_DRAIN);
+    applyAnchor("activeOperations guard anchor", ANCHOR_ACTIVE, PATCH_ACTIVE);
+    applyAnchor("reflect anchor", ANCHOR_REFLECT, PATCH_REFLECT);
 
 	if (report.patches === 0) {
 		report.status = "no anchors (skipped)";
