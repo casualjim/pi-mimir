@@ -16,6 +16,24 @@ Judge-everything guard extension for [Pi](https://pi.dev) and omp. The combinati
 
 `PI_DREDD_SETTINGS` (exact file) → `PI_CODING_AGENT_DIR/dredd/settings.json` → `~/.omp/agent/dredd/settings.json` under omp, `~/.pi/agent/dredd/settings.json` under pi.
 
+### Defaults
+
+A missing or malformed `settings.json` is not an error: every setting falls back to its default. Invalid values fall back the same way.
+
+| Setting | Default | Notes |
+| --- | --- | --- |
+| `enabled` | `true` | |
+| `backend` | `"typesafe"` | `https://api.typesafe.ai/v1/systemone`, key from `TYPESAFE_API_KEY` |
+| `model` | none | the registry backend supplies `jev-latest` |
+| `timeoutMs` | `1500` | bounded to 100–30000; out-of-range values reset to 1500 |
+| `capture` | `"balanced"` | unknown preset names reset to `balanced` |
+| `policies` | `[]` | |
+| `questions` | `[]` | |
+
+With no settings file and no `TYPESAFE_API_KEY`, judged calls have no key: the gate fails open and the offline floor still holds the destructive commands. To point pi-dredd at your own judge server, set a custom `backend` — no settings beyond that are required.
+
+A full settings file:
+
 ```jsonc
 {
   "enabled": true,
