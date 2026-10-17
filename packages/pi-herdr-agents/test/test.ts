@@ -1219,7 +1219,7 @@ describe("session.ts", () => {
 			assert.equal(readFileSync(parentFile, "utf8"), parentBefore);
 		});
 
-		it("fails when Pi does not persist the child snapshot", () => {
+		it("persists the child snapshot at a user-only leaf (upstream #10000)", () => {
 			const timestamp = "2026-07-31T00:00:00.000Z";
 			const parentFile = createSessionFile(dir, [
 				{
@@ -1241,11 +1241,15 @@ describe("session.ts", () => {
 					},
 				},
 			]);
+			const parentBefore = readFileSync(parentFile, "utf8");
 
-			assert.throws(
-				() => createBtwSessionSnapshot(parentFile, "only-user"),
-				/did not persist/i,
-			);
+			const childFile = createBtwSessionSnapshot(parentFile, "only-user");
+			const child = SessionManager.open(childFile);
+			const childIds = child.getEntries().map((entry) => entry.id);
+
+			assert.deepEqual(childIds, ["only-user"]);
+			assert.equal(child.getHeader()?.parentSession, parentFile);
+			assert.equal(readFileSync(parentFile, "utf-8"), parentBefore);
 		});
 	});
 
