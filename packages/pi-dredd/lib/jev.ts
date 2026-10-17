@@ -27,7 +27,7 @@ export interface BackendConfig {
 
 export interface CustomBackend {
 	label: string;
-	/** Absolute origin; https required off loopback. */
+	/** Absolute origin; scheme is the operator's choice. */
 	host: string;
 	/** Judgment path; defaults to "/v1/systemone". */
 	path?: string;
@@ -58,12 +58,10 @@ export class DreddError extends Error {
 	}
 }
 
-const LOOPBACK = /^(?:localhost|127(?:\.\d+){3}|::1|\[::1\])(?::\d+)?$/;
-
 /**
- * Validate a custom backend the way pi-typesafe does (its backends.js
- * resolveBackend): https only off loopback, origin-only host, valid keyEnv
- * identifier that is never TYPESAFE_API_KEY.
+ * Validate a custom backend's shape only: origin-only host, valid keyEnv
+ * identifier that is never TYPESAFE_API_KEY. Transport choice (http vs
+ * https) is the operator's; a custom endpoint is explicit config.
  */
 export function resolveEndpoint(config: BackendConfig, env: NodeJS.ProcessEnv): ResolvedEndpoint {
 	const backend = config.backend;
@@ -74,9 +72,6 @@ export function resolveEndpoint(config: BackendConfig, env: NodeJS.ProcessEnv): 
 	}
 	const host = URL.parse(backend.host);
 	if (!host) throw new DreddError(`backend host is not a URL: ${backend.host}`);
-	if (host.protocol !== "https:" && !LOOPBACK.test(host.hostname)) {
-		throw new DreddError(`backend host must be https unless loopback: ${backend.host}`);
-	}
 	if (host.pathname !== "/" && host.pathname !== "") throw new DreddError("backend host must be an origin, no path");
 	if (host.username || host.search || host.hash) throw new DreddError("backend host must carry no userinfo, query, or fragment");
 	if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(backend.keyEnv)) throw new DreddError(`backend keyEnv is not an identifier: ${backend.keyEnv}`);

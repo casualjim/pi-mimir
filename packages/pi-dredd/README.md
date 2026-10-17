@@ -45,7 +45,7 @@ Judge-everything guard extension for [Pi](https://pi.dev) and omp. The combinati
 }
 ```
 
-`host` must be https unless loopback. `keyEnv` is required and must not be `TYPESAFE_API_KEY`. Without `defaultModel`, pass `"model"` per request in settings.
+`host` is any absolute origin; scheme is your choice. `keyEnv` is required and must not be `TYPESAFE_API_KEY`. Without `defaultModel`, pass `"model"` per request in settings.
 
 ### Capture presets
 

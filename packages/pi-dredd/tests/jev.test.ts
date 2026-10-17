@@ -39,8 +39,9 @@ describe("resolveEndpoint", () => {
 		expect(ep.url).toBe("http://localhost:8080/v1/systemone");
 	});
 
-	it("rejects remote http", () => {
-		expect(() => resolveEndpoint({ backend: { label: "x", host: "http://gw.example.com", keyEnv: "X_KEY" } }, {})).toThrow(DreddError);
+	it("allows remote http: transport is the operator's choice", () => {
+		const ep = resolveEndpoint({ backend: { label: "lan", host: "http://192.168.1.50:8080", keyEnv: "LAN_JUDGE_KEY" } }, {});
+		expect(ep.url).toBe("http://192.168.1.50:8080/v1/systemone");
 	});
 
 	it("rejects host with a path", () => {
