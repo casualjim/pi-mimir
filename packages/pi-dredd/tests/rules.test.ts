@@ -1,5 +1,8 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { parseRules, projectRelPath, ruleQuestions, rulesForPath, ruleViolations } from "../lib/rules";
+import { loadRules, parseRules, projectRelPath, ruleQuestions, rulesForPath, ruleViolations } from "../lib/rules";
 
 const SAMPLE = `# Errors never reach the user raw
 Catch errors at the handler and return a message a user can act on.
@@ -66,5 +69,45 @@ describe("projectRelPath", () => {
 
 	it("returns undefined outside the project", () => {
 		expect(projectRelPath("/elsewhere/a.ts", "/proj")).toBeUndefined();
+	});
+});
+
+describe("loadRules", () => {
+	it("falls back to pi-warden.md when dredd-rules.md is absent", () => {
+		const dir = mkdtempSync(join(tmpdir(), "dredd-rules-"));
+		try {
+			writeFileSync(join(dir, "pi-warden.md"), SAMPLE);
+			const file = loadRules(dir);
+			expect(file?.path).toBe(join(dir, "pi-warden.md"));
+			expect(file?.rules.map(r => r.id)).toEqual([
+				"Errors never reach the user raw",
+				"Migrations need a ticket",
+				"No secrets in source",
+			]);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it("prefers dredd-rules.md when both exist", () => {
+		const dir = mkdtempSync(join(tmpdir(), "dredd-rules-"));
+		try {
+			writeFileSync(join(dir, "pi-warden.md"), "# warden rule\nwarden body");
+			writeFileSync(join(dir, "dredd-rules.md"), "# dredd rule\ndredd body");
+			const file = loadRules(dir);
+			expect(file?.path).toBe(join(dir, "dredd-rules.md"));
+			expect(file?.rules.map(r => r.id)).toEqual(["dredd rule"]);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it("returns undefined when neither file exists", () => {
+		const dir = mkdtempSync(join(tmpdir(), "dredd-rules-"));
+		try {
+			expect(loadRules(dir)).toBeUndefined();
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
 	});
 });

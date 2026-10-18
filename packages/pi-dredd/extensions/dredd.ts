@@ -232,7 +232,7 @@ export function registerVerifiers(pi: ExtensionAPI, runtime: DreddRuntime): void
 			rulesFile = loadRules(ctx.cwd);
 		} catch (error) {
 			rulesFile = undefined;
-			if (ctx.hasUI) ctx.ui.notify(`dredd: dredd-rules.md exists but could not be read (${error instanceof Error ? error.message : String(error)}); rules guard is off`, "warning");
+			if (ctx.hasUI) ctx.ui.notify(`dredd: rules file exists but could not be read (${error instanceof Error ? error.message : String(error)}); rules guard is off`, "warning");
 		}
 	});
 

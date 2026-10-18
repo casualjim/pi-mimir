@@ -1,9 +1,10 @@
 /**
- * Rules engine: the operator's own rules in `dredd-rules.md`, one `#` heading
- * per rule with optional `paths:` glob scoping. Every write and edit is
- * judged against the rules that apply to the written path, one compliance
- * question per rule, riding the shared gate runtime so violations land in
- * the ledger like every other guard.
+ * Rules engine: the operator's own rules in `dredd-rules.md` (or the
+ * predecessor `pi-warden.md`), one `#` heading per rule with optional
+ * `paths:` glob scoping. Every write and edit is judged against the rules
+ * that apply to the written path, one compliance question per rule, riding
+ * the shared gate runtime so violations land in the ledger like every other
+ * guard.
  */
 import { readFileSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -47,12 +48,15 @@ export function parseRules(content: string): Rule[] {
 	return rules.filter(rule => rule.text.trim().length > 0 || rule.paths.length > 0).map(rule => ({ ...rule, text: rule.text.trim() }));
 }
 
-/** Load rules for a project root: dredd-rules.md only, no fallbacks. */
+/** Load rules for a project root: dredd-rules.md, else the predecessor pi-warden.md. */
 export function loadRules(projectRoot: string): RulesFile | undefined {
-	const path = join(projectRoot, "dredd-rules.md");
-	if (!existsSync(path)) return undefined;
-	// An unreadable rules file throws rather than silently disabling the rules guard.
-	return { path, rules: parseRules(readFileSync(path, "utf-8")) };
+	for (const name of ["dredd-rules.md", "pi-warden.md"]) {
+		const path = join(projectRoot, name);
+		if (!existsSync(path)) continue;
+		// An unreadable rules file throws rather than silently disabling the rules guard.
+		return { path, rules: parseRules(readFileSync(path, "utf-8")) };
+	}
+	return undefined;
 }
 
 /** Which rules apply to a project-relative path: unscoped ones plus glob matches. */
