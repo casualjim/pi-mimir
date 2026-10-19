@@ -1,12 +1,12 @@
 /**
- * Rules engine: the operator's own rules in `dredd-rules.md` (or the
- * predecessor `pi-warden.md`), one `#` heading per rule with optional
+ * Rules engine: the operator's own rules in `dredd-rules.md` (a leftover
+ * `pi-warden.md` is renamed to it), one `#` heading per rule with optional
  * `paths:` glob scoping. Every write and edit is judged against the rules
  * that apply to the written path, one compliance question per rule, riding
  * the shared gate runtime so violations land in the ledger like every other
  * guard.
  */
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, renameSync } from "node:fs";
 import { join, relative } from "node:path";
 import { minimatch } from "minimatch";
 
@@ -48,10 +48,20 @@ export function parseRules(content: string): Rule[] {
 	return rules.filter(rule => rule.text.trim().length > 0 || rule.paths.length > 0).map(rule => ({ ...rule, text: rule.text.trim() }));
 }
 
-/** Load rules for a project root: dredd-rules.md, else the predecessor pi-warden.md. */
+/** Load rules for a project root. A leftover pi-warden.md is renamed to
+ * dredd-rules.md (dredd replaces warden, so it inherits the file); if the
+ * rename fails, the file is read where it lies. */
 export function loadRules(projectRoot: string): RulesFile | undefined {
-	for (const name of ["dredd-rules.md", "pi-warden.md"]) {
-		const path = join(projectRoot, name);
+	const wardenPath = join(projectRoot, "pi-warden.md");
+	const dreddPath = join(projectRoot, "dredd-rules.md");
+	if (existsSync(wardenPath) && !existsSync(dreddPath)) {
+		try {
+			renameSync(wardenPath, dreddPath);
+		} catch {
+			// Unwritable directory: judge the warden file in place.
+		}
+	}
+	for (const path of [dreddPath, wardenPath]) {
 		if (!existsSync(path)) continue;
 		// An unreadable rules file throws rather than silently disabling the rules guard.
 		return { path, rules: parseRules(readFileSync(path, "utf-8")) };

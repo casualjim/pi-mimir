@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -73,12 +73,13 @@ describe("projectRelPath", () => {
 });
 
 describe("loadRules", () => {
-	it("falls back to pi-warden.md when dredd-rules.md is absent", () => {
+	it("renames pi-warden.md to dredd-rules.md when dredd-rules.md is absent", () => {
 		const dir = mkdtempSync(join(tmpdir(), "dredd-rules-"));
 		try {
 			writeFileSync(join(dir, "pi-warden.md"), SAMPLE);
 			const file = loadRules(dir);
-			expect(file?.path).toBe(join(dir, "pi-warden.md"));
+			expect(file?.path).toBe(join(dir, "dredd-rules.md"));
+			expect(existsSync(join(dir, "pi-warden.md"))).toBe(false);
 			expect(file?.rules.map(r => r.id)).toEqual([
 				"Errors never reach the user raw",
 				"Migrations need a ticket",
