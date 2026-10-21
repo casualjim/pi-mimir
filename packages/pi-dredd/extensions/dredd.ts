@@ -13,7 +13,7 @@ import { loadRules, projectRelPath, ruleQuestions, rulesForPath, ruleViolations,
 import { buildAppendix, dedupeRuns, repeatedTail, saveOutput, trimOutput, TRIM_OVER, type AppendixEntry } from "../lib/context";
 import type { Question } from "../lib/jev";
 import { askJev, COMPACT_MIN_PERCENT } from "../lib/speed";
-import { pickSkill, skillSteer, type SkillCandidate } from "../lib/skills";
+import { forcedSkillMessage, pickSkill, skillBody, skillSteer, type SkillCandidate } from "../lib/skills";
 
 /**
  * pi-dredd: judge-everything guard extension. This entry wires the shared
@@ -395,20 +395,22 @@ export function registerContext(pi: ExtensionAPI, runtime: DreddRuntime): void {
  * adapter reads.
  */
 function skillCandidates(pi: ExtensionAPI, event: unknown): SkillCandidate[] {
+	const toCandidate = (s: unknown): SkillCandidate | undefined => {
+		if (s === null || typeof s !== "object" || typeof (s as { name?: unknown }).name !== "string") return undefined;
+		const entry = s as { name: string; description?: unknown; filePath?: unknown };
+		return { name: entry.name, description: typeof entry.description === "string" ? entry.description : "", filePath: typeof entry.filePath === "string" ? entry.filePath : undefined };
+	};
 	const options = (event as { systemPromptOptions?: { skills?: unknown } }).systemPromptOptions;
 	if (options && Array.isArray(options.skills)) {
-		return options.skills
-			.filter((s): s is { name: string; description?: string } => s !== null && typeof s === "object" && typeof (s as { name?: unknown }).name === "string")
-			.map(s => ({ name: s.name, description: typeof s.description === "string" ? s.description : "" }));
+		return options.skills.map(toCandidate).filter((s): s is SkillCandidate => s !== undefined);
 	}
 	const active = (pi as { pi?: { getActiveSkills?: () => unknown } }).pi?.getActiveSkills?.();
 	if (Array.isArray(active)) {
-		return active
-			.filter((s): s is { name: string; description?: string } => s !== null && typeof s === "object" && typeof (s as { name?: unknown }).name === "string")
-			.map(s => ({ name: s.name, description: typeof s.description === "string" ? s.description : "" }));
+		return active.map(toCandidate).filter((s): s is SkillCandidate => s !== undefined);
 	}
 	return [];
 }
+
 
 /**
  * Speed tier: one judge request per prompt picks the skill the conversation
@@ -435,8 +437,19 @@ export function registerSpeed(pi: ExtensionAPI, runtime: DreddRuntime): void {
 			});
 		} else {
 			if (result.skill !== undefined) {
-				const steer = skillSteer(result);
-				if (steer) pi.sendMessage({ customType: "pi-dredd-skill", content: steer, display: false });
+				const picked = candidates.find(candidate => candidate.name === result.skill);
+				// Force: inject the skill's own body when its file is reachable,
+				// the way a user invocation injects it; a pointer only as fallback.
+				let message: string | undefined;
+				if (picked?.filePath) {
+					try {
+						message = forcedSkillMessage(result, skillBody(picked.filePath));
+					} catch {
+						// Unreadable skill file: fall back to the pointer steer.
+					}
+				}
+				message ??= skillSteer(result);
+				if (message) pi.sendMessage({ customType: "pi-dredd-skill", content: message, display: false });
 			}
 			if (result.switched) {
 				const usage = ctx.getContextUsage();

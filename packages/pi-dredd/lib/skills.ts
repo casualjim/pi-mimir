@@ -8,6 +8,7 @@
  * candidate steers the agent when it clears the fit floor; a real topic
  * switch drives auto-compact.
  */
+import { readFileSync } from "node:fs";
 import { ask, type Questions } from "./jev";
 import type { DreddConfig } from "./settings";
 
@@ -15,6 +16,8 @@ import type { DreddConfig } from "./settings";
 export interface SkillCandidate {
 	name: string;
 	description: string;
+	/** SKILL.md path when the host surface provides it; enables injecting the body as a forced skill. */
+	filePath?: string;
 }
 
 export interface PickResult {
@@ -121,11 +124,27 @@ export async function pickSkill(
 		};
 	} catch (error) {
 		return { skill: undefined, confidence: 0, switched: false, switchScore: 0, source: "error", error: error instanceof Error ? error.message : String(error) };
-	}
 }
 
-/** The steer text the agent reads when a skill applies. */
+}
+/** The forced-skill message: the skill's own body, injected the way a user
+ * invocation injects it, so the instructions are in-context and binding
+ * rather than a pointer the agent may skip. */
+export function forcedSkillMessage(result: PickResult, body: string): string {
+	return `pi-dredd: the skill "${result.skill}" fits this request (confidence ${result.confidence.toFixed(2)}). Apply these instructions for this request.\n\n${body.trim()}`;
+}
+
+/** The steer text the agent reads when the skill's file is unavailable. */
 export function skillSteer(result: PickResult): string | undefined {
 	if (result.skill === undefined) return undefined;
 	return `pi-dredd: the skill "${result.skill}" fits this request (confidence ${result.confidence.toFixed(2)}). Use it rather than rediscovering the procedure.`;
+}
+
+/** The SKILL.md body with frontmatter stripped; the whole file when the
+ * frontmatter block is absent or malformed. */
+export function skillBody(filePath: string): string {
+	const content = readFileSync(filePath, "utf-8");
+	if (!content.startsWith("---")) return content;
+	const end = content.indexOf("\n---", 3);
+	return end === -1 ? content : content.slice(end + 4);
 }

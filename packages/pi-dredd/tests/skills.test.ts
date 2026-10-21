@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BATCH_SIZE, FIT_FLOOR, pickQuestions, pickSkill, rankCandidates, skillSteer } from "../lib/skills";
+import { BATCH_SIZE, FIT_FLOOR, forcedSkillMessage, pickQuestions, pickSkill, rankCandidates, skillSteer } from "../lib/skills";
 import type { DreddConfig } from "../lib/settings";
 
 const config = (overrides: Partial<DreddConfig> = {}): DreddConfig => ({
@@ -148,5 +148,15 @@ describe("skillSteer", () => {
 
 	it("stays silent with no skill", () => {
 		expect(skillSteer({ skill: undefined, confidence: 0, switched: false, switchScore: 0, source: "judge" })).toBeUndefined();
+	});
+});
+
+describe("forcedSkillMessage", () => {
+	it("carries the skill body, not a pointer", () => {
+		const message = forcedSkillMessage({ skill: "why", confidence: 0.92, switched: false, switchScore: 0, source: "judge" }, "# Why\n\nInvestigate with citations.");
+		expect(message).toContain('"why"');
+		expect(message).toContain("0.92");
+		expect(message).toContain("Investigate with citations.");
+		expect(message).toContain("Apply these instructions");
 	});
 });
