@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createRuntime, registerGate } from "../extensions/dredd";
+import { createRuntime, registerGate, registerSpeed } from "../extensions/dredd";
 import type { DreddConfig } from "../lib/settings";
 
 interface ToolCallHandler {
-	(event: { toolName: string; input: unknown }, ctx: { cwd: string; hasUI: boolean; ui: { notify: (text: string, level: string) => void } }): Promise<{ block: boolean; reason: string } | undefined>;
+	(event: { toolName: string; input: unknown; prompt?: string }, ctx: { cwd: string; hasUI: boolean; ui: { notify: (text: string, level: string) => void } }): Promise<{ block: boolean; reason: string } | undefined>;
 }
 
 function fakePi() {
@@ -14,6 +14,7 @@ function fakePi() {
 	return {
 		listeners,
 		on: (event: string, handler: ToolCallHandler) => listeners.push({ event, handler }),
+		registerTool: (_tool: unknown) => {},
 	};
 }
 
@@ -194,6 +195,74 @@ describe("bash gate end to end", () => {
 		} finally {
 			env.restore();
 			rmSync(env.dir, { recursive: true });
+		}
+	});
+});
+
+describe("hold approval loop", () => {
+	it("holds, reads the operator's approval from their reply, and lets the identical retry pass exactly once", async () => {
+		const env = tempEnv();
+		try {
+			const runtime = { ...createRuntime(fakePi() as never), config: config() };
+			const pi = fakePi();
+			registerGate(pi as never, runtime);
+			registerSpeed(pi as never, runtime);
+			const command = "git push --force origin main";
+			const held = await callGate(pi, command);
+			expect(held?.block).toBe(true);
+			expect(runtime.pendingHold?.command).toBe(command);
+			expect(runtime.approved).toBeNull();
+
+			const originalFetch = globalThis.fetch;
+			globalThis.fetch = judgeFetch({ approves: 0.95 });
+			try {
+				const startHandler = pi.listeners.find(l => l.event === "before_agent_start")?.handler;
+				if (!startHandler) throw new Error("no before_agent_start handler registered");
+				await startHandler({ toolName: "user", input: {}, prompt: "ok I approve the operation" }, { cwd: "/proj", hasUI: false, ui: { notify: () => {} } });
+			} finally {
+				globalThis.fetch = originalFetch;
+			}
+			expect(runtime.approved?.command).toBe(command);
+			expect(runtime.pendingHold).toBeNull();
+
+			// Identical retry passes once and consumes the approval.
+			expect(await callGate(pi, command)).toBeUndefined();
+			expect(runtime.approved).toBeNull();
+			// A second attempt is held again.
+			const reheld = await callGate(pi, command);
+			expect(reheld?.block).toBe(true);
+		} finally {
+			env.restore();
+			rmSync(env.dir, { recursive: true, force: true });
+		}
+	});
+
+	it("keeps the hold when the reply does not approve the command", async () => {
+		const env = tempEnv();
+		try {
+			const runtime = { ...createRuntime(fakePi() as never), config: config() };
+			const pi = fakePi();
+			registerGate(pi as never, runtime);
+			registerSpeed(pi as never, runtime);
+			const command = "git push --force origin main";
+			await callGate(pi, command);
+			expect(runtime.pendingHold?.command).toBe(command);
+
+			const originalFetch = globalThis.fetch;
+			globalThis.fetch = judgeFetch({ approves: 0.1 });
+			try {
+				const startHandler = pi.listeners.find(l => l.event === "before_agent_start")?.handler;
+				if (!startHandler) throw new Error("no before_agent_start handler registered");
+				await startHandler({ toolName: "user", input: {}, prompt: "no, do something else instead" }, { cwd: "/proj", hasUI: false, ui: { notify: () => {} } });
+			} finally {
+				globalThis.fetch = originalFetch;
+			}
+			expect(runtime.approved).toBeNull();
+			const stillHeld = await callGate(pi, command);
+			expect(stillHeld?.block).toBe(true);
+		} finally {
+			env.restore();
+			rmSync(env.dir, { recursive: true, force: true });
 		}
 	});
 });

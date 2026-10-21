@@ -8,6 +8,7 @@ import { openLedger, type ViolationsDb } from "../lib/ledger";
 import { forgetLesson, recordLesson, type LessonsStore } from "../lib/memory";
 import { floorCheck, gateQuestions, isReadOnlyCommand } from "../lib/gate";
 import { runGate } from "../lib/gate-runtime";
+import { ask } from "../lib/jev";
 import { causeQuestions, classifyCheckResult, doneQuestions, noteFailure, screenQuestions, securityQuestions, slopQuestions, stuckDue, stuckQuestions, type AttemptWindow } from "../lib/verifiers";
 import { loadRules, projectRelPath, ruleQuestions, rulesForPath, ruleViolations, type RulesFile } from "../lib/rules";
 import { buildAppendix, dedupeRuns, repeatedTail, saveOutput, trimOutput, TRIM_OVER, type AppendixEntry } from "../lib/context";
@@ -142,6 +143,10 @@ export interface DreddRuntime {
 	lessons: LessonsStore;
 	ledger: ViolationsDb;
 	host: "omp" | "pi";
+	/** The command the gate held last; the operator's next reply may approve it. */
+	pendingHold: { command: string; ts: number } | null;
+	/** An operator-approved command: the identical retry passes exactly once. */
+	approved: { command: string } | null;
 }
 
 /** The shared runtime guards consume: config, lessons, ledger. */
@@ -150,7 +155,7 @@ export function createRuntime(pi: ExtensionAPI): DreddRuntime {
 	const settingsPath = resolveSettingsFile(host);
 	const config = effectiveConfig(loadSettings(settingsPath));
 	const dir = dataDir(host);
-	return { config, lessons: loadLessons(path.join(dir, LESSONS_FILE)), ledger: openLedger(path.join(dir, "violations.db")), host };
+	return { config, lessons: loadLessons(path.join(dir, LESSONS_FILE)), ledger: openLedger(path.join(dir, "violations.db")), host, pendingHold: null, approved: null };
 }
 
 /**
@@ -174,12 +179,22 @@ export function registerGate(pi: ExtensionAPI, runtime: DreddRuntime): void {
 		if (event.toolName !== "bash") return undefined;
 		const command = (event.input as { command?: unknown }).command;
 		if (typeof command !== "string" || command.length === 0) return undefined;
+		// Operator approval: the identical retry of an approved command passes once.
+		if (runtime.approved && runtime.approved.command === command) {
+			runtime.approved = null;
+			ledger.insert({
+				timestamp: Date.now(), sessionId, projectRoot: cwd, guard: "gate", tool: "bash",
+				subject: command.slice(0, 400), finding: "operator approved after hold", score: null, steered: false,
+			});
+			return undefined;
+		}
 		const floorHits = floorCheck(command);
 		if (floorHits.length > 0) {
 			ledger.insert({
 				timestamp: Date.now(), sessionId, projectRoot: cwd, guard: "gate", tool: "bash",
 				subject: command.slice(0, 400), finding: `floor: ${floorHits.map(h => h.id).join(",")}`, score: null, steered: false,
 			});
+			runtime.pendingHold = { command, ts: Date.now() };
 			return {
 				block: true,
 				reason: `pi-dredd blocked this: ${floorHits.map(h => h.reason).join("; ")}. Tell the operator what was blocked and why; run it only when they say yes.`,
@@ -193,6 +208,7 @@ export function registerGate(pi: ExtensionAPI, runtime: DreddRuntime): void {
 		);
 		if (outcome.verdict.level === "hold") {
 			const reason = outcome.verdict.reasons.join("; ");
+			runtime.pendingHold = { command, ts: Date.now() };
 			if (ctx.hasUI) ctx.ui.notify(`dredd: held a bash call (${reason})`, "warning");
 			return {
 				block: true,
@@ -427,6 +443,28 @@ export function registerSpeed(pi: ExtensionAPI, runtime: DreddRuntime): void {
 	pi.on("before_agent_start", async (event, ctx) => {
 		if (!config.enabled) return undefined;
 		const prompt = typeof (event as { prompt?: unknown }).prompt === "string" ? (event as { prompt: string }).prompt : "";
+		// Approval check: when a command is held and the operator replies,
+		// one judge question reads whether the reply approves exactly that command.
+		if (runtime.pendingHold && prompt.trim().length > 0) {
+			const held = runtime.pendingHold.command;
+			try {
+				const outcome = await ask(
+					{ backend: config.backend, apiKey: config.apiKey, model: config.model, timeoutMs: config.timeoutMs },
+					{ heldCommand: held.slice(0, 400), operatorReply: prompt.slice(0, 500), guard: "approval" },
+					{ approves: { type: "noul", instructions: `The gate held this command: "${held.slice(0, 400)}". Does the operator's reply approve running exactly that command?` } },
+					process.env,
+					fetch,
+				);
+				const answer = outcome.answers.approves;
+				if (answer?.type === "noul" && answer.noul >= 0.7) {
+					runtime.approved = { command: held };
+					runtime.pendingHold = null;
+					if (ctx.hasUI) ctx.ui.notify(`dredd: operator approval recorded for the held command`, "info");
+				}
+			} catch {
+				// Judge unreachable: the hold stands; the operator can delete or run the command themselves.
+			}
+		}
 		const candidates = skillCandidates(pi, event);
 		const result = await pickSkill(config, prompt, lastPrompt, candidates, process.env, fetch);
 		lastPrompt = prompt;
