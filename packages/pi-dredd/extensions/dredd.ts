@@ -130,7 +130,7 @@ export function registerLedger(pi: ExtensionAPI, config: DreddConfig, host: "omp
 			}
 			if (sub === "status") {
 				const backendLabel = typeof config.backend === "string" ? config.backend : config.backend.label;
-				ctx.ui.notify(`dredd: ${config.enabled ? "enabled" : "disabled"}, backend ${backendLabel}, capture ${config.capture}, ${lessons.lessons.length} lesson(s)`, "info");
+				ctx.ui.notify(`dredd: ${config.enabled ? "enabled" : "disabled"}, backend ${backendLabel}, capture ${config.capture}, ${lessons.lessons.length} lesson(s)${config.loadError ? ` — WARNING: ${config.loadError}` : ""}`, config.loadError ? "warning" : "info");
 				return;
 			}
 			ctx.ui.notify(`dredd: unknown subcommand '${sub}'. Use violations, counts, lessons, forget <text>, or status.`, "warning");
@@ -461,8 +461,12 @@ export function registerSpeed(pi: ExtensionAPI, runtime: DreddRuntime): void {
 					runtime.pendingHold = null;
 					if (ctx.hasUI) ctx.ui.notify(`dredd: operator approval recorded for the held command`, "info");
 				}
-			} catch {
-				// Judge unreachable: the hold stands; the operator can delete or run the command themselves.
+			} catch (error) {
+				// The hold stands; the operator can delete or run the command themselves.
+				runtime.ledger.insert({
+					timestamp: Date.now(), sessionId: null, projectRoot: ctx.cwd, guard: "approval",
+					tool: "bash", subject: held.slice(0, 400), finding: `approval judge unreachable: ${error instanceof Error ? error.message : String(error)}`, score: null, steered: false,
+				});
 			}
 		}
 		const candidates = skillCandidates(pi, event);
@@ -482,8 +486,12 @@ export function registerSpeed(pi: ExtensionAPI, runtime: DreddRuntime): void {
 				if (picked?.filePath) {
 					try {
 						message = forcedSkillMessage(result, skillBody(picked.filePath));
-					} catch {
-						// Unreadable skill file: fall back to the pointer steer.
+					} catch (error) {
+						// Unreadable skill file: fall back to the pointer steer and record why.
+						runtime.ledger.insert({
+							timestamp: Date.now(), sessionId: null, projectRoot: ctx.cwd, guard: "skills",
+							tool: null, subject: result.skill, finding: `skill file unreadable, pointer steer used: ${error instanceof Error ? error.message : String(error)}`, score: null, steered: false,
+						});
 					}
 				}
 				message ??= skillSteer(result);

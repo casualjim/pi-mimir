@@ -56,6 +56,8 @@ export interface DreddSettings {
 	questions?: RegisteredQuestion[];
 	/** Plain-English policies compiled into judge questions riding every gate. */
 	policies?: string[];
+	/** Set when the settings file exists but could not be read or parsed; reported by /dredd status. */
+	loadError?: string;
 }
 
 function parseBoolean(raw: unknown, fallback: boolean): boolean {
@@ -135,8 +137,8 @@ export function loadSettings(settingsPath: string): DreddSettings {
 			questions: parseQuestions(s.questions),
 			policies: parsePolicies(s.policies),
 		};
-	} catch {
-		return {};
+	} catch (error) {
+		return { loadError: `settings unreadable (${settingsPath}): ${error instanceof Error ? error.message : String(error)}` };
 	}
 }
 
@@ -157,6 +159,8 @@ export interface DreddConfig {
 	capture: CapturePreset;
 	questions: RegisteredQuestion[];
 	policies: string[];
+	/** Set when the settings file exists but could not be read or parsed. */
+	loadError?: string;
 	router?: RouterConfig;
 }
 
@@ -170,5 +174,6 @@ export function effectiveConfig(settings: DreddSettings): DreddConfig {
 		capture: settings.capture ?? "balanced",
 		questions: settings.questions ?? [],
 		policies: settings.policies ?? [],
+		loadError: settings.loadError,
 	};
 }

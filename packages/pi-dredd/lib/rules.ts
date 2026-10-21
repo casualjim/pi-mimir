@@ -57,8 +57,9 @@ export function loadRules(projectRoot: string): RulesFile | undefined {
 	if (existsSync(wardenPath) && !existsSync(dreddPath)) {
 		try {
 			renameSync(wardenPath, dreddPath);
-		} catch {
-			// Unwritable directory: judge the warden file in place.
+		} catch (error) {
+			// Rename refused (permissions): judge the file where it lies.
+			if (!existsSync(wardenPath)) throw error;
 		}
 	}
 	for (const path of [dreddPath, wardenPath]) {
