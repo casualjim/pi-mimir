@@ -178,3 +178,23 @@ describe("ask", () => {
 		await expect(ask({ backend: "typesafe", apiKey: "k", timeoutMs: 50 }, {}, N, {}, slowFetch)).rejects.toThrow();
 	});
 });
+
+describe("keyless local judge", () => {
+	it("resolves a backend without keyEnv and sends no auth header", async () => {
+		const ep = resolveEndpoint({ backend: { label: "euclides", host: "http://euclides:8000", defaultModel: "internlm/Intern-Decision-4B" } }, {});
+		expect(ep.url).toBe("http://euclides:8000/v1/systemone");
+		expect(ep.keyEnv).toBeUndefined();
+
+		let capturedAuth: string | undefined;
+		let capturedModel: string | undefined;
+		const fakeFetch: typeof fetch = (_url, init) => {
+			capturedAuth = (init?.headers as Record<string, string>).authorization;
+			capturedModel = (JSON.parse(String(init?.body)) as { model: string }).model;
+			return Promise.resolve(new Response(okBody({ risky: { type: "noul", noul: 0.2 } }), { status: 200 }));
+		};
+		const result = await ask({ backend: { label: "euclides", host: "http://euclides:8000", defaultModel: "internlm/Intern-Decision-4B" } }, {}, N, {}, fakeFetch);
+		expect(capturedAuth).toBeUndefined();
+		expect(capturedModel).toBe("internlm/Intern-Decision-4B");
+		expect(result.answers.risky).toEqual({ type: "noul", noul: 0.2 });
+	});
+});

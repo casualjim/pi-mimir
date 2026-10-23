@@ -31,15 +31,15 @@ export interface CustomBackend {
 	host: string;
 	/** Judgment path; defaults to "/v1/systemone". */
 	path?: string;
-	/** Env var holding the key. Required, and never TYPESAFE_API_KEY. */
-	keyEnv: string;
+	/** Env var holding the key; absent means a keyless local judge. Never TYPESAFE_API_KEY. */
+	keyEnv?: string;
 	/** Model sent on the wire; when absent the caller must pass model per request. */
 	defaultModel?: string;
 }
 
 interface ResolvedEndpoint {
 	url: string;
-	keyEnv: string;
+	keyEnv?: string;
 	model?: string;
 	label: string;
 }
@@ -74,9 +74,12 @@ export function resolveEndpoint(config: BackendConfig, env: NodeJS.ProcessEnv): 
 	if (!host) throw new DreddError(`backend host is not a URL: ${backend.host}`);
 	if (host.pathname !== "/" && host.pathname !== "") throw new DreddError("backend host must be an origin, no path");
 	if (host.username || host.search || host.hash) throw new DreddError("backend host must carry no userinfo, query, or fragment");
-	if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(backend.keyEnv)) throw new DreddError(`backend keyEnv is not an identifier: ${backend.keyEnv}`);
-	if (backend.keyEnv.toUpperCase() === "TYPESAFE_API_KEY") {
-		throw new DreddError("backend keyEnv must not be TYPESAFE_API_KEY: give this endpoint its own variable");
+	// A missing keyEnv means a keyless local judge: no auth header, no crash.
+	if (backend.keyEnv !== undefined) {
+		if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(backend.keyEnv)) throw new DreddError(`backend keyEnv is not an identifier: ${backend.keyEnv}`);
+		if (backend.keyEnv.toUpperCase() === "TYPESAFE_API_KEY") {
+			throw new DreddError("backend keyEnv must not be TYPESAFE_API_KEY: give this endpoint its own variable");
+		}
 	}
 	const path = backend.path ?? "/v1/systemone";
 	if (!path.startsWith("/") || path.includes("?") || path.includes("#")) throw new DreddError("backend path must start with / and carry no query or fragment");
@@ -91,7 +94,7 @@ export function resolveEndpoint(config: BackendConfig, env: NodeJS.ProcessEnv): 
 /** Config apiKey, then the backend's keyEnv. The model goes with the endpoint. */
 export function pickKey(endpoint: ResolvedEndpoint, apiKey: string | undefined, env: NodeJS.ProcessEnv): { key: string; model: string; source: string } | null {
 	if (apiKey) return { key: apiKey, model: endpoint.model ?? "", source: "config apiKey" };
-	const fromEnv = env[endpoint.keyEnv]?.trim();
+	const fromEnv = endpoint.keyEnv === undefined ? undefined : env[endpoint.keyEnv]?.trim();
 	if (fromEnv) return { key: fromEnv, model: endpoint.model ?? "", source: `env ${endpoint.keyEnv}` };
 	return null;
 }
@@ -158,8 +161,8 @@ export async function ask(
 ): Promise<AskResult> {
 	const endpoint = resolveEndpoint(config, env);
 	const key = pickKey(endpoint, config.apiKey, env);
-	if (!key) throw new DreddError(`no key for ${endpoint.label}: set ${endpoint.keyEnv}`, true);
-	const model = config.model ?? key.model;
+	if (!key && endpoint.keyEnv !== undefined) throw new DreddError(`no key for ${endpoint.label}: set ${endpoint.keyEnv}`, true);
+	const model = config.model ?? key?.model ?? endpoint.model;
 	if (!model) throw new DreddError(`no model for ${endpoint.label}: set defaultModel or pass model`);
 	const started = Date.now();
 	const timeoutMs = config.timeoutMs ?? 1500;
@@ -170,7 +173,7 @@ export async function ask(
 	try {
 		const res = await fetchImpl(endpoint.url, {
 			method: "POST",
-			headers: { authorization: `Bearer ${key.key}`, "content-type": "application/json" },
+			headers: key ? { authorization: `Bearer ${key.key}`, "content-type": "application/json" } : { "content-type": "application/json" },
 			body: JSON.stringify({ model, state, questions }),
 			signal: timeout.signal,
 		});
