@@ -15,7 +15,7 @@ import { buildAppendix, dedupeRuns, repeatedTail, saveOutput, trimOutput, TRIM_O
 import type { Question } from "../lib/jev";
 import { askJev, COMPACT_MIN_PERCENT } from "../lib/speed";
 import { forcedSkillMessage, pickSkill, skillBody, skillSteer, type SkillCandidate } from "../lib/skills";
-
+import { resolveSkillPath } from "../lib/skill-paths";
 /**
  * pi-dredd: judge-everything guard extension. This entry wires the shared
  * config, the violation ledger, and the direct-trust lesson store into the
@@ -427,7 +427,41 @@ function skillCandidates(pi: ExtensionAPI, event: unknown): SkillCandidate[] {
 	return [];
 }
 
+/**
+ * omp's extension adapter strips filePath from skills, so look the file up
+ * by name under the host's skill roots when the surface omits it.
+ */
+function fillSkillPaths(candidates: SkillCandidate[], host: "omp" | "pi"): SkillCandidate[] {
+	const agentRoot = host === "omp" ? path.join(os.homedir(), ".omp", "agent") : path.join(os.homedir(), ".pi", "agent");
+	const pluginRoot = host === "omp" ? path.join(os.homedir(), ".omp", "plugins", "node_modules") : path.join(os.homedir(), ".pi", "agent", "npm", "node_modules");
+	return candidates.map(candidate => candidate.filePath ? candidate : { ...candidate, filePath: resolveSkillPath(candidate.name, agentRoot, pluginRoot) });
+}
 
+/** Judge whether the operator's message is a standing correction; when it
+ * is, record it as a lesson that rides every future gate. */
+async function learnCorrection(config: DreddConfig, runtime: DreddRuntime, prompt: string): Promise<string | undefined> {
+	if (prompt.trim().length === 0) return undefined;
+	const state = { message: prompt.slice(0, 1000), guard: "correction" };
+	const questions = { correction: { type: "noul" as const, instructions: 'Does this message state a standing rule or correction the agent must follow in all future work (not a one-time instruction for the current task)?' } };
+	try {
+		const outcome = await ask({ backend: config.backend, apiKey: config.apiKey, model: config.model, timeoutMs: config.timeoutMs }, state, questions, process.env, fetch);
+		const answer = outcome.answers.correction;
+		if (answer?.type !== "noul" || answer.noul < 0.8) return undefined;
+		const text = prompt.trim().slice(0, 300);
+		if (runtime.lessons.lessons.some(lesson => lesson.text === text)) return undefined;
+		runtime.lessons.lessons.push({ text, confirmedAt: Date.now(), source: "operator-correction" });
+		const lessonsFile = path.join(dataDir(runtime.host), LESSONS_FILE);
+		saveLessons(lessonsFile, runtime.lessons);
+		return text;
+	} catch (error) {
+		// The correction is not lost: the message stays in the conversation; recording it is retried on the next correction.
+		runtime.ledger.insert({
+			timestamp: Date.now(), sessionId: null, projectRoot: "", guard: "correction",
+			tool: null, subject: prompt.slice(0, 200), finding: `correction judge unreachable: ${error instanceof Error ? error.message : String(error)}`, score: null, steered: false,
+		});
+		return undefined;
+	}
+}
 /**
  * Speed tier: one judge request per prompt picks the skill the conversation
  * needs and reads whether the topic changed from the last prompt. A chosen
@@ -469,7 +503,10 @@ export function registerSpeed(pi: ExtensionAPI, runtime: DreddRuntime): void {
 				});
 			}
 		}
-		const candidates = skillCandidates(pi, event);
+		const candidates = fillSkillPaths(skillCandidates(pi, event), runtime.host);
+		// Charter: corrections become enforced lessons with no confirmation step.
+		const learned = await learnCorrection(config, runtime, prompt);
+		if (learned && ctx.hasUI) ctx.ui.notify(`dredd: correction recorded as a lesson: ${learned.slice(0, 120)}`, "info");
 		const result = await pickSkill(config, prompt, lastPrompt, candidates, process.env, fetch);
 		lastPrompt = prompt;
 		if (result.source === "error" && result.error) {
