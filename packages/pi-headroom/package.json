@@ -1,6 +1,6 @@
 {
   "name": "@casualjim/pi-headroom",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "description": "Headroom context compression for pi with a working headroom_retrieve tool",
   "keywords": [
     "pi-package",
