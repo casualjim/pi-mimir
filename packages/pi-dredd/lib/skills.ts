@@ -38,6 +38,8 @@ export interface PickResult {
 export const BATCH_SIZE = 26;
 /** A candidate steers only at or above this fit score. */
 export const FIT_FLOOR = 0.7;
+/** Ceiling on the per-batch budget: a slow judge must not stall the turn. */
+export const MAX_PICK_TIMEOUT_MS = 15_000;
 
 /** One fit question per candidate in the batch, plus the topic-switch noul. */
 export function pickQuestions(batch: readonly SkillCandidate[]): Questions {
@@ -94,39 +96,48 @@ export async function pickSkill(
 	for (let i = 0; i < ranked.length; i += BATCH_SIZE) {
 		batches.push(ranked.slice(i, i + BATCH_SIZE));
 	}
-	const askOptions = { backend: config.backend, apiKey: config.apiKey, model: config.model, timeoutMs: config.timeoutMs };
 	const state = { prompt: prompt.slice(0, 1000), previousPrompt: previousPrompt?.slice(0, 500) ?? "" };
 	const stateFirst = { prompt: prompt.slice(0, 1000), previousPrompt: previousPrompt?.slice(0, 500) ?? "", isFirstBatch: true };
-	try {
-		const results = await Promise.all(
-			batches.map((batch, batchIndex) => ask(askOptions, batchIndex === 0 ? stateFirst : state, pickQuestions(batch), env, fetchImpl)),
-		);
-		let best: { candidate: SkillCandidate; score: number } | undefined;
-		let switchScore = 0;
-		results.forEach((result, batchIndex) => {
-			if (batchIndex === 0) {
-				const switched = result.answers.switched;
-				if (switched?.type === "noul") switchScore = switched.noul;
-			}
-			const batch = batches[batchIndex] ?? [];
-			for (let i = 0; i < batch.length; i++) {
-				const scored = batchAnswer(batch, result.answers, i);
-				if (scored && (!best || scored.score > best.score)) best = scored;
-			}
-		});
-		const cleared = best && best.score >= FIT_FLOOR ? best : undefined;
-		return {
-			skill: cleared?.candidate.name,
-			confidence: cleared?.score ?? 0,
-			switched: switchScore >= 0.7,
-			switchScore,
-			source: "judge",
-		};
-	} catch (error) {
-		return { skill: undefined, confidence: 0, switched: false, switchScore: 0, source: "error", error: error instanceof Error ? error.message : String(error) };
+	// The judge serializes requests, so N batches need ~N * timeoutMs; the
+	// old shared single timeout aborted all of them at once.
+	const budgetMs = Math.min(config.timeoutMs * batches.length, MAX_PICK_TIMEOUT_MS);
+	const askOptions = { backend: config.backend, apiKey: config.apiKey, model: config.model, timeoutMs: budgetMs, keyResolver: config.keyResolver };
+	// Settled, not all: one failed batch must not discard the batches that answered.
+	const settled = await Promise.allSettled(
+		batches.map((batch, batchIndex) => ask(askOptions, batchIndex === 0 ? stateFirst : state, pickQuestions(batch), env, fetchImpl)),
+	);
+	let best: { candidate: SkillCandidate; score: number } | undefined;
+	let switchScore = 0;
+	let failure: string | undefined;
+	settled.forEach((outcome, batchIndex) => {
+		if (outcome.status === "rejected") {
+			failure ??= outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason);
+			return;
+		}
+		if (batchIndex === 0) {
+			const switched = outcome.value.answers.switched;
+			if (switched?.type === "noul") switchScore = switched.noul;
+		}
+		const batch = batches[batchIndex] ?? [];
+		for (let i = 0; i < batch.length; i++) {
+			const scored = batchAnswer(batch, outcome.value.answers, i);
+			if (scored && (!best || scored.score > best.score)) best = scored;
+		}
+	});
+	const cleared = best && best.score >= FIT_FLOOR ? best : undefined;
+	if (cleared) {
+		return { skill: cleared.candidate.name, confidence: cleared.score, switched: switchScore >= 0.7, switchScore, source: "judge" };
+	}
+	return {
+		skill: undefined,
+		confidence: 0,
+		switched: switchScore >= 0.7,
+		switchScore,
+		source: failure === undefined ? "judge" : "error",
+		error: failure,
+	};
 }
 
-}
 /** The forced-skill message: the skill's own body, injected the way a user
  * invocation injects it, so the instructions are in-context and binding
  * rather than a pointer the agent may skip. */

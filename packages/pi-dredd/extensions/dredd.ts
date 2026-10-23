@@ -444,7 +444,7 @@ async function learnCorrection(config: DreddConfig, runtime: DreddRuntime, promp
 	const state = { message: prompt.slice(0, 1000), guard: "correction" };
 	const questions = { correction: { type: "noul" as const, instructions: 'Does this message state a standing rule or correction the agent must follow in all future work (not a one-time instruction for the current task)?' } };
 	try {
-		const outcome = await ask({ backend: config.backend, apiKey: config.apiKey, model: config.model, timeoutMs: config.timeoutMs }, state, questions, process.env, fetch);
+		const outcome = await ask({ backend: config.backend, apiKey: config.apiKey, model: config.model, timeoutMs: config.timeoutMs, keyResolver: config.keyResolver }, state, questions, process.env, fetch);
 		const answer = outcome.answers.correction;
 		if (answer?.type !== "noul" || answer.noul < 0.8) return undefined;
 		const text = prompt.trim().slice(0, 300);
@@ -483,7 +483,7 @@ export function registerSpeed(pi: ExtensionAPI, runtime: DreddRuntime): void {
 			const held = runtime.pendingHold.command;
 			try {
 				const outcome = await ask(
-					{ backend: config.backend, apiKey: config.apiKey, model: config.model, timeoutMs: config.timeoutMs },
+					{ backend: config.backend, apiKey: config.apiKey, model: config.model, timeoutMs: config.timeoutMs, keyResolver: config.keyResolver },
 					{ heldCommand: held.slice(0, 400), operatorReply: prompt.slice(0, 500), guard: "approval" },
 					{ approves: { type: "noul", instructions: `The gate held this command: "${held.slice(0, 400)}". Does the operator's reply approve running exactly that command?` } },
 					process.env,
@@ -570,6 +570,9 @@ export default function dreddExtension(pi: ExtensionAPI) {
 
 	pi.on("session_start", (_event, ctx) => {
 		if (!config.enabled) return;
+		// Reuse the key the host already holds from /login; no second copy in settings.
+		const registry = ctx.modelRegistry as { getApiKeyForProvider?: (provider: string) => Promise<string | undefined> } | undefined;
+		if (registry?.getApiKeyForProvider) config.keyResolver = provider => registry.getApiKeyForProvider!(provider);
 		const backendLabel = typeof config.backend === "string" ? config.backend : config.backend.label;
 		const extra = config.questions.length > 0 ? `, ${config.questions.length} custom question(s)` : "";
 		ctx.ui.notify(`dredd: enabled, backend ${backendLabel}, capture ${config.capture}${extra}`, "info");

@@ -57,7 +57,7 @@ export async function decideRoute(
 ): Promise<RouteDecision> {
 	try {
 		const result = await ask(
-			{ backend: config.backend, apiKey: config.apiKey, model: config.model, timeoutMs: config.timeoutMs },
+			{ backend: config.backend, apiKey: config.apiKey, model: config.model, timeoutMs: config.timeoutMs, keyResolver: config.keyResolver },
 			{ prompt: prompt.slice(0, 1000) },
 			routeQuestions(),
 			env,
@@ -84,7 +84,7 @@ export async function askJev(
 ): Promise<{ ok: true; answers: Record<string, unknown>; inputTokens: number } | { ok: false; error: string }> {
 	try {
 		const result = await ask(
-			{ backend: config.backend, apiKey: config.apiKey, model: config.model, timeoutMs: Math.max(config.timeoutMs, 10_000) },
+			{ backend: config.backend, apiKey: config.apiKey, model: config.model, timeoutMs: Math.max(config.timeoutMs, 10_000), keyResolver: config.keyResolver },
 			state,
 			questions,
 			env,

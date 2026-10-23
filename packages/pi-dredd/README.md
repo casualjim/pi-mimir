@@ -30,7 +30,11 @@ A missing or malformed `settings.json` is not an error: every setting falls back
 | `policies` | `[]` | |
 | `questions` | `[]` | |
 
-With no settings file and no `TYPESAFE_API_KEY`, judged calls have no key: the gate fails open and the offline floor still holds the destructive commands. To point pi-dredd at your own judge server, set a custom `backend` — no settings beyond that are required.
+`typesafe` and `openrouter` also reuse the key the agent runtime already holds: at session start pi-dredd asks the host's model registry (`/login`, stored credentials) when neither a settings `apiKey` nor the backend's `keyEnv` variable resolves one. So a `typesafe` key added through `/login` needs no `settings.json` and no env var. Resolution order: settings `apiKey` → `keyEnv` env var → host registry.
+
+A custom endpoint may take any of these independently: its own `keyEnv` var, a `provider` id naming a host credential (e.g. `"provider": "openrouter"`), or neither when the judge is keyless. Add `provider` and the host's stored key authenticates that endpoint too.
+
+With nothing resolvable, judged calls have no key: the gate fails open and the offline floor still holds the destructive commands. To point pi-dredd at your own judge server, set a custom `backend` — no settings beyond that are required.
 
 A full settings file:
 
@@ -59,11 +63,12 @@ A full settings file:
   "host": "http://localhost:8080",
   "path": "/v1/systemone",
   "keyEnv": "LOCAL_JUDGE_KEY",
-  "defaultModel": "our-decision-model"
+  "defaultModel": "our-decision-model",
+  "provider": "openrouter"
 }
 ```
 
-`host` is any absolute origin; scheme is your choice. `keyEnv` is required and must not be `TYPESAFE_API_KEY`. Without `defaultModel`, pass `"model"` per request in settings.
+`host` is any absolute origin; scheme is your choice. `keyEnv` names the env var holding the key and must not be `TYPESAFE_API_KEY`; omit it for a keyless server, and no auth header is sent. Without `defaultModel`, pass `"model"` per request in settings. `timeoutMs` is the per-batch budget; the skill picker multiplies it by the batch count (capped at 15s), so a remote judge slower than the default 1500ms needs a larger value.
 
 ### Capture presets
 

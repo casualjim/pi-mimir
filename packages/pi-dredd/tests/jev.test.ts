@@ -179,6 +179,97 @@ describe("ask", () => {
 	});
 });
 
+describe("host credential reuse", () => {
+	const okFetch = (capture: { auth?: string }): typeof fetch =>
+		(_url, init) => {
+			capture.auth = (init?.headers as Record<string, string>).authorization;
+			return Promise.resolve(new Response(okBody({ risky: { type: "noul", noul: 0.5 } }), { status: 200 }));
+		};
+
+	it("uses the runtime's stored key when no env key is set", async () => {
+		const capture: { auth?: string } = {};
+		let askedProvider: string | undefined;
+		await ask(
+			{ backend: "typesafe", keyResolver: async provider => { askedProvider = provider; return "host-key"; } },
+			{},
+			N,
+			{},
+			okFetch(capture),
+		);
+		expect(askedProvider).toBe("typesafe");
+		expect(capture.auth).toBe("Bearer host-key");
+	});
+
+	it("an env key wins over the runtime store", async () => {
+		const capture: { auth?: string } = {};
+		let resolverCalls = 0;
+		await ask(
+			{ backend: "openrouter", keyResolver: async () => { resolverCalls++; return "host-key"; } },
+			{},
+			N,
+			{ OPENROUTER_API_KEY: "env-key" },
+			okFetch(capture),
+		);
+		expect(capture.auth).toBe("Bearer env-key");
+		expect(resolverCalls).toBe(0);
+	});
+
+	it("a custom endpoint borrows the runtime key only when it names a provider", async () => {
+		let resolverCalls = 0;
+		const resolver = async (): Promise<string | undefined> => { resolverCalls++; return "host-key"; };
+		await expect(
+			ask(
+				{ backend: { label: "corp", host: "https://gw.example.com", keyEnv: "GW_KEY", defaultModel: "m" }, keyResolver: resolver },
+				{},
+				N,
+				{},
+				okFetch({}),
+			),
+		).rejects.toThrow(DreddError);
+		expect(resolverCalls).toBe(0);
+
+		const capture: { auth?: string } = {};
+		let askedProvider: string | undefined;
+		await ask(
+			{
+				backend: { label: "corp", host: "https://gw.example.com", defaultModel: "m", provider: "openrouter" },
+				keyResolver: async provider => { askedProvider = provider; return "host-key"; },
+			},
+			{},
+			N,
+			{},
+			okFetch(capture),
+		);
+		expect(askedProvider).toBe("openrouter");
+		expect(capture.auth).toBe("Bearer host-key");
+	});
+
+	it("a registry key still beats a custom endpoint's own provider", async () => {
+		const capture: { auth?: string } = {};
+		await ask(
+			{
+				backend: { label: "corp", host: "https://gw.example.com", keyEnv: "GW_KEY", defaultModel: "m", provider: "openrouter" },
+				keyResolver: async () => "host-key",
+			},
+			{},
+			N,
+			{ GW_KEY: "gw-key" },
+			okFetch(capture),
+		);
+		expect(capture.auth).toBe("Bearer gw-key");
+	});
+
+	it("rejects an empty provider id", () => {
+		expect(() => resolveEndpoint({ backend: { label: "corp", host: "https://gw.example.com", provider: "  " } }, {})).toThrow(DreddError);
+	});
+
+	it("falls through to noKey when the runtime has no key either", async () => {
+		await expect(
+			ask({ backend: "typesafe", keyResolver: async () => undefined }, {}, N, {}, okFetch({})),
+		).rejects.toThrow(DreddError);
+	});
+});
+
 describe("keyless local judge", () => {
 	it("resolves a backend without keyEnv and sends no auth header", async () => {
 		const ep = resolveEndpoint({ backend: { label: "euclides", host: "http://euclides:8000", defaultModel: "internlm/Intern-Decision-4B" } }, {});

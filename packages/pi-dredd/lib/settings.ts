@@ -7,7 +7,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { CustomBackend } from "./jev";
+import type { CustomBackend, KeyResolver } from "./jev";
 
 export type DreddHost = "omp" | "pi";
 
@@ -162,6 +162,8 @@ export interface DreddConfig {
 	/** Set when the settings file exists but could not be read or parsed. */
 	loadError?: string;
 	router?: RouterConfig;
+	/** Set by the extension at session start: the host's credential lookup. */
+	keyResolver?: KeyResolver;
 }
 
 export function effectiveConfig(settings: DreddSettings): DreddConfig {

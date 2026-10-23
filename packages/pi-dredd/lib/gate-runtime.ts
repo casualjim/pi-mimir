@@ -93,7 +93,7 @@ export async function runGate(deps: GateDeps, guard: string, surface: "call" | "
 	};
 	try {
 		const result = await ask(
-			{ backend: config.backend, apiKey: config.apiKey, model: config.model, timeoutMs: config.timeoutMs },
+			{ backend: config.backend, apiKey: config.apiKey, model: config.model, timeoutMs: config.timeoutMs, keyResolver: config.keyResolver },
 			{ subject, tool, guard },
 			questions,
 			deps.env,

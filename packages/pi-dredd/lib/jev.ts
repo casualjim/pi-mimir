@@ -35,13 +35,20 @@ export interface CustomBackend {
 	keyEnv?: string;
 	/** Model sent on the wire; when absent the caller must pass model per request. */
 	defaultModel?: string;
+	/** Host provider id whose stored credential authenticates this endpoint, e.g. "openrouter". */
+	provider?: string;
 }
+
+/** Host credential lookup: the agent runtime's own store, keyed by provider id. */
+export type KeyResolver = (provider: string) => Promise<string | undefined>;
 
 interface ResolvedEndpoint {
 	url: string;
 	keyEnv?: string;
 	model?: string;
 	label: string;
+	/** Registry backend name, or a custom backend's declared provider. */
+	provider?: string;
 }
 
 export const REGISTRY: Record<string, { host: string; path: string; keyEnv: string; model: string }> = {
@@ -68,7 +75,7 @@ export function resolveEndpoint(config: BackendConfig, env: NodeJS.ProcessEnv): 
 	if (typeof backend === "string") {
 		const entry = REGISTRY[backend];
 		if (!entry) throw new DreddError(`unknown backend: ${backend}`);
-		return { url: entry.host + entry.path, keyEnv: entry.keyEnv, model: entry.model, label: backend };
+		return { url: entry.host + entry.path, keyEnv: entry.keyEnv, model: entry.model, label: backend, provider: backend };
 	}
 	const host = URL.parse(backend.host);
 	if (!host) throw new DreddError(`backend host is not a URL: ${backend.host}`);
@@ -81,6 +88,10 @@ export function resolveEndpoint(config: BackendConfig, env: NodeJS.ProcessEnv): 
 			throw new DreddError("backend keyEnv must not be TYPESAFE_API_KEY: give this endpoint its own variable");
 		}
 	}
+	// provider is a lookup key into the host's credential store: reject junk here, not at the call.
+	if (backend.provider !== undefined && (typeof backend.provider !== "string" || backend.provider.trim().length === 0)) {
+		throw new DreddError("backend provider must be a non-empty provider id");
+	}
 	const path = backend.path ?? "/v1/systemone";
 	if (!path.startsWith("/") || path.includes("?") || path.includes("#")) throw new DreddError("backend path must start with / and carry no query or fragment");
 	return {
@@ -88,6 +99,7 @@ export function resolveEndpoint(config: BackendConfig, env: NodeJS.ProcessEnv): 
 		keyEnv: backend.keyEnv,
 		model: backend.defaultModel,
 		label: backend.label || backend.host,
+		provider: backend.provider,
 	};
 }
 
@@ -152,7 +164,7 @@ export interface AskResult {
  * race, never a block: on expiry the caller sees a DreddError and decides.
  */
 export async function ask(
-	config: BackendConfig & { apiKey?: string; model?: string; timeoutMs?: number },
+	config: BackendConfig & { apiKey?: string; model?: string; timeoutMs?: number; keyResolver?: KeyResolver },
 	state: unknown,
 	questions: Questions,
 	env: NodeJS.ProcessEnv,
@@ -160,7 +172,13 @@ export async function ask(
 	signal?: AbortSignal,
 ): Promise<AskResult> {
 	const endpoint = resolveEndpoint(config, env);
-	const key = pickKey(endpoint, config.apiKey, env);
+	let key = pickKey(endpoint, config.apiKey, env);
+	// Fall back to the key the agent runtime already holds from /login: no
+	// duplicate settings or env var. Any backend may name a provider.
+	if (!key && config.keyResolver && endpoint.provider !== undefined) {
+		const hostKey = (await config.keyResolver(endpoint.provider))?.trim();
+		if (hostKey) key = { key: hostKey, model: endpoint.model ?? "", source: `host auth ${endpoint.provider}` };
+	}
 	if (!key && endpoint.keyEnv !== undefined) throw new DreddError(`no key for ${endpoint.label}: set ${endpoint.keyEnv}`, true);
 	const model = config.model ?? key?.model ?? endpoint.model;
 	if (!model) throw new DreddError(`no model for ${endpoint.label}: set defaultModel or pass model`);

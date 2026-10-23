@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { BATCH_SIZE, FIT_FLOOR, forcedSkillMessage, pickQuestions, pickSkill, rankCandidates, skillSteer } from "../lib/skills";
 import type { DreddConfig } from "../lib/settings";
 
@@ -101,6 +101,42 @@ describe("pickSkill", () => {
 		// the single-stage choice+shortlist design dropped these silently.
 		const result = await pickSkill(config(), "make the smallest diff that fully solves it", undefined, [{ name: "ponytail", description: "Lazy senior dev mode: smallest change that fully solves the task." }], { LOCAL_JUDGE_KEY: "k" }, judgeFetch({ ponytail: 0.95 }, 0.1));
 		expect(result.skill).toBe("ponytail");
+	});
+
+	it("a batch that never answers does not discard the batches that did", async () => {
+		// Live local judge serializes requests: batch k replies at ~k * the
+		// single-request timeout, so a shared single budget aborted every
+		// batch at once and a single rejection threw away the answers.
+		vi.useFakeTimers();
+		try {
+			const catalog = Array.from({ length: 28 }, (_, i) => ({ name: `skill-${i}`, description: `skill number ${i}` }));
+			catalog[0] = { name: "rust-design-patterns", description: "Rust borrow checker and lifetimes." };
+			const timeoutMs = 30;
+			const answering = (questions: Record<string, { instructions?: string }>): string => {
+				const answers: Record<string, unknown> = {};
+				for (const [id, q] of Object.entries(questions)) {
+					const name = /Skill "([^"]+)"/.exec(q.instructions ?? "")?.[1] ?? "";
+					answers[id] = { type: "noul", noul: name === "rust-design-patterns" ? 0.91 : 0.01 };
+				}
+				return JSON.stringify({ answers, usage: { input_tokens: 10 } });
+			};
+			const hangSecondBatch: typeof fetch = (async (_url: unknown, init?: { body?: unknown; signal?: AbortSignal }) => {
+				const body = JSON.parse(String(init?.body)) as { questions: Record<string, { instructions?: string }> };
+				const names = Object.values(body.questions).map(q => /Skill "([^"]+)"/.exec(q.instructions ?? "")?.[1] ?? "");
+				if (names.includes("rust-design-patterns")) return new Response(answering(body.questions), { status: 200 });
+				// Reject on the picker's own abort: awaiting the real signal beats a sleep.
+				return new Promise<Response>((_resolve, reject) =>
+					init?.signal?.addEventListener("abort", () => reject(new Error("The operation was aborted.")), { once: true }),
+				);
+			}) as unknown as typeof fetch;
+			const pending = pickSkill(config({ timeoutMs }), "review this borrow checker error", undefined, catalog, { LOCAL_JUDGE_KEY: "k" }, hangSecondBatch);
+			await vi.advanceTimersByTimeAsync(timeoutMs * 2 + 1);
+			const result = await pending;
+			expect(result.source).toBe("judge");
+			expect(result.skill).toBe("rust-design-patterns");
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it("fails open with the error text and no skill", async () => {
