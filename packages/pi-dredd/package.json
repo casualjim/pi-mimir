@@ -1,6 +1,6 @@
 {
   "name": "@casualjim/pi-dredd",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Judge-everything guard extension for pi and omp: action gates, verifier guards, violation ledger, direct-trust memory, own decisions client",
   "keywords": [
     "pi-package",
