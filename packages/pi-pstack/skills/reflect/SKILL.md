@@ -12,11 +12,11 @@ Invoke when the user says "reflect" or "/reflect". Skip when the conversation is
 
 ## 1. Locate the active transcript
 
-The active transcript is `$PI_SESSION_FILE`. Use it directly when present. To choose an earlier transcript for this working directory, use the `recall` tool and read only a path it returns. Never glob Pi's global session directory. If no session file resolves, write a tight digest of the current session and pass that instead.
+The active transcript is `$PI_SESSION_FILE`. Use it directly when present. To choose an earlier transcript for this working directory, use the `recall` tool and read only a path it returns. Never glob the host's global session directory. If no session file resolves, write a tight digest of the current session and pass that instead.
 
 ## 2. Spawn three reviewers in parallel
 
-One parallel `subagent` call with three tasks, each using `agent: "poteto-agent"`, `role: "reflect judgment, divergent, synthesizer"`, and a prompt that forbids file writes. Reviewers may use MCPs available to their Pi child process for context lookups (tickets, chat threads, observability traces referenced in the transcript). The parent applies edits.
+One parallel `subagent` call with three tasks, each using `agent: "poteto-agent"`, `role: "reflect judgment, divergent, synthesizer"`, and a prompt that forbids file writes. Pick each subagent's `thinking` level for the job, per the Subagents section. Reviewers may use MCPs available to their child process for context lookups (tickets, chat threads, observability traces referenced in the transcript). The parent applies edits.
 
 | Lens | `model` | Prompt template |
 |---|---|---|
@@ -28,7 +28,7 @@ Pass each template verbatim, substituting the transcript path or digest where ma
 
 ## 3. Synthesize
 
-One `subagent` call using `agent: "poteto-agent"` and `role: "reflect judgment, divergent, synthesizer"`. The synthesizer may use MCPs available to its Pi child process to spot-check citations. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns a structured Accepted / Rejected / Backlog list.
+One `subagent` call using `agent: "poteto-agent"` and `role: "reflect judgment, divergent, synthesizer"`. Pick the `thinking` level for judgment work, per the Subagents section. The synthesizer may use MCPs available to its child process to spot-check citations. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns a structured Accepted / Rejected / Backlog list.
 
 ## 4. Structural enforcement check
 
@@ -43,9 +43,9 @@ File each Backlog item to your team's devex or backlog tracker without waiting. 
 Follow each approved row's Routing exactly:
 
 - Trivial existing-skill edit (a one-line bullet, a tightened sentence, a stale fact corrected): parent does directly.
-- Substantive existing-skill edit (a new section, a new pattern table, more than ~10 lines): hand to the Pi Agent Skills standard and run its draft / test / iterate loop.
-- `tune description: <skill path>` (the skill exists but didn't trigger when it should have): hand to the Pi Agent Skills standard and run its description-optimization loop.
-- `new skill via Pi skill authoring: <kebab-name>`: hand creation to the Pi Agent Skills standard. Do not invent the shape ad hoc.
+- Substantive existing-skill edit (a new section, a new pattern table, more than ~10 lines): hand to the Agent Skills standard and run its draft / test / iterate loop.
+- `tune description: <skill path>` (the skill exists but didn't trigger when it should have): hand to the Agent Skills standard and run its description-optimization loop.
+- `new skill via skill authoring: <kebab-name>`: hand creation to the Agent Skills standard. Do not invent the shape ad hoc.
 
 If your environment ships a SKILL.md validator, run it on every touched skill before declaring done.
 

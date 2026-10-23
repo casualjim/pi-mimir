@@ -82,7 +82,7 @@ export default function(pi: ExtensionAPI) {
       if (!ctx.hasUI)
         return {
           block: true,
-          reason: `${operation} requires explicit user confirmation; non-interactive Pi cannot request it.`,
+          reason: `${operation} requires explicit user confirmation; a non-interactive host cannot request it.`,
         };
       const approved = await ctx.ui.confirm(
         "Confirm external or irreversible action",
@@ -94,7 +94,7 @@ export default function(pi: ExtensionAPI) {
 
   pi.registerCommand("poteto-mode", {
     description:
-      "Enable or disable sticky pstack Poteto Mode for this Pi session. Usage: /poteto-mode [task] | /poteto-mode off",
+      "Enable or disable sticky pstack Poteto Mode for this session. Usage: /poteto-mode [task] | /poteto-mode off",
     handler: async (args, ctx) => {
       if (/^(off|disable|stop)$/i.test(args.trim())) {
         potetoMode = false;

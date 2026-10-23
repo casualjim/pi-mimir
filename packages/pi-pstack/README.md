@@ -1,6 +1,15 @@
 # pi-pstack
 
-A pi-mimir fork of [pstack](https://github.com/cursor/plugins/tree/main/pstack). It keeps all upstream skills that are platform-portable (50; `make-bot-ui` is Cursor-platform-only and `setup-pstack` configures Cursor's model rule, both excluded), the sticky Poteto Mode, and the bundled `poteto-agent` and `comment-sicko` agents — but it delegates through [pi-herdr-agents](https://github.com/giuseppecrj/pi-herdr-agents) instead of shipping its own `subagent` tool.
+A pi-mimir fork of [pstack](https://github.com/cursor/plugins/tree/main/pstack), for **pi and omp**. It keeps all upstream skills that are platform-portable (55; `make-bot-ui` is Cursor-platform-only and `setup-pstack` configures Cursor's model rule, both excluded), the sticky Poteto Mode, and the bundled `poteto-agent` and `comment-sicko` agents — but it delegates through [pi-herdr-agents](https://github.com/giuseppecrj/pi-herdr-agents) instead of shipping its own `subagent` tool.
+
+## Install
+
+```text
+pi install npm:@casualjim/pi-pstack      # pi
+omp plugin install @casualjim/pi-pstack  # omp
+```
+
+Local development from this checkout uses `pi install ./packages/pi-pstack` or `omp plugin link ./packages/pi-pstack`.
 
 ## Why this fork exists
 
@@ -8,7 +17,7 @@ Upstream pi-pstack registers a tool named `subagent`. pi-herdr-agents registers 
 
 ## How delegation works here
 
-pi-herdr-agents resolves roles from bundled, role-pack, global, and project definitions. This extension publishes its bundled `agents/` directory as a role pack, registering it on the `pi-herdr-subagents:roles:discover:v1` event when the extension loads. The host reads and validates the definitions in place, so nothing is copied into `~/.pi/agent/agents`.
+pi-herdr-agents resolves roles from bundled, role-pack, global, and project definitions. This extension publishes its bundled `agents/` directory as a role pack, registering it on the `pi-herdr-subagents:roles:discover:v1` event when the extension loads. The host reads and validates the definitions in place, so nothing is copied into the host agent directory's `agents/`.
 
 After install, check the roles with `subagents_list` and delegate the pi-herdr-agents way:
 
@@ -20,15 +29,15 @@ subagent({ name: "Fix retry regression", agent: "poteto-agent", task: "investiga
 
 ## What's included
 
-- 50 skills under `skills/`, matching the upstream inventory minus Cursor-only `make-bot-ui` and `setup-pstack` (prose adapted where Pi differs). New in this sync: `ketchup` and `poteto-help`.
+- 55 skills under `skills/`, matching the upstream inventory minus Cursor-only `make-bot-ui` and `setup-pstack` (prose adapted where the host differs). New in this sync: `sharpen`, `in-your-own-words`, `create-formal-verification-skill`, `maintain-formal-verification-skill`, and `statechart`.
 - `poteto-agent` and `comment-sicko` agent definitions under `agents/`, published to pi-herdr-agents as a role pack.
 - Commands: `/poteto-mode` (sticky Poteto Mode for the session).
 - Tools: none. Task tracking, session recall, and subagent model routing use the host environment (`set_tasks` family, `recall`, `subagents_write_task_models`).
 
 ## What's removed vs upstream
 
-- The `subagent` tool and its child-Pi process runner. Use pi-herdr-agents' `subagent` instead.
-- `/setup-pstack`, `pstack_config`, `pstack_todo`, `pstack_sessions`, and the `~/.pi/agent/pstack/models.json` role map. The live role-to-model routing is pi-herdr-agents' `models.tasks`/`models.agents` config (`subagents_write_task_models`). Workflow skills consult that config for the per-call `model` they pass to `subagent`. Panel roles take model lists; set those via `models.agents` per agent or `task:<category>` routing.
+- The `subagent` tool and its child-process runner. Use pi-herdr-agents' `subagent` instead.
+- `/setup-pstack`, `pstack_config`, `pstack_todo`, `pstack_sessions`, and the `pstack/models.json` role map in the host agent directory. The live role-to-model routing is pi-herdr-agents' `models.tasks`/`models.agents` config (`subagents_write_task_models`). Workflow skills consult that config for the per-call `model` they pass to `subagent`. Panel roles take model lists; set those via `models.agents` per agent or `task:<category>` routing.
 
 ## Safety
 

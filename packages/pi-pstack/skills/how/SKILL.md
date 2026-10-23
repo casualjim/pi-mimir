@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 Explore the codebase to answer "how does X work?" questions. Produce architectural explanations at the level of a senior engineer onboarding onto a subsystem, enough to build a working mental model, not so much that it reads like annotated source code.
 
-Every spawn below is a `subagent` call with `agent: "poteto-agent"` and `model`: your configured how-explorer or how-explainer model (default `inherit-parent` each). Do not grant write/edit tools.
+Every spawn below is a `subagent` call with `agent: "poteto-agent"`, `model`, and `thinking`: your configured how-explorer or how-explainer model (default `inherit-parent` each). Do not grant write/edit tools.
 
 ## Step 1. Assess Complexity
 

@@ -40,7 +40,7 @@ For each reviewer:
 
 If a model slug is rejected as unresolvable when you try to spawn the subagent, pick another authenticated model from the session's model catalog, choose the closest equivalent (prefer the highest-reasoning tier of the same family), spawn with the valid slug, and open a separate PR to update the configured value or default table. Do not block the review on the slug issue. If the configured value is `inherit-parent` or `auto`, omit `model` instead. Never treat those aliases as broken slugs or enter this fallback for them.
 
-Read `references/reviewer-prompt.md` and fill in the same template for every reviewer with the stated intent, the diff or file contents, the rubric from `references/rubric.md`, and the code-quality lens from `references/code-quality-review.md`.
+Read `references/reviewer-prompt.md` and fill in the same template for every reviewer with the stated intent, the diff or file contents, the rubric from `references/rubric.md`, and the code-quality lens from `references/code-quality-review.md`. Pick each reviewer's `thinking` level for the job, per the Subagents section of the **poteto-mode** skill.
 
 ## Step 4, Synthesize
 

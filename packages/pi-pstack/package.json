@@ -1,7 +1,7 @@
 {
   "name": "@casualjim/pi-pstack",
   "version": "0.1.21",
-  "description": "Pi-native fork of pstack skills, Poteto Mode, and bundled agents. Delegates through pi-herdr-agents instead of its own subagent tool.",
+  "description": "pstack skills, Poteto Mode, and bundled agents for pi and omp. Delegates through pi-herdr-agents instead of its own subagent tool.",
   "license": "MIT",
   "author": "casualjim",
   "keywords": [
@@ -40,7 +40,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "check:pack": "pnpm pack --dry-run",
-    "test": "bun tests/agents-contract.ts && bun tests/extension-contract.ts && bun test"
+    "test": "bun tests/agents-contract.ts && bun tests/extension-contract.ts && bun test --path-ignore-patterns '**/statechart/**' && node --test skills/statechart/scripts/test/statechart.test.mjs"
   },
   "devDependencies": {
     "@earendil-works/pi-ai": "^1.2.0",

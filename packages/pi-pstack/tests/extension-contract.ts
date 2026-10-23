@@ -95,7 +95,7 @@ assert.equal(resolvePstackConfigFile("pi", {}), join(homedir(), ".pi", "agent", 
   assert.equal(await gate({ toolName: "read", input: { command: "git push" } }, { hasUI: false }), undefined);
   assert.deepEqual(await gate({ toolName: "bash", input: { command: "git push" } }, { hasUI: false }), {
    block: true,
-   reason: "git push requires explicit user confirmation; non-interactive Pi cannot request it.",
+   reason: "git push requires explicit user confirmation; a non-interactive host cannot request it.",
   });
   assert.equal(await gate({ toolName: "bash", input: { command: "git push" } }, { hasUI: true, ui: { confirm } }), undefined);
   assert.equal(prompts, 1);

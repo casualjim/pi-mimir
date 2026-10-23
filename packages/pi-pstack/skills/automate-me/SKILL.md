@@ -1,6 +1,6 @@
 ---
 name: automate-me
-description: "Use for \"automate me\", \"create/update/refresh my -mode skill\", \"turn/capture my preferences or working style into a skill\", or wanting agents to follow how the user works. Drafts or revises a personal -mode skill via Pi skill authoring + unslop, optionally pulling fresh evidence from recent transcripts."
+description: "Use for \"automate me\", \"create/update/refresh my -mode skill\", \"turn/capture my preferences or working style into a skill\", or wanting agents to follow how the user works. Drafts or revises a personal -mode skill via skill authoring + unslop, optionally pulling fresh evidence from recent transcripts."
 disable-model-invocation: true
 ---
 
@@ -8,13 +8,13 @@ disable-model-invocation: true
 
 A guided flow for turning the user's working conventions into a skill agents will follow. The output is one `-mode` skill tailored to them (e.g. `jay-mode`, `priya-mode`).
 
-This skill orchestrates three others: an inline mining pass (see step 1), the Pi Agent Skills standard (authoring), and the **unslop** skill (prose discipline). It sequences them; it doesn't replace them.
+This skill orchestrates three others: an inline mining pass (see step 1), the Agent Skills standard (authoring), and the **unslop** skill (prose discipline). It sequences them; it doesn't replace them.
 
 ## Flow
 
 ### 0. Check for an existing skill
 
-Look recursively for `.pi/skills/**/*-mode/SKILL.md` and `~/.pi/agent/skills/*-mode/SKILL.md` matching the user's handle. Mode skills can live in a personal category directory (`.pi/skills/<handle>/`), not only at the top level. If one exists, confirm intent with `a user question` (unless they already said "update my skill" or similar):
+Look recursively for a `*-mode/SKILL.md` matching the user's handle in the active host's project and user skill roots (`.pi/skills/` and `~/.pi/agent/skills/` under pi, `.omp/skills/` and `~/.omp/agent/skills/` under omp). Mode skills can live in a personal category directory under that root (`<root>/<handle>/`), not only at the top level. If one exists, confirm intent with `a user question` (unless they already said "update my skill" or similar):
 
 - Update the existing skill (default for repeat runs)
 - Start fresh (rare; ask why before doing it)
@@ -26,9 +26,9 @@ Update mode changes the rest of the flow:
 
 ### 1. Mine their history
 
-Locate prior Pi sessions for the current working directory with the `recall` tool before fanning out. Read only paths it returns. Never glob `~/.pi/agent/sessions/`, because that crosses project boundaries and may read unrelated private chats.
+Locate prior sessions for the current working directory with the `recall` tool before fanning out. Read only paths it returns. Never glob the host's global session directory, because that crosses project boundaries and may read unrelated private chats.
 
-Survey recent agent conversations within that scope for recurring patterns. Run multiple parallel subagents across slices of history (e.g. last 2-4 weeks, split into 3 slices so each has enough material). Each slice mining subagent reads transcripts from the workspace-scoped path the parent provides, looks for the signals below, and returns a short structured list of patterns it saw with evidence pointers. Default signals worth hunting:
+Survey recent agent conversations within that scope for recurring patterns. Run multiple parallel subagents across slices of history (e.g. last 2-4 weeks, split into 3 slices so each has enough material). Pick each subagent's `thinking` level for the job, per the Subagents section of the **poteto-mode** skill. Each slice mining subagent reads transcripts from the workspace-scoped path the parent provides, looks for the signals below, and returns a short structured list of patterns it saw with evidence pointers. Default signals worth hunting:
 
 - Response preferences (length, tone, format, "dumb it down" corrections)
 - Delegation habits (subagents, models, specialized workflows, parallelism)
@@ -62,17 +62,17 @@ The **poteto-mode** skill shows the shape. Read it for granularity. Don't copy i
 
 ### 4. Draft the skill
 
-Use the Pi Agent Skills standard to author the skill. Placement:
+Use the Agent Skills standard to author the skill. Placement:
 
-- Path: preserve an existing mode skill's category. For a new mode, use `.pi/skills/<handle>/<handle>-mode/SKILL.md` when the repo has an established personal category for that handle; otherwise default to `.pi/skills/<handle>-mode/SKILL.md` in the project (or `~/.pi/agent/skills/<handle>-mode/` if the user prefers a personal skill).
+- Path: preserve an existing mode skill's category. For a new mode, use `<project skill root>/<handle>/<handle>-mode/SKILL.md` when the repo has an established personal category for that handle; otherwise default to `<project skill root>/<handle>-mode/SKILL.md`, or the host's user skill root for a personal skill. The project root is `.pi/skills` under pi and `.omp/skills` under omp; the user root is `~/.pi/agent/skills` under pi and `~/.omp/agent/skills` under omp.
 - Handle: the user's first name or chosen identifier.
 - Frontmatter `description`: trigger on their name + `/<handle>-mode` + "work in their style", not on generic keywords like "write code" or "review PR".
-- Frontmatter formatting: follow the Pi Agent Skills standard's YAML rules. Keep `description` as one YAML scalar; quote it or use `description: >-` with indented continuation lines when punctuation or wrapping requires it.
+- Frontmatter formatting: follow the Agent Skills standard's YAML rules. Keep `description` as one YAML scalar; quote it or use `description: >-` with indented continuation lines when punctuation or wrapping requires it.
 - Frontmatter `disable-model-invocation: true` by default. Mode skills are heavy and opinionated; they should only apply when the user explicitly invokes them (by name or slash command), not auto-trigger on description matching. Opt out only if the user explicitly wants their mode to apply on every turn.
 
 ### 5. Iterate on prose
 
-Apply the **unslop** skill and the Pi Agent Skills standard's writing guidelines to every line. Both apply to any agent-read prose, not just skills.
+Apply the **unslop** skill and the Agent Skills standard's writing guidelines to every line. Both apply to any agent-read prose, not just skills.
 
 Show the draft to the user and take feedback. Expect multiple iterations. Cut ruthlessly; a mode skill is not a manual.
 
@@ -91,17 +91,17 @@ Work in a worktree off main. Commit and open a PR so the user can review it. Don
 
 ## Evaluation
 
-A `-mode` skill is subjective output. A the Pi Agent Skills standard-style test/iterate benchmark loop isn't useful here. Vibe-check with the user: does it read like them? Did it miss anything? Then ship.
+A `-mode` skill is subjective output. A the Agent Skills standard-style test/iterate benchmark loop isn't useful here. Vibe-check with the user: does it read like them? Did it miss anything? Then ship.
 
 Run a description-optimization loop only if the skill's trigger accuracy turns out to be a problem in practice.
 
 ## When not to use
 
-- User wants a task-specific skill (not working conventions): the Pi Agent Skills standard alone, no mining required.
+- User wants a task-specific skill (not working conventions): the Agent Skills standard alone, no mining required.
 - User wants to capture one narrow workflow (e.g. "how I write commit messages"): that's a regular skill, not a mode skill.
 
 ## Reference files
 
 - The **poteto-mode** skill: example of the output shape.
 - The **unslop** skill: prose discipline for every line.
-- the Pi Agent Skills standard: skill authoring process and writing guidelines.
+- the Agent Skills standard: skill authoring process and writing guidelines.

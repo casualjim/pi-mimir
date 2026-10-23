@@ -29,7 +29,7 @@ Before spawning investigators, build the seed context inline: file paths and lin
 
 ### Discovery
 
-Before spawning investigators, list the available MCPs from the Pi environment. Use the available-tools map when present. Otherwise inspect the MCP configuration this Pi session exposes for enabled MCP servers.
+Before spawning investigators, list the available MCPs from the host environment. Use the available-tools map when present. Otherwise inspect the MCP configuration this session exposes for enabled MCP servers.
 
 Map each available MCP to one evidence category:
 
@@ -48,7 +48,8 @@ Spawn one investigator per category that has a matching MCP, all in a single mes
 Subagent config (each):
 - `agent`: `poteto-agent`
 - `model`: your configured why-investigators model (default `inherit-parent`)
-- use a normal Pi child process. **Do not use restricted-tool mode.** It strips MCP access, which disables MCP-backed investigators entirely. Investigators still shouldn't write anything. That's a posture, not a sandbox.
+- `thinking`: pick the level the category needs, per the Subagents section of the **poteto-mode** skill
+- use a normal child process. **Do not use restricted-tool mode.** It strips MCP access, which disables MCP-backed investigators entirely. Investigators still shouldn't write anything. That's a posture, not a sandbox.
 
 Each investigator's prompt is `references/investigator-prompt.md` filled in, plus:
 - the category playbook `references/sources/<source>.md` for the selected MCP, adapted from the examples in `references/source-playbook.md`
@@ -82,7 +83,8 @@ Spawn one synthesizer subagent:
 
 - `agent`: `poteto-agent`
 - `model`: your configured why-synthesizer model (default `inherit-parent`)
-- use a normal Pi child process. The synthesizer's quality check spot-verifies citations, which can require MCP access. Tool availability varies by Pi configuration.
+- `thinking`: judgment work wants a high level, per the Subagents section of the **poteto-mode** skill
+- use a normal child process. The synthesizer's quality check spot-verifies citations, which can require MCP access. Tool availability varies by host configuration.
 
 The synthesizer gets:
 1. The investigator findings, including any null results and any categories skipped with justification
