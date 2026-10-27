@@ -78,6 +78,16 @@ A full settings file:
 | `balanced` | Default: ask-gate on, no steer cap, everything recorded |
 | `recall` | Every guarded call judged, everything recorded and surfaced |
 
+### Holds and operator approval
+
+Two sources can hold a bash call: the offline floor (static catastrophic-command patterns, no key needed) and the judge (any answer at or above 0.9). A held call has three release paths:
+
+1. **UI confirm at the hold.** When the host has a UI, dredd asks the operator immediately ("Run it once?"). Yes runs the original call right away; no blocks it and marks it declined. No judge involved.
+2. **Reply token.** Without a UI (or after a blocked call), the operator's next reply `dredd: approve` releases the identical command exactly once. Deterministic, full-line match, and it works while the judge is unreachable.
+3. **Natural-language yes.** When the judge is reachable, one noul question (at or above 0.7) reads whether the operator's reply approves the held command.
+
+Judge failure never releases a hold on its own: floor and judge holds stand until one of the paths above clears them, while ordinary judged calls fail open. Every confirm, decline, and token release is written to the ledger under guard `approval`.
+
 ## Development
 
 ```bash

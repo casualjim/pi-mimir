@@ -6,7 +6,7 @@ import { createRuntime, registerGate, registerSpeed } from "../extensions/dredd"
 import type { DreddConfig } from "../lib/settings";
 
 interface ToolCallHandler {
-	(event: { toolName: string; input: unknown; prompt?: string }, ctx: { cwd: string; hasUI: boolean; ui: { notify: (text: string, level: string) => void } }): Promise<{ block: boolean; reason: string } | undefined>;
+	(event: { toolName: string; input: unknown; prompt?: string }, ctx: { cwd: string; hasUI: boolean; ui: { notify: (text: string, level: string) => void; confirm?: (title: string, message: string) => Promise<boolean> } }): Promise<{ block: boolean; reason: string } | undefined>;
 }
 
 function fakePi() {
@@ -56,10 +56,13 @@ function tempEnv() {
 	};
 }
 
-async function callGate(pi: ReturnType<typeof fakePi>, command: string) {
+async function callGate(pi: ReturnType<typeof fakePi>, command: string, ctx: { hasUI?: boolean; confirm?: (title: string, message: string) => Promise<boolean> } = {}) {
 	const handler = pi.listeners.find(l => l.event === "tool_call")?.handler;
 	if (!handler) throw new Error("no tool_call handler registered");
-	return handler({ toolName: "bash", input: { command } }, { cwd: "/proj", hasUI: false, ui: { notify: () => {} } });
+	return handler(
+		{ toolName: "bash", input: { command } },
+		{ cwd: "/proj", hasUI: ctx.hasUI ?? false, ui: { notify: () => {}, confirm: ctx.confirm } },
+	);
 }
 
 describe("bash gate end to end", () => {
@@ -260,6 +263,99 @@ describe("hold approval loop", () => {
 			expect(runtime.approved).toBeNull();
 			const stillHeld = await callGate(pi, command);
 			expect(stillHeld?.block).toBe(true);
+		} finally {
+			env.restore();
+			rmSync(env.dir, { recursive: true, force: true });
+		}
+	});
+
+	it("releases a floor hold at the UI confirm without touching the judge", async () => {
+		const env = tempEnv();
+		try {
+			const runtime = { ...createRuntime(fakePi() as never), config: config() };
+			const pi = fakePi();
+			registerGate(pi as never, runtime);
+			const originalFetch = globalThis.fetch;
+			globalThis.fetch = (async () => { throw new Error("judge must not be called"); }) as unknown as typeof fetch;
+			try {
+				const result = await callGate(pi, "git push --force origin main", { hasUI: true, confirm: async () => true });
+				expect(result).toBeUndefined();
+			} finally {
+				globalThis.fetch = originalFetch;
+			}
+			expect(runtime.pendingHold).toBeNull();
+			expect(runtime.approved).toBeNull();
+		} finally {
+			env.restore();
+			rmSync(env.dir, { recursive: true, force: true });
+		}
+	});
+
+	it("blocks without pendingHold when the operator declines the confirm", async () => {
+		const env = tempEnv();
+		try {
+			const runtime = { ...createRuntime(fakePi() as never), config: config() };
+			const pi = fakePi();
+			registerGate(pi as never, runtime);
+			const declined = await callGate(pi, "git push --force origin main", { hasUI: true, confirm: async () => false });
+			expect(declined?.block).toBe(true);
+			expect(declined?.reason).toContain("declined");
+			expect(runtime.pendingHold).toBeNull();
+		} finally {
+			env.restore();
+			rmSync(env.dir, { recursive: true, force: true });
+		}
+	});
+
+	it("falls back to the block-and-hold path when confirm throws", async () => {
+		const env = tempEnv();
+		try {
+			const runtime = { ...createRuntime(fakePi() as never), config: config() };
+			const pi = fakePi();
+			registerGate(pi as never, runtime);
+			const command = "git push --force origin main";
+			const held = await callGate(pi, command, {
+				hasUI: true,
+				confirm: async () => { throw new Error("ui gone"); },
+			});
+			expect(held?.block).toBe(true);
+			expect(runtime.pendingHold?.command).toBe(command);
+		} finally {
+			env.restore();
+			rmSync(env.dir, { recursive: true, force: true });
+		}
+	});
+
+	it("releases the held command via the reply token with the judge unreachable", async () => {
+		const env = tempEnv();
+		try {
+			const runtime = { ...createRuntime(fakePi() as never), config: config() };
+			const pi = fakePi();
+			registerGate(pi as never, runtime);
+			registerSpeed(pi as never, runtime);
+			const command = "git push --force origin main";
+			const held = await callGate(pi, command);
+			expect(held?.block).toBe(true);
+			expect(runtime.pendingHold?.command).toBe(command);
+
+			const originalFetch = globalThis.fetch;
+			globalThis.fetch = (async () => { throw new Error("judge unreachable"); }) as unknown as typeof fetch;
+			try {
+				const startHandler = pi.listeners.find(l => l.event === "before_agent_start")?.handler;
+				if (!startHandler) throw new Error("no before_agent_start handler registered");
+				await startHandler({ toolName: "user", input: {}, prompt: "dredd: approve" }, { cwd: "/proj", hasUI: false, ui: { notify: () => {} } });
+			} finally {
+				globalThis.fetch = originalFetch;
+			}
+			expect(runtime.approved?.command).toBe(command);
+			expect(runtime.pendingHold).toBeNull();
+
+			// Identical retry passes once and consumes the approval.
+			expect(await callGate(pi, command)).toBeUndefined();
+			expect(runtime.approved).toBeNull();
+			// A second attempt is held again.
+			const reheld = await callGate(pi, command);
+			expect(reheld?.block).toBe(true);
 		} finally {
 			env.restore();
 			rmSync(env.dir, { recursive: true, force: true });

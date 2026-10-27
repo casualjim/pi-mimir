@@ -11,11 +11,18 @@
 const FLOOR: ReadonlyArray<{ id: string; test: RegExp; reason: string }> = [
 	{ id: "force-push", test: /push\s+(?:--force\b|--force-with-lease\b|-f\b)/, reason: "force push rewrites remote history" },
 	{ id: "reset-hard", test: /git\s+reset\s+--hard\b/, reason: "reset --hard discards uncommitted work" },
-	{ id: "rm-rf-root", test: /rm\s+(?:-[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*|-[a-zA-Z]*f[a-zA-Z]*r[a-zA-Z]*)\s+(?:\/|~\s*$|~\/$|\$HOME)/, reason: "recursive delete at or above home" },
+	{ id: "rm-rf-root", test: /rm\s+(?:-[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*|-[a-zA-Z]*f[a-zA-Z]*r[a-zA-Z]*)\s+(?:-{1,2}[a-zA-Z-]+\s+)*(?:\/(?=\s|$)|~\s*$|~\/$|\$HOME)/, reason: "recursive delete at or above home" },
 	{ id: "drop-table", test: /\bDROP\s+(?:TABLE|DATABASE)\b/i, reason: "DROP destroys schema or data" },
 	{ id: "chmod-777", test: /chmod\s+(?:-R\s+)?777\b/, reason: "world-writable permissions" },
 	{ id: "curl-pipe-shell", test: /(?:curl|wget)[^|;&]*\|\s*(?:sudo\s+)?(?:ba|z|da|k|a)?sh\b/, reason: "remote script piped straight into a shell" },
 ];
+
+/**
+ * The exact operator reply that releases a held command with no judge round
+ * trip: an explicit yes is a fact, not a judgment call. Full-line match only,
+ * so casual prose can never approve anything.
+ */
+export const APPROVAL_REPLY = /^\s*dredd:\s*approve\s*$/i;
 
 export interface FloorHit {
 	id: string;

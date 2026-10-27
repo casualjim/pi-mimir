@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { floorCheck, foldVerdict, gateQuestions, isReadOnlyCommand, HOLD_THRESHOLD, WARN_THRESHOLD } from "../lib/gate";
+import { APPROVAL_REPLY, floorCheck, foldVerdict, gateQuestions, isReadOnlyCommand, HOLD_THRESHOLD, WARN_THRESHOLD } from "../lib/gate";
 import type { Answers } from "../lib/jev";
 
 describe("offline floor", () => {
@@ -19,6 +19,23 @@ describe("offline floor", () => {
 		expect(floorCheck("npm test")).toEqual([]);
 		expect(floorCheck("git commit -m 'x'")).toEqual([]);
 		expect(floorCheck("rm -rf node_modules")).toEqual([]);
+	});
+
+	it("anchors the recursive-delete floor to root and home, not any absolute path", () => {
+		expect(floorCheck("rm -rf /").map(h => h.id)).toContain("rm-rf-root");
+		expect(floorCheck("rm -rf / ").map(h => h.id)).toContain("rm-rf-root");
+		expect(floorCheck("sudo rm -rf --no-preserve-root /").map(h => h.id)).toContain("rm-rf-root");
+		expect(floorCheck("rm -fr ~").map(h => h.id)).toContain("rm-rf-root");
+		expect(floorCheck("rm -rf $HOME").map(h => h.id)).toContain("rm-rf-root");
+		expect(floorCheck("rm -rf /tmp/addy-e2e-x1 /tmp/addy-pi-x2")).toEqual([]);
+		expect(floorCheck("rm -rf /Users/me/project/build")).toEqual([]);
+	});
+
+	it("accepts only the exact approval reply token", () => {
+		expect(APPROVAL_REPLY.test("dredd: approve")).toBe(true);
+		expect(APPROVAL_REPLY.test("  DREDD: APPROVE ")).toBe(true);
+		expect(APPROVAL_REPLY.test("please dredd: approve this")).toBe(false);
+		expect(APPROVAL_REPLY.test("do the delete")).toBe(false);
 	});
 });
 

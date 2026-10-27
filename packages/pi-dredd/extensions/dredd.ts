@@ -6,7 +6,7 @@ import { Type } from "typebox";
 import { detectDreddHost, effectiveConfig, loadSettings, resolveSettingsFile, type DreddConfig } from "../lib/settings";
 import { openLedger, type ViolationsDb } from "../lib/ledger";
 import { forgetLesson, recordLesson, type LessonsStore } from "../lib/memory";
-import { floorCheck, gateQuestions, isReadOnlyCommand } from "../lib/gate";
+import { APPROVAL_REPLY, floorCheck, gateQuestions, isReadOnlyCommand } from "../lib/gate";
 import { runGate } from "../lib/gate-runtime";
 import { ask } from "../lib/jev";
 import { causeQuestions, classifyCheckResult, doneQuestions, noteFailure, screenQuestions, securityQuestions, slopQuestions, stuckDue, stuckQuestions, type AttemptWindow } from "../lib/verifiers";
@@ -158,6 +158,40 @@ export function createRuntime(pi: ExtensionAPI): DreddRuntime {
 	return { config, lessons: loadLessons(path.join(dir, LESSONS_FILE)), ledger: openLedger(path.join(dir, "violations.db")), host, pendingHold: null, approved: null };
 }
 
+type GateUi = { notify(message: string, level?: "error" | "info" | "warning"): void; confirm?(title: string, message: string): Promise<boolean> };
+
+/**
+ * Interactive release at the moment of the hold: an operator's yes is a fact,
+ * not a judgment call, so it never routes through the judge. "unavailable"
+ * (no UI, no confirm surface, or the dialog failed) leaves the hold to take
+ * the reply-token or judge-approval path instead; every outcome is ledgered.
+ */
+async function confirmAtHold(
+	ctx: { hasUI: boolean; ui: GateUi },
+	runtime: DreddRuntime,
+	command: string,
+	reason: string,
+	sessionId: string | null,
+	projectRoot: string,
+): Promise<"approved" | "declined" | "unavailable"> {
+	if (!ctx.hasUI || typeof ctx.ui.confirm !== "function") return "unavailable";
+	let approved: boolean;
+	try {
+		approved = await ctx.ui.confirm("dredd held a command", `${reason}\n\n${command.slice(0, 400)}\n\nRun it once?`);
+	} catch (error) {
+		runtime.ledger.insert({
+			timestamp: Date.now(), sessionId, projectRoot, guard: "approval", tool: "bash",
+			subject: command.slice(0, 400), finding: `ui confirm failed: ${error instanceof Error ? error.message : String(error)}`, score: null, steered: false,
+		});
+		return "unavailable";
+	}
+	runtime.ledger.insert({
+		timestamp: Date.now(), sessionId, projectRoot, guard: "approval", tool: "bash",
+		subject: command.slice(0, 400), finding: approved ? "operator approved at hold (ui confirm)" : "operator declined at hold (ui confirm)", score: null, steered: false,
+	});
+	return approved ? "approved" : "declined";
+}
+
 /**
  * The bash gate: offline floor first (holds with no key), then the judge
  * under capture rules. `recall` judges everything; `strict` keeps the
@@ -190,14 +224,20 @@ export function registerGate(pi: ExtensionAPI, runtime: DreddRuntime): void {
 		}
 		const floorHits = floorCheck(command);
 		if (floorHits.length > 0) {
+			const reason = floorHits.map(h => h.reason).join("; ");
 			ledger.insert({
 				timestamp: Date.now(), sessionId, projectRoot: cwd, guard: "gate", tool: "bash",
 				subject: command.slice(0, 400), finding: `floor: ${floorHits.map(h => h.id).join(",")}`, score: null, steered: false,
 			});
+			const released = await confirmAtHold(ctx, runtime, command, reason, sessionId, cwd);
+			if (released === "approved") return undefined;
+			if (released === "declined") {
+				return { block: true, reason: `pi-dredd blocked this: ${reason}. The operator declined; do not retry the command.` };
+			}
 			runtime.pendingHold = { command, ts: Date.now() };
 			return {
 				block: true,
-				reason: `pi-dredd blocked this: ${floorHits.map(h => h.reason).join("; ")}. Tell the operator what was blocked and why; run it only when they say yes.`,
+				reason: `pi-dredd blocked this: ${reason}. Tell the operator what was blocked and why; run it only when they say yes. Their reply \`dredd: approve\` releases the identical command once without the judge.`,
 			};
 		}
 		if (config.capture !== "recall" && isReadOnlyCommand(command)) return undefined;
@@ -208,11 +248,16 @@ export function registerGate(pi: ExtensionAPI, runtime: DreddRuntime): void {
 		);
 		if (outcome.verdict.level === "hold") {
 			const reason = outcome.verdict.reasons.join("; ");
+			const released = await confirmAtHold(ctx, runtime, command, reason, sessionId, cwd);
+			if (released === "approved") return undefined;
+			if (released === "declined") {
+				return { block: true, reason: `pi-dredd blocked this: ${reason}. The operator declined; do not retry the command.` };
+			}
 			runtime.pendingHold = { command, ts: Date.now() };
 			if (ctx.hasUI) ctx.ui.notify(`dredd: held a bash call (${reason})`, "warning");
 			return {
 				block: true,
-				reason: `pi-dredd blocked this: ${reason}. Tell the operator what was blocked and why, and ask whether to run it anyway.`,
+				reason: `pi-dredd blocked this: ${reason}. Tell the operator what was blocked and why, and ask whether to run it anyway. Their reply \`dredd: approve\` releases the identical command once without the judge.`,
 			};
 		}
 		if (outcome.verdict.level === "warn" && ctx.hasUI) {
@@ -477,30 +522,41 @@ export function registerSpeed(pi: ExtensionAPI, runtime: DreddRuntime): void {
 	pi.on("before_agent_start", async (event, ctx) => {
 		if (!config.enabled) return undefined;
 		const prompt = typeof (event as { prompt?: unknown }).prompt === "string" ? (event as { prompt: string }).prompt : "";
-		// Approval check: when a command is held and the operator replies,
-		// one judge question reads whether the reply approves exactly that command.
+		// Approval check: when a command is held and the operator replies, the
+		// exact token `dredd: approve` releases it with no judge; otherwise one
+		// judge question reads whether the reply approves exactly that command.
 		if (runtime.pendingHold && prompt.trim().length > 0) {
 			const held = runtime.pendingHold.command;
-			try {
-				const outcome = await ask(
-					{ backend: config.backend, apiKey: config.apiKey, model: config.model, timeoutMs: config.timeoutMs, keyResolver: config.keyResolver },
-					{ heldCommand: held.slice(0, 400), operatorReply: prompt.slice(0, 500), guard: "approval" },
-					{ approves: { type: "noul", instructions: `The gate held this command: "${held.slice(0, 400)}". Does the operator's reply approve running exactly that command?` } },
-					process.env,
-					fetch,
-				);
-				const answer = outcome.answers.approves;
-				if (answer?.type === "noul" && answer.noul >= 0.7) {
-					runtime.approved = { command: held };
-					runtime.pendingHold = null;
-					if (ctx.hasUI) ctx.ui.notify(`dredd: operator approval recorded for the held command`, "info");
-				}
-			} catch (error) {
-				// The hold stands; the operator can delete or run the command themselves.
+			if (APPROVAL_REPLY.test(prompt)) {
+				runtime.approved = { command: held };
+				runtime.pendingHold = null;
 				runtime.ledger.insert({
 					timestamp: Date.now(), sessionId: null, projectRoot: ctx.cwd, guard: "approval",
-					tool: "bash", subject: held.slice(0, 400), finding: `approval judge unreachable: ${error instanceof Error ? error.message : String(error)}`, score: null, steered: false,
+					tool: "bash", subject: held.slice(0, 400), finding: "operator approved via reply token", score: null, steered: false,
 				});
+				if (ctx.hasUI) ctx.ui.notify(`dredd: operator approval recorded via reply token`, "info");
+			} else {
+				try {
+					const outcome = await ask(
+						{ backend: config.backend, apiKey: config.apiKey, model: config.model, timeoutMs: config.timeoutMs, keyResolver: config.keyResolver },
+						{ heldCommand: held.slice(0, 400), operatorReply: prompt.slice(0, 500), guard: "approval" },
+						{ approves: { type: "noul", instructions: `The gate held this command: "${held.slice(0, 400)}". Does the operator's reply approve running exactly that command?` } },
+						process.env,
+						fetch,
+					);
+					const answer = outcome.answers.approves;
+					if (answer?.type === "noul" && answer.noul >= 0.7) {
+						runtime.approved = { command: held };
+						runtime.pendingHold = null;
+						if (ctx.hasUI) ctx.ui.notify(`dredd: operator approval recorded for the held command`, "info");
+					}
+				} catch (error) {
+					// The hold stands; the reply token and the UI confirm still release it without a judge.
+					runtime.ledger.insert({
+						timestamp: Date.now(), sessionId: null, projectRoot: ctx.cwd, guard: "approval",
+						tool: "bash", subject: held.slice(0, 400), finding: `approval judge unreachable: ${error instanceof Error ? error.message : String(error)}`, score: null, steered: false,
+					});
+				}
 			}
 		}
 		const candidates = fillSkillPaths(skillCandidates(pi, event), runtime.host);
