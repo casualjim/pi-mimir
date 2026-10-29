@@ -73,6 +73,7 @@ jobs:
           publish_if_missing @casualjim/pi-heimdall packages/pi-heimdall
           publish_if_missing @casualjim/pi-pstack packages/pi-pstack
           publish_if_missing @casualjim/pi-herdr-agents packages/pi-herdr-agents
+          publish_if_missing @casualjim/pi-addy-skills packages/pi-addy-skills
 
       - name: Determine bump level
         id: bump

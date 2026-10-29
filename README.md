@@ -4,6 +4,7 @@
 
 ## Workspace packages
 
+- `packages/pi-addy-skills` — `@casualjim/pi-addy-skills`; Addy Osmani's agent-skills lifecycle workflows, reviewer personas, and `as:` prompts for pi and omp.
 - `packages/pi-cavekit` — `@casualjim/pi-cavekit`; Pi prompt templates and skills for root `SPEC.md` workflows.
 - `packages/pi-caveman` — `@casualjim/pi-caveman`; terse-mode skills, Cavecrew guidance, and Pi-native Caveman extension hooks.
 - `packages/pi-crumbs` — `@casualjim/pi-crumbs`; Crumbs CLI discovery guidance plugin, raw-discovery reminders, graph augmentation, and public `crumbs` skill. Assumes `crumbs` on `$PATH`; disables gracefully when missing.
@@ -15,6 +16,7 @@
 Install whichever packages you need:
 
 ```text
+pi install npm:@casualjim/pi-addy-skills
 pi install npm:@casualjim/pi-cavekit
 pi install npm:@casualjim/pi-caveman
 pi install npm:@casualjim/pi-crumbs
@@ -25,6 +27,7 @@ pi install npm:@casualjim/pi-pstack
 For local development from this checkout, install package paths instead:
 
 ```text
+pi install ./packages/pi-addy-skills
 pi install ./packages/pi-cavekit
 pi install ./packages/pi-caveman
 pi install ./packages/pi-crumbs

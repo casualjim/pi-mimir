@@ -1,0 +1,60 @@
+{
+  "name": "@casualjim/pi-addy-skills",
+  "version": "0.1.0",
+  "description": "Addy Osmani's agent-skills ported for pi and omp: lifecycle skills, reviewer personas as native omp task agents (pi-herdr role pack on pi), and as: prompts with omp tooling guidance.",
+  "license": "MIT",
+  "author": "casualjim",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "omp",
+    "skills",
+    "agents",
+    "prompts"
+  ],
+  "type": "module",
+  "files": [
+    "extensions/",
+    "skills/",
+    "commands/",
+    "agents/",
+    "references/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/casualjim/pi-mimir"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/addy-skills"
+    ],
+    "skills": [
+      "./skills"
+    ],
+    "prompts": [
+      "./commands"
+    ]
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "check:pack": "pnpm pack --dry-run",
+    "test": "bun tests/agents-contract.ts && bun tests/content-contract.ts",
+    "test:surface": "bun tests/integration/run-surface-e2e.ts"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^1.2.0",
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  }
+}
