@@ -27,7 +27,7 @@ type InputHandler = (
 >;
 
 void describe("input steering (cooperative scheduler)", () => {
-    void it("aborts the turn, backgrounds the job, and resubmits the message as a followUp", async () => {
+    void it("backgrounds the job and resubmits the message as a followUp without aborting the turn", async () => {
         const reg = new BackgroundRegistry();
         const sent: { customType?: string }[] = [];
         const resubmitted: ResubmittedMessage[] = [];
@@ -53,7 +53,10 @@ void describe("input steering (cooperative scheduler)", () => {
 
         assert.equal(result.action, "handled");
         assert.equal(pauseReason, "manual");
-        assert.equal(abortCalled, true);
+        // Backgrounding must not abort the turn: the pause already ends the bash
+        // tool, while an abort cancels the run and makes external extensions treat
+        // a cooperative steering request as a hard failure.
+        assert.equal(abortCalled, false);
         // Steering suppresses the synthetic "backgrounded, continue working"
         // notice — the user's own resubmitted message drives the next turn,
         // so no redundant agent message is sent.
@@ -88,7 +91,7 @@ void describe("input steering (cooperative scheduler)", () => {
         // No synthetic agent messages are sent during steering (only the user's
         // resubmitted text), and the second input is ignored (no active slot).
         assert.equal(sent.length, 0);
-        assert.equal(abortCalls, 1);
+        assert.equal(abortCalls, 0);
         assert.deepEqual(resubmitted, [{ text: "first", deliverAs: "followUp" }]);
     });
 
