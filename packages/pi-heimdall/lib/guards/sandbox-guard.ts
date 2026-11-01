@@ -58,6 +58,8 @@ export const BASH_REGISTERED_SYMBOL = Symbol.for("pi-heimdall.bash-registered");
 export interface OmpBashRenderer {
  renderCall: NonNullable<ToolDefinition<any, any, any>["renderCall"]>;
  renderResult: NonNullable<ToolDefinition<any, any, any>["renderResult"]>;
+ describeCall?: unknown;
+ describeResult?: unknown;
 }
 
 export function registerSandboxGuard(
@@ -173,6 +175,8 @@ export function registerSandboxGuard(
      ? {
       renderCall: ompBashRenderer.renderCall,
       renderResult: ompBashRenderer.renderResult,
+      describeCall: ompBashRenderer.describeCall,
+      describeResult: ompBashRenderer.describeResult,
       mergeCallAndResult: true,
      }
      : {}),

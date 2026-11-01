@@ -81,6 +81,9 @@ registered. Installing either package alone also works.
 
 ## Troubleshooting
 
+Under omp, Heimdall uses the host's bash renderers, including native surface
+rendering when available for terminals such as Tern.
+
 ### Background-task packages
 
 pi-heimdall no longer ships a background-task extension. Use

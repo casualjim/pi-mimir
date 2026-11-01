@@ -34,8 +34,10 @@ export interface PickResult {
 	error?: string;
 }
 
-/** Questions per batch: the option count the operator verified live against the running server. */
-export const BATCH_SIZE = 26;
+/** Questions per batch: 15 fits + the switch noul = 16, the wire cap the
+ * openrouter decisions endpoint enforces; 27-question batches 404 (ledger
+ * 2026-10-29: gate requests under the cap succeed, every pick batch fails). */
+export const BATCH_SIZE = 15;
 /** A candidate steers only at or above this fit score. */
 export const FIT_FLOOR = 0.7;
 /** Ceiling on the per-batch budget: a slow judge must not stall the turn. */

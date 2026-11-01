@@ -88,7 +88,7 @@ describe("pickSkill", () => {
 			return new Response(JSON.stringify({ answers, usage: { input_tokens: 10 } }), { status: 200 });
 		}) as unknown as typeof fetch;
 		const result = await pickSkill(config(), "review this borrow checker error", undefined, catalog, { LOCAL_JUDGE_KEY: "k" }, capturing);
-		expect(observedBatches.length).toBe(4);
+		expect(observedBatches.length).toBe(7);
 		expect(observedBatches[0]).toBe(BATCH_SIZE);
 		expect(observedBatches.every(size => size <= BATCH_SIZE)).toBe(true);
 		expect(new Set(observedOptions).size).toBe(101);
@@ -169,8 +169,8 @@ describe("rankCandidates", () => {
 });
 
 describe("constants", () => {
-	it("batch size is the operator-verified option count; fit floor gates steers", () => {
-		expect(BATCH_SIZE).toBe(26);
+	it("batch size keeps each request at the 16-question wire cap; fit floor gates steers", () => {
+		expect(BATCH_SIZE).toBe(15);
 		expect(FIT_FLOOR).toBe(0.7);
 	});
 });
