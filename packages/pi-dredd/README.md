@@ -2,6 +2,8 @@
 
 Judge-everything guard extension for [Pi](https://pi.dev) and omp. The combination of pi-warden's guards and ohmyjev's speed features, with its own decisions client: no pi-typesafe dependency, a first-class violation ledger, direct-trust memory, and a pluggable question registry.
 
+pi-dredd does not trim, deduplicate, or save bash output. Use pi-headroom for output reduction.
+
 ## What it fixes
 
 | pi-warden behavior | pi-dredd behavior |

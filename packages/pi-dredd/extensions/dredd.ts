@@ -11,7 +11,7 @@ import { runGate } from "../lib/gate-runtime";
 import { ask } from "../lib/jev";
 import { causeQuestions, classifyCheckResult, doneQuestions, noteFailure, screenQuestions, securityQuestions, slopQuestions, stuckDue, stuckQuestions, type AttemptWindow } from "../lib/verifiers";
 import { loadRules, projectRelPath, ruleQuestions, rulesForPath, ruleViolations, type RulesFile } from "../lib/rules";
-import { buildAppendix, dedupeRuns, repeatedTail, saveOutput, trimOutput, TRIM_OVER, type AppendixEntry } from "../lib/context";
+import { buildAppendix, repeatedTail, type AppendixEntry } from "../lib/context";
 import type { Question } from "../lib/jev";
 import { askJev, COMPACT_MIN_PERCENT } from "../lib/speed";
 import { forcedSkillMessage, pickSkill, skillBody, skillSteer, type SkillCandidate } from "../lib/skills";
@@ -392,41 +392,15 @@ export function registerVerifiers(pi: ExtensionAPI, runtime: DreddRuntime): void
 }
 
 /**
- * Context guards: trim and save long bash output, collapse repeated runs,
- * abort a stream repeating itself, and hand compaction an evidence
- * appendix. The runaway abort is offline and immediate.
+ * Stop runaway replies and hand compaction an evidence appendix.
+ * The runaway abort is offline and immediate.
  */
 export function registerContext(pi: ExtensionAPI, runtime: DreddRuntime): void {
-	const { config, ledger } = runtime;
-	let cwd = process.cwd();
-	let sessionId: string | null = null;
+	const { config } = runtime;
 	const appendix: AppendixEntry[] = [];
 
-	pi.on("session_start", (event, ctx) => {
-		cwd = ctx.cwd;
-		const withId = event as { sessionId?: unknown };
-		sessionId = typeof withId.sessionId === "string" ? withId.sessionId : null;
+	pi.on("session_start", () => {
 		appendix.length = 0;
-	});
-
-	pi.on("tool_result", async (event, ctx) => {
-		if (!config.enabled) return undefined;
-		if (event.toolName !== "bash") return undefined;
-		const text = event.content
-			.filter((part): part is { type: "text"; text: string } => part.type === "text")
-			.map(part => part.text)
-			.join("\n");
-		if (text.length <= TRIM_OVER) return undefined;
-		const key = event.toolCallId.replace(/[^a-zA-Z0-9-]/g, "").slice(0, 24) || "bash";
-		const saved = saveOutput(text, key);
-		appendix.push({ kind: "saved", text: saved.path });
-		const trimmed = trimOutput(dedupeRuns(text));
-		ledger.insert({
-			timestamp: Date.now(), sessionId, projectRoot: cwd, guard: "context", tool: "bash",
-			subject: `output ${text.length} chars -> ${trimmed.length}`, finding: `trim+save ${saved.path}`, score: null, steered: false,
-		});
-		if (ctx.hasUI) ctx.ui.notify(`dredd: trimmed a ${text.length}-character output; ${saved.pointer}`, "info");
-		return { content: [{ type: "text", text: trimmed }] };
 	});
 
 	pi.on("message_update", async (event, ctx) => {
