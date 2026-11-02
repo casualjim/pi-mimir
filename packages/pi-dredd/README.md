@@ -47,6 +47,7 @@ A full settings file:
   "capture": "balanced",
   "timeoutMs": 1500,
   "policies": ["never push to main"],
+  "drafterModel": "openai/gpt-4.1-mini",
   "questions": [
     { "id": "migrationRan", "type": "noul",
       "instructions": "Does this diff edit a migration that already ran?",
@@ -76,9 +77,13 @@ A full settings file:
 
 | Preset | Behavior |
 | --- | --- |
-| `strict` | Warden-like: offline ask-gate skips read-only calls, steer budget 3 |
+| `strict` | Judge bash calls, steer budget 3 |
 | `balanced` | Default: ask-gate on, no steer cap, everything recorded |
 | `recall` | Every guarded call judged, everything recorded and surfaced |
+
+### Corrections and lessons
+
+An operator message judged to be a standing rule can be recorded automatically. Dredd uses a host model to draft a lesson with an instruction and, when applicable, a trigger; it verifies the rewrite before saving. Drafting prefers omp's `@tiny`, then the optional `drafterModel` (`provider/model-id` from the host model registry), then the session model if no drafter is configured. An unresolved configured drafter fails visibly instead of silently using another model. Verification prefers `@judge` and falls back to the configured Dredd decision backend. Existing lessons remain in force and are not automatically consolidated. Use `/dredd lessons` to see their conditions. If drafting or verification is unavailable, the lesson is not recorded; the operator is notified when a UI is available.
 
 ### Holds and operator approval
 
@@ -97,5 +102,15 @@ pnpm install
 pnpm test        # hermetic vitest suite
 pnpm typecheck   # tsc --noEmit
 ```
+
+Live judge evals (`eval.ts`, cases from the real violation ledger; `eval-other.ts` for non-gate prompts) need a judge key and hit the configured backend:
+
+```bash
+DREDD_EVAL_MODEL='~liquid/d1-ultra-latest' bun packages/pi-dredd/eval.ts
+DREDD_EVAL_TIMEOUT=10000 ...        # per-request deadline, default 10000
+DREDD_EVAL_SKIP_LIVE=1 ...          # offline floor/threshold/error checks only
+```
+
+Exit code: 1 = a case failed or a live request errored; 2 = live sections skipped for a missing key.
 
 MIT licensed.

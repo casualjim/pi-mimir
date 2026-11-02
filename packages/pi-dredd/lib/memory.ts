@@ -7,13 +7,14 @@
  */
 
 export interface LessonRecord {
-	text: string;
-	confirmedAt: number;
-	source: string;
+ text: string;
+ trigger?: string;
+ confirmedAt: number;
+ source: string;
 }
 
 export interface LessonsStore {
-	lessons: LessonRecord[];
+ lessons: LessonRecord[];
 }
 
 export const LESSON_CHARS = 200;
@@ -24,20 +25,20 @@ export const LESSON_CHARS = 200;
  * and "task-bound" refusals are gone — the operator owns the taxonomy.
  */
 export function recordLesson(store: LessonsStore, raw: string, now: number, source: string): { reply: string; store: LessonsStore } {
-	const text = raw.trim();
-	if (text.length === 0) return { reply: "not recorded: empty lesson", store };
-	if (text.length > LESSON_CHARS) return { reply: `not recorded: longer than ${LESSON_CHARS} characters`, store };
-	const lessons = [...store.lessons.filter(lesson => lesson.text !== text), { text, confirmedAt: now, source }];
-	return { reply: `recorded and confirmed: "${text}". It rides every judged call until you forget it with /dredd forget.`, store: { lessons } };
+ const text = raw.trim();
+ if (text.length === 0) return { reply: "not recorded: empty lesson", store };
+ if (text.length > LESSON_CHARS) return { reply: `not recorded: longer than ${LESSON_CHARS} characters`, store };
+ const lessons = [...store.lessons.filter(lesson => lesson.text !== text), { text, confirmedAt: now, source }];
+ return { reply: `recorded and confirmed: "${text}". It rides every judged call until you forget it with /dredd forget.`, store: { lessons } };
 }
 
 export function forgetLesson(store: LessonsStore, raw: string): { reply: string; store: LessonsStore } {
-	const text = raw.trim();
-	if (text.length === 0) return { reply: "state the lesson text to forget", store };
-	const before = store.lessons.length;
-	const lessons = store.lessons.filter(lesson => lesson.text !== text);
-	if (lessons.length === before) return { reply: `no recorded lesson matches: "${text}"`, store };
-	return { reply: `forgotten: "${text}"`, store: { lessons } };
+ const text = raw.trim();
+ if (text.length === 0) return { reply: "state the lesson text to forget", store };
+ const before = store.lessons.length;
+ const lessons = store.lessons.filter(lesson => lesson.text !== text);
+ if (lessons.length === before) return { reply: `no recorded lesson matches: "${text}"`, store };
+ return { reply: `forgotten: "${text}"`, store: { lessons } };
 }
 
 /**
@@ -46,24 +47,26 @@ export function forgetLesson(store: LessonsStore, raw: string): { reply: string;
  * lesson, scored against each guarded call's state.
  */
 export function compilePolicyQuestions(lessons: readonly LessonRecord[]): Record<string, { type: "noul"; instructions: string }> {
-	const questions: Record<string, { type: "noul"; instructions: string }> = {};
-	lessons.forEach((lesson, index) => {
-		questions[`policy${index}`] = {
-			type: "noul",
-			instructions: `Does this call violate the operator's standing rule: "${lesson.text}"?`,
-		};
-	});
-	return questions;
+ const questions: Record<string, { type: "noul"; instructions: string }> = {};
+ lessons.forEach((lesson, index) => {
+  questions[`policy${index}`] = {
+   type: "noul",
+   instructions: lesson.trigger
+    ? `Does this call violate the operator's rule "${lesson.text}" when its applicability condition is met: "${lesson.trigger}"? Answer no if the condition does not apply.`
+    : `Does this call violate the operator's standing rule: "${lesson.text}"?`,
+  };
+ });
+ return questions;
 }
 
 /** Read answers back per lesson, aligned with compilePolicyQuestions order. */
 export function policyViolations(lessons: readonly LessonRecord[], answers: Record<string, unknown>, threshold: number): Array<{ lesson: string; score: number }> {
-	const out: Array<{ lesson: string; score: number }> = [];
-	lessons.forEach((lesson, index) => {
-		const answer = answers[`policy${index}`] as { type?: string; noul?: unknown } | undefined;
-		if (answer?.type !== "noul") return;
-		const noul = answer.noul;
-		if (typeof noul === "number" && Number.isFinite(noul) && noul >= threshold) out.push({ lesson: lesson.text, score: noul });
-	});
-	return out;
+ const out: Array<{ lesson: string; score: number }> = [];
+ lessons.forEach((lesson, index) => {
+  const answer = answers[`policy${index}`] as { type?: string; noul?: unknown } | undefined;
+  if (answer?.type !== "noul") return;
+  const noul = answer.noul;
+  if (typeof noul === "number" && Number.isFinite(noul) && noul >= threshold) out.push({ lesson: lesson.text, score: noul });
+ });
+ return out;
 }

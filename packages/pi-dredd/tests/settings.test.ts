@@ -49,6 +49,7 @@ describe("loadSettings", () => {
 				backend: { label: "local", host: "http://localhost:8080", path: "/v1/systemone", keyEnv: "LOCAL_JUDGE_KEY", defaultModel: "our-decision-model" },
 				capture: "recall",
 				timeoutMs: 2000,
+				drafterModel: "vendor/org/model",
 				policies: ["never push to main"],
 				questions: [
 					{ id: "migrationRan", type: "noul", instructions: "Does this diff edit a migration that already ran?", threshold: 0.7, appliesTo: "call" },
@@ -62,6 +63,7 @@ describe("loadSettings", () => {
 		const s = loadSettings(file);
 		expect(s.capture).toBe("recall");
 		expect(s.backend).toEqual({ label: "local", host: "http://localhost:8080", path: "/v1/systemone", keyEnv: "LOCAL_JUDGE_KEY", defaultModel: "our-decision-model" });
+		expect(effectiveConfig(s).drafterModel).toBe("vendor/org/model");
 		expect(s.policies).toEqual(["never push to main"]);
 		// Bad-Id fails the identifier rule, the dupe keeps the first.
 		expect(s.questions?.map(q => q.id)).toEqual(["migrationRan", "severity", "dupeA"]);

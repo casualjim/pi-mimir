@@ -74,3 +74,39 @@ describe("policy compilation", () => {
 		expect(policyViolations([], {}, 0.9)).toEqual([]);
 	});
 });
+
+describe("lesson triggers", () => {
+	it("compiles every lesson into a judge question carrying its rule and, when present, its condition", () => {
+		// The judge only sees the instruction text: the rule must ride along, the
+		// condition too when the lesson has one, and a missing condition must not
+		// leak as noise. The exact phrasing is no caller's contract.
+		const lessons: LessonRecord[] = [
+			{ text: "always run the formatter", confirmedAt: 1, source: "dredd_remember" },
+			{ text: "never force-push", trigger: "the target branch is main", confirmedAt: 2, source: "dredd_remember" },
+		];
+		const questions = compilePolicyQuestions(lessons);
+		expect(Object.keys(questions)).toEqual(["policy0", "policy1"]);
+		for (const q of Object.values(questions)) expect(q.type).toBe("noul");
+		expect(questions.policy0?.instructions).toContain("always run the formatter");
+		expect(questions.policy0?.instructions).not.toContain("undefined");
+		expect(questions.policy1?.instructions).toContain("never force-push");
+		expect(questions.policy1?.instructions).toContain("the target branch is main");
+	});
+
+	it("reads answers back per slot across a mixed triggered and legacy store", () => {
+		// The policyN key alignment between compile and read-back is the
+		// invariant the gate runtime depends on; the violation reports the rule
+		// the operator stated, never the condition.
+		const lessons: LessonRecord[] = [
+			{ text: "legacy rule", confirmedAt: 1, source: "dredd_remember" },
+			{ text: "conditional rule", trigger: "editing vendored code", confirmedAt: 2, source: "dredd_remember" },
+		];
+		const answers = { policy0: { type: "noul", noul: 0.92 }, policy1: { type: "noul", noul: 0.91 } };
+		// The reported lesson is the rule text, never the trigger.
+		expect(policyViolations(lessons, answers, 0.9)).toEqual([
+			{ lesson: "legacy rule", score: 0.92 },
+			{ lesson: "conditional rule", score: 0.91 },
+		]);
+		expect(policyViolations(lessons, { policy0: { type: "noul", noul: 0.4 }, policy1: { type: "noul", noul: 0.89 } }, 0.9)).toEqual([]);
+	});
+});

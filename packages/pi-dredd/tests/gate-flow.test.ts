@@ -121,35 +121,64 @@ describe("bash gate end to end", () => {
 		}
 	});
 
-	it("passes read-only commands without judging under balanced, but judges them under recall", async () => {
+	it("judges a read-only command and lets it pass on low scores", async () => {
+		// The old read-only bypass is gone: a judged call is a request the judge
+		// observes. Asserting the request happened is behavior — a reverted
+		// bypass would answer zero requests and fail here.
 		const env = tempEnv();
-		let requests = 0;
 		try {
 			const pi = fakePi();
 			registerGate(pi as never, { ...createRuntime(pi as never), config: config({ capture: "balanced" }) });
-			const countingFetch: typeof fetch = (async () => {
-				requests++;
-				return new Response("{}", { status: 200 });
-			}) as unknown as typeof fetch;
+			const bodies: string[] = [];
 			const originalFetch = globalThis.fetch;
-			globalThis.fetch = countingFetch;
+			globalThis.fetch = (async (_url: unknown, init?: { body?: unknown }) => {
+				bodies.push(String(init?.body));
+				return new Response(JSON.stringify({ answers: { irreversible: { type: "noul", noul: 0.02 }, destructive: { type: "noul", noul: 0.02 }, sendsOut: { type: "noul", noul: 0.02 } }, usage: { input_tokens: 1 } }), { status: 200 });
+			}) as unknown as typeof fetch;
 			try {
-				await callGate(pi, "git status");
-				expect(requests).toBe(0);
+				const result = await callGate(pi, "git status");
+				expect(result).toBeUndefined();
+				expect(bodies).toHaveLength(1);
 			} finally {
 				globalThis.fetch = originalFetch;
 			}
+		} finally {
+			env.restore();
+			rmSync(env.dir, { recursive: true });
+		}
+	});
 
-			const piRecall = fakePi();
-			registerGate(piRecall as never, { ...createRuntime(piRecall as never), config: config({ capture: "recall" }) });
-			const originalFetch2 = globalThis.fetch;
-			globalThis.fetch = judgeFetch({});
+	it("enforces a recorded lesson on a read-only command the bypass once skipped", async () => {
+		// The operator's lesson must ride every judged call, read-only included:
+		// the wire must carry the policy question and a high score must hold.
+		const env = tempEnv();
+		try {
+			const runtime = createRuntime(fakePi() as never);
+			runtime.lessons.lessons.push({ text: "never read the prod credentials file", trigger: "the path is under ~/.aws", confirmedAt: Date.now(), source: "dredd_remember" });
+			const pi = fakePi();
+			registerGate(pi as never, { ...runtime, config: config({ capture: "balanced" }) });
+			let wireQuestions: Record<string, { type: string; instructions: string }> = {};
+			const originalFetch = globalThis.fetch;
+			globalThis.fetch = (async (_url: unknown, init?: { body?: unknown }) => {
+				const body = JSON.parse(String(init?.body)) as { questions: Record<string, { type: string; instructions: string }> };
+				wireQuestions = body.questions;
+				const answers: Record<string, unknown> = {};
+				for (const [id, q] of Object.entries(body.questions)) {
+					answers[id] = { type: "noul", noul: id === "policy0" ? 0.96 : 0.02 };
+				}
+				return new Response(JSON.stringify({ answers, usage: { input_tokens: 1 } }), { status: 200 });
+			}) as unknown as typeof fetch;
 			try {
-				const result = await callGate(piRecall, "git status");
-				expect(result).toBeUndefined();
+				const result = await callGate(pi, "cat ~/.aws/credentials");
+				expect(result?.block).toBe(true);
+				expect(result?.reason).toContain("never read the prod credentials file");
 			} finally {
-				globalThis.fetch = originalFetch2;
+				globalThis.fetch = originalFetch;
 			}
+			// The judge saw the rule and its condition; that is how it could hold.
+			expect(wireQuestions.policy0?.type).toBe("noul");
+			expect(wireQuestions.policy0?.instructions).toContain("never read the prod credentials file");
+			expect(wireQuestions.policy0?.instructions).toContain("the path is under ~/.aws");
 		} finally {
 			env.restore();
 			rmSync(env.dir, { recursive: true });
