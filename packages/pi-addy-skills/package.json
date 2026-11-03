@@ -1,6 +1,6 @@
 {
   "name": "@casualjim/pi-addy-skills",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Addy Osmani's agent-skills ported for pi and omp: lifecycle skills, reviewer personas as native omp task agents (pi-herdr role pack on pi), and as: prompts with omp tooling guidance.",
   "license": "MIT",
   "author": "casualjim",
