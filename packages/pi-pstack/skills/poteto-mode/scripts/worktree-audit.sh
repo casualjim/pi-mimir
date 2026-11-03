@@ -47,6 +47,14 @@ origin/*) git fetch origin "+refs/heads/${base#origin/}:refs/remotes/$base" --qu
 esac
 git rev-parse --verify --quiet "$base^{commit}" >/dev/null 2>&1 || { echo "error: base ref not found: $base" >&2; exit 1; }
 
+# GNU coreutils (Linux, Homebrew gnubin) reads `stat -f` as file system status
+# and `date -r` as a file, so pick the stat and date flags once.
+if stat -c %Y / >/dev/null 2>&1; then
+	stat_fmt=(-c '%Y %n'); fmt_day() { date -d "@$1" '+%Y-%m-%d'; }
+else
+	stat_fmt=(-f '%m %N'); fmt_day() { date -r "$1" '+%Y-%m-%d'; }
+fi
+
 # PR state by branch, fetched once as [{number, state, head}] with a lowercase
 # state. Origin when its CLI can read this repo's PRs, otherwise gh. Empty when
 # neither can.
@@ -104,8 +112,8 @@ git worktree list --porcelain | awk '/^worktree /{print $2}' | while read -r wt;
 	# followed by "/" or a quote so glint-482 does not match glint-482-r37.
 	last="-"; last_ts=0
 	if [ -n "$session_file" ] && [ -f "$session_file" ] && rg -q -e "${wt}/" -e "${wt}\"" "$session_file" 2>/dev/null; then
-		last_ts=$(stat -c '%Y' "$session_file" 2>/dev/null || stat -f '%m' "$session_file" 2>/dev/null || echo 0)
-		last=$(date -d "@$last_ts" '+%Y-%m-%d' 2>/dev/null || date -r "$last_ts" '+%Y-%m-%d' 2>/dev/null)
+		last_ts=$(stat "${stat_fmt[@]}" "$session_file" 2>/dev/null | awk '{print $1}')
+		last=$(fmt_day "$last_ts" 2>/dev/null)
 	fi
 	recent=$([ "$last_ts" -gt 0 ] 2>/dev/null && [ $(( (now - last_ts) / 86400 )) -le 4 ] && echo yes || echo no)
 

@@ -29,7 +29,7 @@ subagent({ name: "Fix retry regression", agent: "poteto-agent", task: "investiga
 
 ## What's included
 
-- 55 skills under `skills/`, matching the upstream inventory minus Cursor-only `make-bot-ui` and `setup-pstack` (prose adapted where the host differs). New in this sync: `sharpen`, `in-your-own-words`, `create-formal-verification-skill`, `maintain-formal-verification-skill`, and `statechart`.
+- 56 skills under `skills/`, matching the upstream inventory minus Cursor-only `make-bot-ui` and `setup-pstack` (prose adapted where the host differs). New in this sync: `ketchup-video`, and `statechart` gained the upstream TypeScript compiler with a `node --test` suite. The `orch` scripts are gone; Orchestrate is agentic now.
 - `poteto-agent` and `comment-sicko` agent definitions under `agents/`, published to pi-herdr-agents as a role pack.
 - Commands: `/poteto-mode` (sticky Poteto Mode for the session).
 - Tools: none. Task tracking, session recall, and subagent model routing use the host environment (`set_tasks` family, `recall`, `subagents_write_task_models`).

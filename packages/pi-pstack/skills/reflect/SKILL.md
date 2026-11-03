@@ -40,6 +40,8 @@ Present the synthesizer's full Accepted / Rejected / Backlog output and wait for
 
 File each Backlog item to your team's devex or backlog tracker without waiting. Only the Accepted list waits for approval.
 
+Never edit a skill inside the host's plugin install directory. Before approval, show the destination file in this repo's `packages/pi-pstack`. After approval, edit the skill there and reinstall the package (`pi install ./packages/pi-pstack`, or the omp equivalent). Never open a PR or push.
+
 Follow each approved row's Routing exactly:
 
 - Trivial existing-skill edit (a one-line bullet, a tightened sentence, a stale fact corrected): parent does directly.
