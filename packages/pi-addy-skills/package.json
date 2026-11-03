@@ -50,8 +50,8 @@
     "test:surface": "bun tests/integration/run-surface-e2e.ts"
   },
   "devDependencies": {
-    "@earendil-works/pi-coding-agent": "^1.2.0",
-    "@types/node": "^26.6.5",
+    "@earendil-works/pi-coding-agent": "^1.4.0",
+    "@types/node": "^26.6.6",
     "typescript": "^7.0.2"
   },
   "peerDependencies": {

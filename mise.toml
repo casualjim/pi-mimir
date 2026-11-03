@@ -4,7 +4,7 @@ fnox-env = "https://github.com/jdx/mise-env-fnox"
 [tools]
 biome = "latest"
 fnox = "latest"
-node = "lts"
+node = "24"
 pnpm = "latest"
 
 [env]

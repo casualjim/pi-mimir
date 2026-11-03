@@ -43,12 +43,12 @@
     "test": "bun tests/agents-contract.ts && bun tests/extension-contract.ts && bun test --path-ignore-patterns '**/statechart/**' && node --disable-warning=ExperimentalWarning --test skills/statechart/scripts/test/*.test.ts"
   },
   "devDependencies": {
-    "@earendil-works/pi-ai": "^1.2.0",
-    "@earendil-works/pi-coding-agent": "^1.2.0",
-    "@types/node": "^26.6.5",
+    "@earendil-works/pi-ai": "^1.4.0",
+    "@earendil-works/pi-coding-agent": "^1.4.0",
+    "@types/node": "^26.6.6",
     "commander": "^15.0.0",
     "fast-check": "4.5.3",
-    "typebox": "^1.3.37",
+    "typebox": "^1.4.3",
     "typescript": "^7.0.2"
   },
   "peerDependencies": {
