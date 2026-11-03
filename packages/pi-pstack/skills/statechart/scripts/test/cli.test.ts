@@ -117,7 +117,7 @@ const linkedLauncher = () => {
   const [first, second] = [path.join(links, "a"), path.join(links, "b")];
   fs.mkdirSync(first);
   fs.mkdirSync(second);
-  fs.symlinkSync(path.relative(second, launcher), path.join(second, "statechart"));
+  fs.symlinkSync(path.relative(fs.realpathSync(second), fs.realpathSync(launcher)), path.join(second, "statechart"));
   fs.symlinkSync(path.join(second, "statechart"), path.join(first, "statechart"));
   return path.join(first, "statechart");
 };
