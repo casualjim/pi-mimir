@@ -1,6 +1,8 @@
 packages:
   - "packages/*"
   - "!packages/pi-review"
+  - "!packages/pi-continual-harness"
+  - "!packages/pi-reflect"
 overrides:
   '@aws-sdk/core': 3.974.16
   '@aws-sdk/credential-provider-env': 3.972.42
