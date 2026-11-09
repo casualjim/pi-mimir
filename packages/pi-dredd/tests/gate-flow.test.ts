@@ -14,7 +14,7 @@ function fakePi() {
 	return {
 		listeners,
 		on: (event: string, handler: ToolCallHandler) => listeners.push({ event, handler }),
-		registerTool: (_tool: unknown) => {},
+		registerTool: (_tool: unknown) => { },
 	};
 }
 
@@ -61,7 +61,7 @@ async function callGate(pi: ReturnType<typeof fakePi>, command: string, ctx: { h
 	if (!handler) throw new Error("no tool_call handler registered");
 	return handler(
 		{ toolName: "bash", input: { command } },
-		{ cwd: "/proj", hasUI: ctx.hasUI ?? false, ui: { notify: () => {}, confirm: ctx.confirm } },
+		{ cwd: "/proj", hasUI: ctx.hasUI ?? false, ui: { notify: () => { }, confirm: ctx.confirm } },
 	);
 }
 
@@ -74,6 +74,34 @@ describe("bash gate end to end", () => {
 			const result = await callGate(pi, "git push --force origin main");
 			expect(result?.block).toBe(true);
 			expect(result?.reason).toContain("force push");
+		} finally {
+			env.restore();
+			rmSync(env.dir, { recursive: true });
+		}
+	});
+
+	it("shows the judge the working directory and the operator's request with the command", async () => {
+		const env = tempEnv();
+		try {
+			const pi = fakePi();
+			const runtime = { ...createRuntime(pi as never), config: config() };
+			runtime.operatorRequest = "clean out the .playground experiment";
+			registerGate(pi as never, runtime);
+			let state: Record<string, unknown> = {};
+			const originalFetch = globalThis.fetch;
+			globalThis.fetch = (async (_url: unknown, init?: { body?: unknown }) => {
+				const body = JSON.parse(String(init?.body)) as { state: Record<string, unknown> };
+				state = body.state;
+				return new Response(JSON.stringify({ answers: { irreversible: { type: "noul", noul: 0.02 }, destructive: { type: "noul", noul: 0.02 }, sendsOut: { type: "noul", noul: 0.02 } }, usage: { input_tokens: 1 } }), { status: 200 });
+			}) as unknown as typeof fetch;
+			try {
+				await callGate(pi, "rm -rf .playground/experiment");
+			} finally {
+				globalThis.fetch = originalFetch;
+			}
+			expect(state.subject).toBe("rm -rf .playground/experiment");
+			expect(state.cwd).toBe(process.cwd());
+			expect(state.operatorRequest).toBe("clean out the .playground experiment");
 		} finally {
 			env.restore();
 			rmSync(env.dir, { recursive: true });
@@ -250,7 +278,7 @@ describe("hold approval loop", () => {
 			try {
 				const startHandler = pi.listeners.find(l => l.event === "before_agent_start")?.handler;
 				if (!startHandler) throw new Error("no before_agent_start handler registered");
-				await startHandler({ toolName: "user", input: {}, prompt: "ok I approve the operation" }, { cwd: "/proj", hasUI: false, ui: { notify: () => {} } });
+				await startHandler({ toolName: "user", input: {}, prompt: "ok I approve the operation" }, { cwd: "/proj", hasUI: false, ui: { notify: () => { } } });
 			} finally {
 				globalThis.fetch = originalFetch;
 			}
@@ -285,7 +313,7 @@ describe("hold approval loop", () => {
 			try {
 				const startHandler = pi.listeners.find(l => l.event === "before_agent_start")?.handler;
 				if (!startHandler) throw new Error("no before_agent_start handler registered");
-				await startHandler({ toolName: "user", input: {}, prompt: "no, do something else instead" }, { cwd: "/proj", hasUI: false, ui: { notify: () => {} } });
+				await startHandler({ toolName: "user", input: {}, prompt: "no, do something else instead" }, { cwd: "/proj", hasUI: false, ui: { notify: () => { } } });
 			} finally {
 				globalThis.fetch = originalFetch;
 			}
@@ -372,7 +400,7 @@ describe("hold approval loop", () => {
 			try {
 				const startHandler = pi.listeners.find(l => l.event === "before_agent_start")?.handler;
 				if (!startHandler) throw new Error("no before_agent_start handler registered");
-				await startHandler({ toolName: "user", input: {}, prompt: "dredd: approve" }, { cwd: "/proj", hasUI: false, ui: { notify: () => {} } });
+				await startHandler({ toolName: "user", input: {}, prompt: "dredd: approve" }, { cwd: "/proj", hasUI: false, ui: { notify: () => { } } });
 			} finally {
 				globalThis.fetch = originalFetch;
 			}

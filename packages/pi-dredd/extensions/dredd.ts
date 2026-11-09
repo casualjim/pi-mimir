@@ -200,6 +200,8 @@ export interface DreddRuntime {
  pendingHold: { command: string; ts: number } | null;
  /** An operator-approved command: the identical retry passes exactly once. */
  approved: { command: string } | null;
+ /** The operator's latest request; the bash gate shows it to the judge so a delete is read against what was asked. */
+ operatorRequest: string;
 }
 
 /** The shared runtime guards consume: config, lessons, ledger. */
@@ -208,7 +210,7 @@ export function createRuntime(pi: ExtensionAPI): DreddRuntime {
  const settingsPath = resolveSettingsFile(host);
  const config = effectiveConfig(loadSettings(settingsPath));
  const dir = dataDir(host);
- return { config, lessons: loadLessons(path.join(dir, LESSONS_FILE)), ledger: openLedger(path.join(dir, "violations.db")), host, pendingHold: null, approved: null };
+ return { config, lessons: loadLessons(path.join(dir, LESSONS_FILE)), ledger: openLedger(path.join(dir, "violations.db")), host, pendingHold: null, approved: null, operatorRequest: "" };
 }
 
 type GateUi = { notify(message: string, level?: "error" | "info" | "warning"): void; confirm?(title: string, message: string): Promise<boolean> };
@@ -297,6 +299,7 @@ export function registerGate(pi: ExtensionAPI, runtime: DreddRuntime): void {
    { config, lessons: () => runtime.lessons.lessons, ledger, env: process.env, fetchImpl: fetch, projectRoot: () => cwd, sessionId: () => sessionId },
    "gate", "call", command, "bash",
    gateQuestions(),
+   { cwd, operatorRequest: runtime.operatorRequest },
   );
   if (outcome.verdict.level === "hold") {
    const reason = outcome.verdict.reasons.join("; ");
@@ -600,6 +603,7 @@ export function registerSpeed(pi: ExtensionAPI, runtime: DreddRuntime): void {
     }
    }
   }
+  if (prompt.trim().length > 0 && !APPROVAL_REPLY.test(prompt)) runtime.operatorRequest = prompt.slice(0, 1000);
   const candidates = fillSkillPaths(skillCandidates(pi, event), runtime.host);
   // Charter: corrections become enforced lessons with no confirmation step.
   // ctx carries the host model surface (models.resolve("@tiny")/("@judge")
