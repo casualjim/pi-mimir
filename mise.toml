@@ -1,5 +1,4 @@
-[plugins]
-fnox-env = "https://github.com/jdx/mise-env-fnox"
+redactions = ["*_TOKEN", "*_SECRET", "*_KEY", "*_PASSWORD"]
 
 [tools]
 biome = "latest"
@@ -7,11 +6,12 @@ fnox = "latest"
 node = "24"
 pnpm = "latest"
 
-[env]
-_.fnox-env = { tools = true }
+[secrets.fnox]
+
 
 [tasks."test:integration"]
 description = "Build and run Docker-backed real Pi integration tests"
+secrets = ["ZAI_API_KEY"]
 run = """
 set -euo pipefail
 docker build \
