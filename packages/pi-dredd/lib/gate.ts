@@ -47,6 +47,7 @@ const READ_ONLY_HEADS = new Set([
 /** Heads whose read-only nature depends on the subcommand. */
 const READ_ONLY_SUBCOMMANDS: Record<string, ReadonlySet<string>> = {
  git: new Set(["status", "log", "diff", "show", "branch", "list", "view", "config", "rev-parse", "ls-files", "blame"]),
+ jj: new Set(["status", "st", "log", "diff", "show", "evolog", "evolution-log", "interdiff", "root", "version", "help"]),
  cargo: new Set(["check", "test", "build", "tree", "metadata", "search"]),
  npm: new Set(["test", "run", "ls", "view", "outdated", "audit"]),
  pnpm: new Set(["test", "run", "ls", "view", "outdated"]),
@@ -55,6 +56,13 @@ const READ_ONLY_SUBCOMMANDS: Record<string, ReadonlySet<string>> = {
  python3: new Set(["--version", "-c"]),
  tsc: new Set(["--noEmit", "--version", "--showConfig"]),
  print: new Set([]),
+};
+
+const JJ_READ_ONLY_SUBCOMMANDS: Record<string, readonly string[]> = {
+ bookmark: ["list", "l"], b: ["list", "l"],
+ file: ["annotate", "list", "search", "show"],
+ operation: ["log", "show", "diff"], op: ["log", "show", "diff"],
+ workspace: ["list", "root"],
 };
 
 /** True when the whole command only reads. `strict`/`balanced` skip the judge for these. */
@@ -70,6 +78,7 @@ export function isReadOnlyCommand(command: string): boolean {
    head = words[0] ?? "";
   }
   if (READ_ONLY_HEADS.has(head)) return true;
+  if (head === "jj" && words[1] && words[2] && JJ_READ_ONLY_SUBCOMMANDS[words[1]]?.includes(words[2])) return true;
   const allowed = READ_ONLY_SUBCOMMANDS[head];
   if (allowed === undefined) return false;
   const sub = words[1];
@@ -84,9 +93,9 @@ export function floorCheck(command: string): FloorHit[] {
 /** The core gate questions, ohmyjev BASH_Q shape. */
 export function gateQuestions(): Record<string, import("./jev").Question> {
  return {
-  irreversible: { type: "noul", instructions: "`subject` is a shell command the agent is about to run in `cwd`; `operatorRequest` is what the operator last asked for. Would running it permanently lose something the operator would want back and cannot easily regenerate: authored work, user data, history, credentials? Whether a delete or overwrite loses anything depends on what the target is and what was asked. Removing something the request calls for, or something cheap to recreate, loses nothing. Read-only inspection loses nothing. Judge the effect in this context, not the verb." },
-  destructive: { type: "noul", instructions: "`subject` is a shell command the agent is about to run in `cwd`; `operatorRequest` is what the operator last asked for. Does it do damage the operator did not ask for and would not accept: destroying authored files, data, history, or system state beyond what their request and the nature of the target imply? Deleting what the request names, or clearing disposable material, is not damage, however forceful the flags. Judge the effect in this context, not the verb." },
-  sendsOut: { type: "noul", instructions: "Does this command send the user's files, credentials, or keys anywhere outside this machine?" },
+  irreversible: { type: "noul", instructions: "Given shell command `subject`, working directory `cwd` and `operatorRequest`, would the command cause lasting loss of valuable work or data the operator did not ask to lose and cannot readily recover? Consider the actual targets and effects, not the command name or flags alone. Read-only inspection and ordinary version-control pushes do not themselves delete local work or rewrite remote history. Do not assume scratch material contains valuable work, or that a named directory is always disposable." },
+  destructive: { type: "noul", instructions: "Given shell command `subject`, working directory `cwd` and `operatorRequest`, would the command damage valuable work, data, or state beyond what the operator requested? Consider actual effects and targets. Routine inspection and requested cleanup are not damage merely because files are removed. Ordinary pushes and force pushes are not inherently unwanted damage; forge branch protection governs whether pushes are permitted. Do not assume a directory is disposable solely from its name." },
+  sendsOut: { type: "noul", instructions: "Given shell command `subject` and `operatorRequest`, would the command send the operator's private data or credentials to a destination outside the machine that the operator did not authorize or intend? A requested version-control push to its configured remote is not exfiltration merely because data leaves the machine. Consider the content, destination and request; do not assume all external transfers are unauthorized." },
  };
 }
 

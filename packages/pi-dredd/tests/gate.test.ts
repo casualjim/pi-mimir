@@ -44,6 +44,8 @@ describe("read-only skip", () => {
 		expect(isReadOnlyCommand("ls -la")).toBe(true);
 		expect(isReadOnlyCommand("git status && git diff")).toBe(true);
 		expect(isReadOnlyCommand("cat foo | grep bar")).toBe(true);
+		expect(isReadOnlyCommand("jj status && jj log && jj diff")).toBe(true);
+		expect(isReadOnlyCommand("jj bookmark list && jj file annotate src/main.ts && jj op log && jj workspace root")).toBe(true);
 	});
 
 	it("does not skip writes or mutations", () => {
@@ -51,6 +53,9 @@ describe("read-only skip", () => {
 		expect(isReadOnlyCommand("git commit -m x")).toBe(false);
 		expect(isReadOnlyCommand("git push origin main")).toBe(false);
 		expect(isReadOnlyCommand("echo hi > file.txt")).toBe(false);
+		expect(isReadOnlyCommand("jj bookmark delete obsolete")).toBe(false);
+		expect(isReadOnlyCommand("jj file delete src/main.ts")).toBe(false);
+		expect(isReadOnlyCommand("jj op restore abc")).toBe(false);
 	});
 
 	it("looks past wrappers and env prefixes", () => {
