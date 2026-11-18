@@ -89,6 +89,8 @@ An operator message judged to be a standing rule can be recorded automatically. 
 
 Two sources can hold a bash call: the offline floor (static catastrophic-command patterns, no key needed) and the judge (any answer at or above 0.9). A held call has three release paths:
 
+The judge considers the command, working directory, and latest operator request when assessing unwanted loss, damage, or unauthorized disclosure. A requested repository push is not exfiltration solely because it transfers data. The offline floor still applies independently of these questions.
+
 1. **UI confirm at the hold.** When the host has a UI, dredd asks the operator immediately ("Run it once?"). Yes runs the original call right away; no blocks it and marks it declined. No judge involved.
 2. **Reply token.** Without a UI (or after a blocked call), the operator's next reply `dredd: approve` releases the identical command exactly once. Deterministic, full-line match, and it works while the judge is unreachable.
 3. **Natural-language yes.** When the judge is reachable, one noul question (at or above 0.7) reads whether the operator's reply approves the held command.

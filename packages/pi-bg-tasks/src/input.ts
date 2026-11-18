@@ -19,8 +19,13 @@ export function registerInputHandlers(pi: ExtensionAPI, reg: BackgroundRegistry)
         const bg = backgroundActiveForeground(reg, ctx as UiContext);
         if (!bg) return { action: "continue" };
 
-        // Abort the current turn so the bash tool returns the "backgrounded" result.
-        ctx.abort?.();
+        // No ctx.abort() here. The pause above already makes the bash tool return
+        // its normal "backgrounded" result (tools/bash.ts pauseRequested path), so
+        // aborting is not what ends the command — it only cancels the run. Aborting
+        // also drains queued steering/followUp messages into the editor and makes
+        // the turn end as an error, which extensions that treat a failed turn as
+        // terminal (goal runs) read as a hard stop. takeControl() documents the same
+        // hazard; this path should follow it.
 
         // Resubmit the user's message as a follow-up — Pi delivers it
         // after the current turn settles. No polling needed.
