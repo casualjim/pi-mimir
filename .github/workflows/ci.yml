@@ -29,6 +29,17 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Fetch TLA+ tools
+        run: |
+          curl -Lf --create-dirs -o .tools/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -37,6 +48,8 @@ jobs:
 
       - name: Test packages
         run: pnpm test
+        env:
+          TLA2TOOLS: ${{ github.workspace }}/.tools/tla2tools.jar
 
       - name: Verify package contents
         run: pnpm check:pack

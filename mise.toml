@@ -3,11 +3,28 @@ redactions = ["*_TOKEN", "*_SECRET", "*_KEY", "*_PASSWORD"]
 [tools]
 biome = "latest"
 fnox = "latest"
+java = "temurin-21"
 node = "24"
 pnpm = "latest"
 
 [secrets.fnox]
 
+[env]
+TLA2TOOLS = "{{ config_root }}/.tools/tla2tools.jar"
+
+[tasks.tla2tools]
+description = "Download tla2tools.jar (TLA+ 1.7.4) for the statechart differential tests"
+run = """
+set -euo pipefail
+curl -Lf --create-dirs -o .tools/tla2tools.jar \
+  https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+"""
+outputs = [".tools/tla2tools.jar"]
+
+[tasks.test]
+description = "Fetch TLA+ tools, then run the workspace test suite"
+depends = ["tla2tools"]
+run = "pnpm test"
 
 [tasks."test:integration"]
 description = "Build and run Docker-backed real Pi integration tests"

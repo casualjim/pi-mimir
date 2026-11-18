@@ -1,6 +1,6 @@
 # pi-pstack
 
-A pi-mimir fork of [pstack](https://github.com/cursor/plugins/tree/main/pstack), for **pi and omp**. It keeps all upstream skills that are platform-portable (55; `make-bot-ui` is Cursor-platform-only and `setup-pstack` configures Cursor's model rule, both excluded), the sticky Poteto Mode, and the bundled `poteto-agent` and `comment-sicko` agents — but it delegates through [pi-herdr-agents](https://github.com/giuseppecrj/pi-herdr-agents) instead of shipping its own `subagent` tool.
+A pi-mimir fork of [pstack](https://github.com/cursor/plugins/tree/main/pstack), for **pi and omp**. It keeps every upstream skill except the Cursor-platform-only `make-bot-ui` (57; `setup-pstack` is adapted to pi-herdr-agents routing instead of Cursor's model rule), the sticky Poteto Mode, and the bundled `poteto-agent` and `comment-sicko` agents — but it delegates through [pi-herdr-agents](https://github.com/giuseppecrj/pi-herdr-agents) instead of shipping its own `subagent` tool.
 
 ## Install
 
@@ -29,15 +29,17 @@ subagent({ name: "Fix retry regression", agent: "poteto-agent", task: "investiga
 
 ## What's included
 
-- 56 skills under `skills/`, matching the upstream inventory minus Cursor-only `make-bot-ui` and `setup-pstack` (prose adapted where the host differs). New in this sync: `ketchup-video`, and `statechart` gained the upstream TypeScript compiler with a `node --test` suite. The `orch` scripts are gone; Orchestrate is agentic now.
+- 57 skills under `skills/`, matching the upstream inventory minus Cursor-only `make-bot-ui` (`setup-pstack` adapted to `subagents_write_task_models`; prose adapted where the host differs). New in this sync: one-file `why`, `how`, `reflect`, and `architect` per upstream; `worker.md` kickoff rules for spawned agents; Orchestrate removed (figure-it-out covers program-scale work); statechart gained SANY error reporting with line/column and parent-border arrow drawing.
 - `poteto-agent` and `comment-sicko` agent definitions under `agents/`, published to pi-herdr-agents as a role pack.
-- Commands: `/poteto-mode` (sticky Poteto Mode for the session).
+- Commands: `/skill:poteto-mode` (sticky Poteto Mode for the session).
 - Tools: none. Task tracking, session recall, and subagent model routing use the host environment (`set_tasks` family, `recall`, `subagents_write_task_models`).
 
 ## What's removed vs upstream
 
 - The `subagent` tool and its child-process runner. Use pi-herdr-agents' `subagent` instead.
-- `/setup-pstack`, `pstack_config`, `pstack_todo`, `pstack_sessions`, and the `pstack/models.json` role map in the host agent directory. The live role-to-model routing is pi-herdr-agents' `models.tasks`/`models.agents` config (`subagents_write_task_models`). Workflow skills consult that config for the per-call `model` they pass to `subagent`. Panel roles take model lists; set those via `models.agents` per agent or `task:<category>` routing.
+- The old `/setup-pstack`, `pstack_config`, `pstack_todo`, `pstack_sessions`, and the `pstack/models.json` role map in the host agent directory. `/skill:setup-pstack` now configures pi-herdr-agents' `models.tasks`/`models.agents` (`subagents_write_task_models`) and offers the verification-skill generators. Workflow skills consult that config for the per-call `model` they pass to `subagent`. Panel roles take model lists; set those via `models.agents` per agent or `task:<category>` routing.
+
+The statechart suite's differential tier (real TLC) needs the TLA+ tools. `mise run test` fetches `tla2tools.jar` into `.tools/` and exports `TLA2TOOLS` for you; without it, those tests self-skip. CI fetches the same jar.
 
 ## Safety
 

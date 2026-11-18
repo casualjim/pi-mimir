@@ -259,11 +259,11 @@ it("annotates Bugbot threads with distinct review-pass counts", () => {
                 comments: {
                   nodes: [
                     {
-                      body: "PSTACK_AUTOMATION_ID: run-2 severity high",
+                      body: "CURSOR_AUTOMATION_ID: run-2 severity high",
                       createdAt: "now",
                       path: null,
                       line: null,
-                      author: { login: "automation-bot" },
+                      author: { login: "cursor" },
                     },
                   ],
                 },

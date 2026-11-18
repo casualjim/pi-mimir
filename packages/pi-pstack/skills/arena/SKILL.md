@@ -13,19 +13,19 @@ Open a todolist with one entry per phase (Frame, Fan out, Cross-judge, Pick, Gra
 Every candidate gets the same prompt, so the prompt is the contract.
 
 1. State the artifact each candidate is producing.
-2. Derive the rubric. State what success looks like for *this* task, then turn it into 3-6 concrete gradeable criteria. The rubric is the picker's tool in Phase D. Candidates only see the task.
-3. Pick the runners. Use your configured arena-runners models (default `inherit-parent` each) and the `thinking` level the work needs per the Subagents section of the **poteto-mode** skill. If a configured entry fails to resolve, run that seat on its family's default and say so. Families go by provider: two models are the same family when they share a provider, the part before `/` (or before the first `-` in a bare id), with `cursor-grok-*` and `composer-*` counting as `grok-*`. If the family has no default that resolves, drop the seat and say so. If dropped seats leave fewer than two runners, add runners until there are two, or one when the pool has one entry. Run each added runner on a remaining runner's model, or the parent model when none remain, and say so. Spawn more when the arena covers multiple design directions. Same model N times when the work is generation-bound rather than judgment-sensitive.
+2. Derive the rubric, 3-6 concrete gradeable criteria for what success looks like on *this* task. It is the picker's tool in Phase D. Candidates only see the task.
+3. Pick the runners from the `arena runners` pool in `subagents_write_task_models` config; with no pool configured, take the parent model for each seat, and pick the `thinking` level the work needs per the Subagents section of the **poteto-mode** skill. Prefer seats on different model families. If a configured entry fails to resolve, run that seat on its family's default and say so. Families go by provider: two models are the same family when they share a provider, the part before `/` (or before the first `-` in a bare id), with `cursor-grok-*` and `composer-*` counting as `grok-*`. If the family has no default that resolves, drop the seat and say so. If dropped seats leave fewer than two runners, add runners until there are two, or one when the pool has one entry. Run each added runner on a remaining runner's model, or the parent model when none remain, and say so. Spawn more when the arena covers multiple design directions. Same model N times when the work is generation-bound rather than judgment-sensitive.
 4. Give each candidate its own output location (a git worktree where possible, otherwise a fresh directory under the OS temp dir, `$TMPDIR` or `/tmp` on POSIX and `%TEMP%` on Windows, like `arena-<slug>/candidate-<n>/`), per the **separate-before-serializing-shared-state** principle skill.
 
 ## Phase B: Fan out
 
-Spawn all N subagents in one message with the parent waiting for and aggregating the results, each with the task, the path to the shared grounding, its own output path, and instructions to produce both the artifact and a short rationale naming the alternatives it considered and what it rejected.
+Spawn all N subagents in one message, each with the task, the path to the shared grounding, its own output path, and instructions to produce the artifact and a short rationale naming the alternatives it considered and what it rejected.
 
 If a candidate produces no output, proceed with N-1 and note the dropout.
 
 ## Phase C: Cross-judge
 
-After all Phase B candidates complete, choose one model from your configured cross-judge pool (default `inherit-parent` each). The judge is never from the parent's family, as Phase A step 3 defines families, so an `inherit-parent` entry never judges. Try the pool's entries from another family, in pool order. If no entry from another family runs, skip the judge, pick the base alone in Phase D, and say so. Spawn one readonly judge subagent on the chosen model. It sees the rubric and the candidates by path label, scores each criterion, and recommends a base with rationale. It runs in parallel with the parent's reading in Phase D, not with the candidates themselves. Don't spawn the judge while candidates are still writing.
+After all Phase B candidates complete, spawn one readonly judge from the `arena cross-judge pool`; with no pool configured, use a model from a family other than the parent's. An `inherit-parent` entry never judges. If no entry from another family runs, skip the judge, pick the base alone in Phase D, and say so.
 
 ## Phase D: Pick a base
 
