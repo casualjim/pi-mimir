@@ -83,28 +83,22 @@ describe('Cavekit skill files', () => {
     }
   });
 
-  it('uses ask_user_question for Cavekit decisions instead of prose-only choice lists', async () => {
-    const spec = await readFile(path.join(skillsRoot, 'cavekit-spec', 'SKILL.md'), 'utf8');
-    const build = await readFile(path.join(skillsRoot, 'cavekit-build', 'SKILL.md'), 'utf8');
-    const archive = await readFile(path.join(skillsRoot, 'cavekit-archive', 'SKILL.md'), 'utf8');
-    const backprop = await readFile(path.join(skillsRoot, 'cavekit-backprop', 'SKILL.md'), 'utf8');
+  it('routes decisions through the shared host policy', async () => {
+    const format = await readFile(path.join(root, 'FORMAT.md'), 'utf8');
+    expect(format).toMatch(/omp[\s\S]*?`ask`[\s\S]*?Pi[\s\S]*?`ask_user`[\s\S]*?`ask_user_question`/);
+    expect(format).toMatch(/native confirm only when the caller actually exposes it/);
+    expect(format).toMatch(/ask directly and wait for an explicit response/);
+    expect(format).toMatch(/Do not present prose-only choices while an ask tool is available/);
+    expect(format).toMatch(/before the question[\s\S]*?decision controls concise/);
 
-    expect(spec).toContain('## Question protocol');
-    expect(spec).toContain('Use `ask_user_question` whenever Cavekit needs a decision from the user');
-    expect(spec).toContain('missing AMEND target or replacement text');
-    expect(spec).toContain('Do not print prose-only choice lists and wait');
-    expect(spec).toContain('Share needed context in normal assistant text before invoking `ask_user_question`');
-    expect(spec).toContain('The question UI must be a decision step, not the place where the plan is explained');
-    expect(spec).toContain('Do not put full plan, diff, evidence, nuanced rationale, or long replacement text in the question string');
-    expect(spec).toContain('Options are decision controls, not context transport');
-
-    expect(build).toContain('Share the full plan in normal assistant text first');
-    expect(build).toContain('Do not put the plan in the question field, option descriptions, or previews');
-    expect(build).toContain('Classify cause with the user when needed via `ask_user_question`');
-    expect(archive).toContain('Ask approval with `ask_user_question` after preview');
-    expect(archive).toContain('Do not use a prose-only `Proceed?` prompt');
-    expect(backprop).toContain('use `ask_user_question` when classification is unclear');
-    expect(backprop).toContain('Use `ask_user_question` for approval');
+    for (const skill of ['spec', 'build', 'archive', 'backprop', 'grill', 'review']) {
+      const markdown = await readFile(path.join(skillsRoot, `cavekit-${skill}`, 'SKILL.md'), 'utf8');
+      expect(markdown, skill).toContain('../../FORMAT.md#user-decisions');
+    }
+    for (const prompt of ['build', 'grill', 'review', 'spec']) {
+      const markdown = await readFile(path.join(promptsRoot, `ck:${prompt}.md`), 'utf8');
+      expect(markdown, prompt).toContain('../FORMAT.md#user-decisions');
+    }
   });
 });
 
@@ -131,7 +125,7 @@ describe('Cavekit prompt templates', () => {
 
     expect(markdown).toContain('Before asking for approval, share the full plan in normal assistant text');
     expect(markdown).toContain('selected tasks, cited §V/§I, files to edit/create, tests, verification commands');
-    expect(markdown).toContain('Then invoke `ask_user_question` separately');
+    expect(markdown).toContain('../FORMAT.md#user-decisions');
     expect(markdown).toContain('Do not put the plan in the question field, option descriptions, or previews');
   });
 
@@ -139,7 +133,7 @@ describe('Cavekit prompt templates', () => {
     const markdown = await readFile(path.join(promptsRoot, 'ck:spec.md'), 'utf8');
 
     expect(markdown).toContain('first share relevant context, proposed SPEC.md text or diff, tradeoffs, and recommendation');
-    expect(markdown).toContain('Then invoke `ask_user_question` separately');
+    expect(markdown).toContain('../FORMAT.md#user-decisions');
     expect(markdown).toContain('Do not put context or diff details in the question field, option descriptions, or previews');
   });
 });

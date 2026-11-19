@@ -3,6 +3,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { confirmUser } from "../lib/interaction";
 import { detectDreddHost, effectiveConfig, loadSettings, resolveSettingsFile, type DreddConfig } from "../lib/settings";
 import { openLedger, type ViolationsDb } from "../lib/ledger";
 import { forgetLesson, LESSON_CHARS, recordLesson, type LessonRecord, type LessonsStore } from "../lib/memory";
@@ -213,15 +214,16 @@ export function createRuntime(pi: ExtensionAPI): DreddRuntime {
  return { config, lessons: loadLessons(path.join(dir, LESSONS_FILE)), ledger: openLedger(path.join(dir, "violations.db")), host, pendingHold: null, approved: null, operatorRequest: "" };
 }
 
-type GateUi = { notify(message: string, level?: "error" | "info" | "warning"): void; confirm?(title: string, message: string): Promise<boolean> };
+type GateUi = { notify(message: string, level?: "error" | "info" | "warning"): void };
 
 /**
  * Interactive release at the moment of the hold: an operator's yes is a fact,
  * not a judgment call, so it never routes through the judge. "unavailable"
- * (no UI, no confirm surface, or the dialog failed) leaves the hold to take
+ * (no UI, no prompt available, or the dialog failed) leaves the hold to take
  * the reply-token or judge-approval path instead; every outcome is ledgered.
  */
 async function confirmAtHold(
+ pi: ExtensionAPI,
  ctx: { hasUI: boolean; ui: GateUi },
  runtime: DreddRuntime,
  command: string,
@@ -229,20 +231,20 @@ async function confirmAtHold(
  sessionId: string | null,
  projectRoot: string,
 ): Promise<"approved" | "declined" | "unavailable"> {
- if (!ctx.hasUI || typeof ctx.ui.confirm !== "function") return "unavailable";
- let approved: boolean;
+ let approved: boolean | undefined;
  try {
-  approved = await ctx.ui.confirm("dredd held a command", `${reason}\n\n${command.slice(0, 400)}\n\nRun it once?`);
+  approved = await confirmUser(ctx, pi, "dredd held a command", `${reason}\n\nRun it once?`, command.slice(0, 400));
  } catch (error) {
   runtime.ledger.insert({
    timestamp: Date.now(), sessionId, projectRoot, guard: "approval", tool: "bash",
-   subject: command.slice(0, 400), finding: `ui confirm failed: ${error instanceof Error ? error.message : String(error)}`, score: null, steered: false,
+   subject: command.slice(0, 400), finding: `approval prompt failed: ${error instanceof Error ? error.message : String(error)}`, score: null, steered: false,
   });
   return "unavailable";
  }
+ if (approved === undefined) return "unavailable";
  runtime.ledger.insert({
   timestamp: Date.now(), sessionId, projectRoot, guard: "approval", tool: "bash",
-  subject: command.slice(0, 400), finding: approved ? "operator approved at hold (ui confirm)" : "operator declined at hold (ui confirm)", score: null, steered: false,
+  subject: command.slice(0, 400), finding: approved ? "operator approved at hold" : "operator declined at hold", score: null, steered: false,
  });
  return approved ? "approved" : "declined";
 }
@@ -284,7 +286,7 @@ export function registerGate(pi: ExtensionAPI, runtime: DreddRuntime): void {
     timestamp: Date.now(), sessionId, projectRoot: cwd, guard: "gate", tool: "bash",
     subject: command.slice(0, 400), finding: `floor: ${floorHits.map(h => h.id).join(",")}`, score: null, steered: false,
    });
-   const released = await confirmAtHold(ctx, runtime, command, reason, sessionId, cwd);
+   const released = await confirmAtHold(pi, ctx, runtime, command, reason, sessionId, cwd);
    if (released === "approved") return undefined;
    if (released === "declined") {
     return { block: true, reason: `pi-dredd blocked this: ${reason}. The operator declined; do not retry the command.` };
@@ -303,7 +305,7 @@ export function registerGate(pi: ExtensionAPI, runtime: DreddRuntime): void {
   );
   if (outcome.verdict.level === "hold") {
    const reason = outcome.verdict.reasons.join("; ");
-   const released = await confirmAtHold(ctx, runtime, command, reason, sessionId, cwd);
+   const released = await confirmAtHold(pi, ctx, runtime, command, reason, sessionId, cwd);
    if (released === "approved") return undefined;
    if (released === "declined") {
     return { block: true, reason: `pi-dredd blocked this: ${reason}. The operator declined; do not retry the command.` };

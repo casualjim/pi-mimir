@@ -32,7 +32,7 @@ For the chosen task(s), produce a concise plan before editing:
 4. **Verification contract** — name the EXACT test(s) / acceptance criteria that prove each §V touched. Which test, not "add tests". "Do TDD" alone backfires; the spec says *what to check*. Each §V touched → a named test that fails first.
 5. Name verification commands.
 
-Share the full plan in normal assistant text first: cited §V/§I, files, tests, verification commands, tradeoffs, and recommendation. Then use `ask_user_question` for approval unless the user explicitly asked for autonomous execution. Do not put the plan in the question field, option descriptions, or previews. The question UI is only for concise decision controls such as approve, revise plan, or stop.
+Share the full plan in normal assistant text first: cited §V/§I, files, tests, verification commands, tradeoffs, and recommendation. Then ask for approval under the [user decision policy](../../FORMAT.md#user-decisions) unless the user explicitly asked for autonomous execution. Do not put the plan in the question field, option descriptions, or previews. The question UI is only for concise decision controls such as approve, revise plan, or stop.
 
 ## Execute
 
@@ -49,7 +49,7 @@ Per task in order:
 On test/build failure:
 
 1. Read the failure output.
-2. Classify cause with the user when needed via `ask_user_question`:
+2. Classify cause with the user when needed:
    - code bug in current implementation
    - spec is wrong
    - edge case missing from spec

@@ -45,6 +45,8 @@ The statechart suite's differential tier (real TLC) needs the TLA+ tools. `mise 
 
 The extension requests confirmation for recognizable shell commands that push, alter pull requests, merge, deploy, mutate infrastructure, or recursively delete files. In non-interactive mode it blocks these commands. This is a guardrail, not a complete shell-security sandbox.
 
+For agent questions, pstack prefers the active `ask` tool on omp and `ask_user` before `ask_user_question` on Pi. Shell approvals use the omp ask dialog when the tool is active and the UI supports it. Otherwise they use `ctx.ui.confirm`. Pi approval hooks cannot invoke the questionnaire tools and keep native confirmation. Cancelling or timing out does not authorize the command.
+
 To run without approval prompts, set `confirmExternalActions` to `false` in the pstack config file: `$PI_CODING_AGENT_DIR/pstack/config.json` when that env var is set, otherwise `~/.omp/agent/pstack/config.json` under omp or `~/.pi/agent/pstack/config.json` under pi (same resolution as pi-headroom's settings). Restart the host after a config change. A missing, malformed, or non-boolean config keeps the guard enabled. With the guard disabled, agents are told to run recognized external commands without asking and still pause for irreversible writes (force-pushes to shared branches, deployments, data deletion, customer messages).
 
 ## License and provenance

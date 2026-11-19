@@ -18,10 +18,12 @@ import {
 
 type ToolHandler = (event: unknown, ctx: unknown) => Promise<unknown>;
 
-function startExtension(): { events: Map<string, unknown>; commands: Set<string> } {
+function startExtension(activeTools: string[] = [], host: "pi" | "omp" = "pi"): { events: Map<string, unknown>; commands: Set<string> } {
  const events = new Map<string, unknown>();
  const commands = new Set<string>();
  const pi = {
+  ...(host === "omp" ? { zod: {} } : {}),
+  getActiveTools: () => activeTools,
   on(eventName: string, handler: unknown) {
    events.set(eventName, handler);
   },
@@ -104,8 +106,42 @@ assert.equal(resolvePstackConfigFile("pi", {}), join(homedir(), ".pi", "agent", 
    { block: true, reason: "User declined GitHub pull-request mutation." },
   );
 
-  const beforeAgent = events.get("before_agent_start") as (event: { systemPrompt: string }) => unknown;
-  assert.equal(beforeAgent({ systemPrompt: "base" }), undefined, "no injection when guard enabled and poteto mode off");
+  const beforeAgent = events.get("before_agent_start") as (event: { systemPrompt: string }, ctx: { hasUI: boolean }) => { systemPrompt: string } | undefined;
+  const interactive = { hasUI: true };
+  assert.equal(beforeAgent({ systemPrompt: "base" }, interactive), undefined);
+
+  const activeTools = ["ask_user_question", "ask_user", "ask"];
+  const piPrompt = startExtension(activeTools).events.get("before_agent_start") as typeof beforeAgent;
+  assert.match(piPrompt({ systemPrompt: "base" }, interactive)?.systemPrompt ?? "", /use the ask_user tool/);
+  activeTools.splice(1, 1);
+  assert.match(piPrompt({ systemPrompt: "base" }, interactive)?.systemPrompt ?? "", /use the ask_user_question tool/);
+
+  const omp = startExtension(activeTools, "omp");
+  const ompPrompt = omp.events.get("before_agent_start") as typeof beforeAgent;
+  assert.match(ompPrompt({ systemPrompt: "base" }, interactive)?.systemPrompt ?? "", /use the ask tool/);
+  const ompGate = omp.events.get("tool_call") as ToolHandler;
+  const action = { toolName: "bash", input: { command: "kubectl apply -f example.yaml" } };
+  for (const timedOut of [false, true]) {
+   const answer = await ompGate(action, {
+    ...interactive, ui: {
+     confirm: async () => assert.fail("native confirm replaced the available ask dialog"),
+     askDialog: async ([question]: { id: string; options: { label: string; preview?: string }[] }[]) => {
+      assert.equal(question?.options.find((option) => option.label === "Allow")?.preview, action.input.command);
+      return { kind: "submit", results: [{ id: question?.id, selectedOptions: ["Allow"], timedOut }] };
+     },
+    }
+   });
+   if (timedOut) assert.deepEqual(answer, { block: true, reason: "User declined Kubernetes mutation." });
+   else assert.equal(answer, undefined);
+  }
+  assert.deepEqual(await ompGate(action, {
+   ...interactive, ui: {
+    confirm: async () => assert.fail("dialog failure must not prompt again"),
+    askDialog: async () => { throw new Error("dialog unavailable"); },
+   },
+  }), { block: true, reason: "Cannot confirm Kubernetes mutation: dialog unavailable" });
+  assert.equal(await ompGate(action, { ...interactive, ui: { confirm } }), undefined);
+  assert.equal(prompts, 2);
 
   mkdirSync(join(dir, "pstack"), { recursive: true });
   writeFileSync(join(dir, "pstack", "config.json"), '{"confirmExternalActions":false}', "utf8");
@@ -113,8 +149,9 @@ assert.equal(resolvePstackConfigFile("pi", {}), join(homedir(), ".pi", "agent", 
   assert.equal(disabled.events.has("tool_call"), false, "guard not registered when disabled");
   const inject = disabled.events.get("before_agent_start") as (
    event: { systemPrompt: string },
+   ctx: { hasUI: boolean },
   ) => { systemPrompt: string } | undefined;
-  const injected = inject({ systemPrompt: "base" });
+  const injected = inject({ systemPrompt: "base" }, interactive);
   assert.ok(injected, "guard-disabled note injected");
   assert.ok(injected.systemPrompt.startsWith("base\n\n"), "note appended to the existing system prompt");
   assert.match(injected.systemPrompt, /confirmation guard is disabled/);

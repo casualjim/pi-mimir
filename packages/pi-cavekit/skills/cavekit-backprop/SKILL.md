@@ -28,7 +28,7 @@ Find exact file:line or behavior boundary. Name root cause in one concise senten
 
 ### 2. Analyze
 
-Analyze and use `ask_user_question` when classification is unclear. Do not print prose-only choice lists and wait.
+Analyze and ask the user when classification is unclear. Follow the [user decision policy](../../FORMAT.md#user-decisions).
 
 Questions to resolve when needed:
 
@@ -41,7 +41,7 @@ Offer 2-4 concrete options, for example: `§B only`, `§B + §V (Recommended)`, 
 
 ### 3. Propose spec change
 
-Draft changes. Use `ask_user_question` for approval unless the user explicitly requested direct mutation.
+Draft changes. Ask for approval unless the user explicitly requested direct mutation.
 
 Template:
 
@@ -69,7 +69,7 @@ If implementation work is in scope, fix code and run the targeted test plus appr
 
 ### 6. Log
 
-Use `cavekit-spec` to append §B and §V/§T changes after user approval gathered through `ask_user_question`. `cavekit-backprop` and `cavecrew-investigator` do not mutate `SPEC.md`. Do not commit automatically; commit only when explicitly requested by the user in this session.
+Use `cavekit-spec` to append §B and §V/§T changes after user approval. `cavekit-backprop` and `cavecrew-investigator` do not mutate `SPEC.md`. Do not commit automatically; commit only when explicitly requested by the user in this session.
 
 ## Good invariant qualities
 

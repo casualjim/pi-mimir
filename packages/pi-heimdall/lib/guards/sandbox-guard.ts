@@ -11,6 +11,7 @@ import {
  type ExtensionAPI,
  type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
+import { confirmUser } from "../interaction.js";
 import { execSync } from "node:child_process";
 import { resolve } from "node:path";
 import { StringEnum } from "@earendil-works/pi-ai";
@@ -274,7 +275,7 @@ export function registerSandboxGuard(
      details: {},
     };
    }
-   const approved = await ctx.ui.confirm(
+   const approved = await confirmUser(ctx, pi,
     "Heimdall sandbox access",
     `Allow ${params.operation} access to ${params.path} for this session?\n\n${params.reason ?? "(no reason given)"}`,
    );

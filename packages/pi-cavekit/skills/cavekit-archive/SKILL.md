@@ -48,7 +48,7 @@ lines before: 533
 lines after: 100
 ```
 
-Ask approval with `ask_user_question` after preview. Do not use a prose-only `Proceed?` prompt. Offer 2-4 options:
+Ask approval after preview under the [user decision policy](../../FORMAT.md#user-decisions). Offer 2-4 options:
 
 - `Proceed (Recommended)` → continue to ARCHIVE + TRIM.
 - `Amend preview` → user changes include/exclude choices, then rerun dry-run preview.
@@ -146,7 +146,7 @@ lines after: 218
 ## RULES
 
 - Archive = exact full pre-trim copy. Content loss ⊥.
-- No writes before dry-run preview and explicit user OK through `ask_user_question`.
+- No writes before dry-run preview and explicit user OK.
 - Missing `SPEC.md` or `≤500` lines → no write.
 - One archive file per run. If same-day archive exists, suffix `-2`, `-3`, etc.
 - §G never removed or changed.

@@ -173,6 +173,10 @@ Host-side Pi tools such as `read`, `write`, `edit`, `grep`, `find`, and
 guards for host-tool secret protection, and configure `heimdall-sandbox` for
 commands run through `bash`.
 
+`heimdall-allow` asks before granting access for the session. It prefers the
+omp ask dialog or the first Pi questionnaire the host allows it to call.
+If neither is callable, it uses native confirmation.
+
 **Requirements:** an installed `heimdall-sandbox` binary. Heimdall first uses
 `sandbox.binaryPath` when set, then `heimdall-sandbox` on `PATH`. If the default
 binary is missing, Heimdall warns with install guidance and sandboxed commands

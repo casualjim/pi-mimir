@@ -1,3 +1,4 @@
+import { confirmUser, selectUser } from "./interaction.js";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
@@ -227,7 +228,7 @@ export class PiJjRuntime {
       .join(", ");
 
     const prompt = `jj ${missingFields.join(" and ")} not set.${defaults ? ` Use git defaults (${defaults})?` : ""}`;
-    const choice = await ctx.ui.select(prompt, [
+    const choice = await selectUser(ctx, this.pi, prompt, [
       ...(defaults ? [`Yes (use git: ${defaults})`] : []),
       "Skip (jj will warn on commit)",
     ]);
@@ -276,7 +277,7 @@ export class PiJjRuntime {
     if (!ctx.hasUI) return;
 
     const settings = this.loadSettings();
-    const choice = await ctx.ui.select(
+    const choice = await selectUser(ctx, this.pi,
       "Checkpoint restore mode?",
       [
         "File restore (safer — restores file contents only via jj restore)",
@@ -688,7 +689,7 @@ export class PiJjRuntime {
     if (!settings.promptForPublishMode) return options;
     if (this.hasDryRunFlag(args)) return options;
 
-    const choice = await ctx.ui.select("Publish mode", [
+    const choice = await selectUser(ctx, this.pi, "Publish mode", [
       "Dry-run first (safe)",
       "Publish now",
       "Cancel",
@@ -974,7 +975,7 @@ export class PiJjRuntime {
 
   private async showStackSummaryUi(snapshot: StackStatusSnapshot, ctx: ExtensionContext): Promise<void> {
     while (true) {
-      const action = await ctx.ui.select(snapshot.summary, [
+      const action = await selectUser(ctx, this.pi, snapshot.summary, [
         "Copy current revision",
         "Copy current change ID",
         "Copy current operation ID",
@@ -1008,7 +1009,7 @@ export class PiJjRuntime {
       const node = view.node;
       const bookmark = this.branchForChange(node);
 
-      const action = await ctx.ui.select(`Stack entry ${nodeIndex + 1}: ${node.changeIdShort}`, [
+      const action = await selectUser(ctx, this.pi, `Stack entry ${nodeIndex + 1}: ${node.changeIdShort}`, [
         "Show details",
         "Copy change ID",
         "Copy revision",
@@ -1022,7 +1023,7 @@ export class PiJjRuntime {
 
       if (action === "Show details") {
         const details = this.stackNodeDetailsLines(snapshot, nodeIndex).join("\n");
-        const detailsAction = await ctx.ui.select(details, [
+        const detailsAction = await selectUser(ctx, this.pi, details, [
           "Copy change ID",
           "Copy revision",
           "Copy bookmark name",
@@ -1075,7 +1076,7 @@ export class PiJjRuntime {
     while (true) {
       const nodeOptions = snapshot.stackViews.map((view, i) => this.stackStatusNodeLine(view, i));
 
-      const selected = await ctx.ui.select(`jj stack status (${snapshot.stackViews.length} entries)`, [
+      const selected = await selectUser(ctx, this.pi, `jj stack status (${snapshot.stackViews.length} entries)`, [
         summaryOption,
         ...nodeOptions,
         planOption,
@@ -1181,7 +1182,7 @@ export class PiJjRuntime {
 
   private async showPrPlanSummaryUi(snapshot: PrPlanSnapshot, ctx: ExtensionContext): Promise<void> {
     while (true) {
-      const action = await ctx.ui.select(snapshot.summary, [
+      const action = await selectUser(ctx, this.pi, snapshot.summary, [
         "Copy remote",
         "Copy default base",
         "Back",
@@ -1207,7 +1208,7 @@ export class PiJjRuntime {
 
     while (true) {
       const details = this.prPlanEntryDetailsLines(entry).join("\n");
-      const action = await ctx.ui.select(details, [
+      const action = await selectUser(ctx, this.pi, details, [
         "Copy change ID",
         "Copy revision",
         "Copy branch",
@@ -1270,7 +1271,7 @@ export class PiJjRuntime {
       const backOption = "Back";
       const entryOptions = snapshot.entries.map((entry, i) => this.prPlanEntryLine(entry, i));
 
-      const selected = await ctx.ui.select(`jj pr plan (${snapshot.entries.length} entries, remote ${snapshot.remote})`, [
+      const selected = await selectUser(ctx, this.pi, `jj pr plan (${snapshot.entries.length} entries, remote ${snapshot.remote})`, [
         summaryOption,
         ...entryOptions,
         dryRunOption,
@@ -1317,14 +1318,14 @@ export class PiJjRuntime {
     const visible = ordered.slice(0, settings.checkpointListLimit);
     const labels = visible.map(checkpointLine);
 
-    const selected = await ctx.ui.select(`jj checkpoints (${ordered.length})`, labels);
+    const selected = await selectUser(ctx, this.pi, `jj checkpoints (${ordered.length})`, labels);
     if (!selected) return;
 
     const index = labels.indexOf(selected);
     if (index < 0) return;
     const checkpoint = visible[index];
 
-    const action = await ctx.ui.select("Checkpoint action", [
+    const action = await selectUser(ctx, this.pi, "Checkpoint action", [
       "Restore files now",
       "Copy revision to editor",
       "Show details",
@@ -1408,7 +1409,7 @@ export class PiJjRuntime {
     if (this.initPromptShown || this.initInProgress) return;
 
     this.initPromptShown = true;
-    const choice = await ctx.ui.select("Initialize this git repo for jj?", [
+    const choice = await selectUser(ctx, this.pi, "Initialize this git repo for jj?", [
       "Yes (jj git init --colocate)",
       "Not now",
     ]);
@@ -1527,7 +1528,7 @@ export class PiJjRuntime {
       options.push("Undo last rewind");
     }
 
-    const choice = await ctx.ui.select("jj rewind options", options);
+    const choice = await selectUser(ctx, this.pi, "jj rewind options", options);
     if (!choice) return { cancel: true };
 
     if (choice.startsWith("Conversation only")) {
@@ -1574,7 +1575,7 @@ export class PiJjRuntime {
     if (this.lastRestoreOperationId) options.push("Undo last rewind");
     options.push("Cancel navigation");
 
-    const choice = await ctx.ui.select("jj rewind options", options);
+    const choice = await selectUser(ctx, this.pi, "jj rewind options", options);
     if (!choice || choice === "Cancel navigation") {
       return { cancel: true };
     }
@@ -1654,7 +1655,7 @@ export class PiJjRuntime {
     let removeRefs = (args ?? "").trim().toLowerCase() === "full";
 
     if (!removeRefs && ctx.hasUI) {
-      const choice = await ctx.ui.select("Deinitialize jj for this repo?", [
+      const choice = await selectUser(ctx, this.pi, "Deinitialize jj for this repo?", [
         "Remove .jj only (keep refs/jj/*)",
         "Full cleanup (.jj + refs/jj/*)",
         "Cancel",
@@ -1669,7 +1670,8 @@ export class PiJjRuntime {
     }
 
     if (ctx.hasUI) {
-      const confirmed = await ctx.ui.confirm(
+      const confirmed = await confirmUser(
+        ctx, this.pi,
         "Confirm jj deinit",
         removeRefs
           ? "This will remove .jj and delete refs/jj/* in this git repo. Continue?"
@@ -1774,7 +1776,7 @@ export class PiJjRuntime {
 
     const header = `Publish stacked PRs to ${remote}?\nentries=${stack.length}\ndefault base=${defaultBase}\ndraft=${options.draft}\ndry-run=${options.dryRun}`;
     if (ctx.hasUI && !options.dryRun) {
-      const confirmed = await ctx.ui.confirm("Confirm stacked PR publish", header);
+      const confirmed = await confirmUser(ctx, this.pi, "Confirm stacked PR publish", header);
       if (!confirmed) {
         ctx.ui.notify("Stacked PR publish cancelled", "info");
         return;
@@ -2131,7 +2133,7 @@ export class PiJjRuntime {
     }
 
     if (ctx.hasUI) {
-      const confirmed = await ctx.ui.confirm("Close current stack", summary);
+      const confirmed = await confirmUser(ctx, this.pi, "Close current stack", summary);
       if (!confirmed) {
         ctx.ui.notify("Stack close cancelled", "info");
         return;
@@ -2287,7 +2289,7 @@ export class PiJjRuntime {
     const setMaxOption = `Set maximum (${max})`;
     const cancelOption = "Cancel";
 
-    const choice = await ctx.ui.select(`Adjust ${label} (current ${current}, range ${min}..${max})`, [
+    const choice = await selectUser(ctx, this.pi, `Adjust ${label} (current ${current}, range ${min}..${max})`, [
       increaseSmallOption,
       decreaseSmallOption,
       increaseLargeOption,
@@ -2332,7 +2334,7 @@ export class PiJjRuntime {
       const showSummaryOption = "Show current settings summary";
       const doneOption = "Done";
 
-      const choice = await ctx.ui.select("pi-jj settings", [
+      const choice = await selectUser(ctx, this.pi, "pi-jj settings", [
         toggleSilent,
         adjustMax,
         adjustList,
@@ -2391,7 +2393,7 @@ export class PiJjRuntime {
       }
 
       if (choice === switchRestore) {
-        const modeChoice = await ctx.ui.select("Select restore mode", [
+        const modeChoice = await selectUser(ctx, this.pi, "Select restore mode", [
           "file (restore file contents only via jj restore)",
           "operation (restore full repo state via jj op restore)",
           "Cancel",

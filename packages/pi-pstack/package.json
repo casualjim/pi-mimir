@@ -40,7 +40,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "check:pack": "pnpm pack --dry-run",
-    "test": "bun tests/agents-contract.ts && bun tests/extension-contract.ts && bun test --path-ignore-patterns '**/statechart/**' && node --disable-warning=ExperimentalWarning --test skills/statechart/scripts/test/*.test.ts"
+    "test": "bun tests/agents-contract.ts && bun tests/extension-contract.ts && bun tests/interaction.ts && bun test --path-ignore-patterns '**/statechart/**' && node --disable-warning=ExperimentalWarning --test skills/statechart/scripts/test/*.test.ts"
   },
   "devDependencies": {
     "@earendil-works/pi-ai": "^1.4.0",

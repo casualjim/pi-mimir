@@ -55,7 +55,7 @@ No evidence? Down-rank to NOTE and tag `[unverified]`. ⊥ inflate a hunch to BL
 ## Phase 4 — harden §V and gate
 
 - Each HARDEN finding → a draft §V line (testable, cites the §I/behavior it guards). Hand to `cavekit-spec` to write.
-- End on an explicit gate using `ask_user_question` only for the GO/NO-GO decision after showing the verdict in normal text:
+- End on an explicit GO/NO-GO gate under the [user decision policy](../../FORMAT.md#user-decisions) after showing the verdict in normal text:
 
 ```text
 ## review verdict

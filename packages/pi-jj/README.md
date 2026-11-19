@@ -56,6 +56,8 @@ Advanced/manual (extension path only):
 
 Works on upstream Pi (`@earendil-works/pi-coding-agent`) and on oh-my-pi (omp) through omp's legacy Pi extension shim (it rewrites `@earendil-works/*` imports onto host copies). Fork/checkpoint restore registers under both `session_before_fork` (upstream Pi) and `session_before_branch` (omp) — same payload and result contract; each host emits exactly one.
 
+Choice prompts prefer omp's `ask`. When Pi lets an extension invoke question tools, it prefers `ask_user`, then `ask_user_question`. Otherwise commands and hooks use the native selector or confirmation dialog. `/jj-align-push` does not push without explicit approval.
+
 ## How it works
 
 ### Onboarding

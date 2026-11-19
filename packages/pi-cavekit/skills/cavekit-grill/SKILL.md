@@ -20,7 +20,7 @@ Skip for a typo or one-line fix. Grill scales to uncertainty, ⊥ to ego.
 
 ## Calibrate first
 
-One opening read, not a quiz. Use `ask_user_question` to calibrate, never a prose-only prompt:
+One opening read, not a quiz. Calibrate under the [user decision policy](../../FORMAT.md#user-decisions):
 
 1. How well does the user know this domain? (sets question depth)
 2. How locked is the idea? (exploring vs committed)
@@ -30,7 +30,7 @@ Match it. Brutal grilling on a half-formed idea demoralizes. Light grilling on a
 
 ## Question ladder
 
-Climb in order. Each rung, ask one question, recommend an answer, wait. Use `ask_user_question` with a recommended option first (suffix `(Recommended)`), 2-4 options.
+Climb in order. Each rung, ask one question, recommend an answer, wait. Put the recommended option first (suffix `(Recommended)`), with 2-4 options.
 
 1. Goal — what must the code do, one line? (→ §G)
 2. Done — how do we know it works? name the observable. (→ §C / future §V)

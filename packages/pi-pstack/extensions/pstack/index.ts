@@ -1,6 +1,7 @@
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { confirmUser, preferredAskTool } from "./interaction.js";
 import { registerPstackRoles } from "./roles.js";
 import {
   confirmExternalActionsEnabled,
@@ -29,9 +30,7 @@ function knownExternalWrite(command: string): string | undefined {
 
 export default function(pi: ExtensionAPI) {
   registerPstackRoles(pi);
-  const confirmExternalActions = confirmExternalActionsEnabled(
-    resolvePstackConfigFile(detectPstackHost(pi)),
-  );
+  const confirmExternalActions = confirmExternalActionsEnabled(resolvePstackConfigFile(detectPstackHost(pi)));
 
   let potetoMode = false;
 
@@ -57,8 +56,12 @@ export default function(pi: ExtensionAPI) {
     return { action: "continue" } as const;
   });
 
-  pi.on("before_agent_start", (event) => {
+  pi.on("before_agent_start", (event, ctx) => {
     const sections: string[] = [];
+    if (ctx.hasUI) {
+      const ask = preferredAskTool(pi);
+      if (ask) sections.push(`When you need user input, use the ${ask} tool.`);
+    }
     if (potetoMode)
       sections.push(
         `Pstack Poteto Mode is enabled for this session. Follow its persisted workflow: track non-trivial work in the session's task tools, select and read the matching playbook, delegate through the subagent tool when delegation helps, verify real behavior, and name only principles that changed a decision. The full skill is at ${path.join(packageRoot(), "skills/poteto-mode/SKILL.md")}.`,
@@ -84,10 +87,14 @@ export default function(pi: ExtensionAPI) {
           block: true,
           reason: `${operation} requires explicit user confirmation; a non-interactive host cannot request it.`,
         };
-      const approved = await ctx.ui.confirm(
-        "Confirm external or irreversible action",
-        `Allow ${operation}?\n\n${input.command}`,
-      );
+      let approved: boolean | undefined;
+      try {
+        approved = await confirmUser(
+          ctx, pi, "Confirm external or irreversible action", `Allow ${operation}?`, input.command,
+        );
+      } catch (error) {
+        return { block: true, reason: `Cannot confirm ${operation}: ${error instanceof Error ? error.message : String(error)}` };
+      }
       if (!approved)
         return { block: true, reason: `User declined ${operation}.` };
     });

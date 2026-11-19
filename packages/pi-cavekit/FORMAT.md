@@ -2,6 +2,12 @@
 
 Single file. Project root. Every cavekit command reads it.
 
+## User decisions
+
+Use the host's available ask tool whenever Cavekit needs a user decision. In omp, prefer `ask`. In Pi, prefer `ask_user`, then `ask_user_question`. Use native confirm only when the caller actually exposes it and no ask tool is available. If no supported tool or native confirm is available, ask directly and wait for an explicit response. Do not present prose-only choices while an ask tool is available.
+
+Share evidence, proposed changes, tradeoffs, and recommendations in normal assistant text before the question. Keep the question and its decision controls concise. Preserve each workflow's approval gate.
+
 ## SECTIONS
 
 Fixed order. Fixed headers. Addressable.

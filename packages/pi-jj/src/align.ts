@@ -2,6 +2,7 @@
 // jj_vcs status/align_push, /jj-ensure, /jj-status, /jj-align-push, AGENTS.md guidance block.
 // Renamed from jj-init to jj-ensure to avoid colliding with this package's colocated jj-init.
 
+import { confirmUser } from "./interaction.js";
 import { defineTool, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { execFileSync } from "node:child_process";
@@ -348,16 +349,6 @@ function parseBookmarkCommand(
 	return { branch, rev: parts[1] ?? "@-" };
 }
 
-async function confirm(
-	ctx: {
-		ui: { confirm?: (title: string, message: string) => Promise<boolean> };
-	},
-	title: string,
-	message: string,
-): Promise<boolean> {
-	if (!ctx.ui.confirm) return true;
-	return ctx.ui.confirm(title, message);
-}
 
 function publishStatus(cwd: string): { text: string; ok: boolean; branch: string | null } {
 	const current = revInfo(cwd, "@");
@@ -553,8 +544,8 @@ export function registerAlign(pi: ExtensionAPI) {
 				ctx.ui.notify(`No JJ ${targetRev} target found for alignment`, "warning");
 				return;
 			}
-			const ok = await confirm(
-				ctx,
+			const ok = await confirmUser(
+				ctx, pi,
 				"Align and push to GitHub?",
 				`Move/create bookmark ${branch} at ${targetRev} ${target.changeId} "${target.description}"${dirty ? `, run jj new ${branch}` : ""}, export/import Git, attach Git HEAD to ${branch}, and run git push origin ${branch}?`,
 			);

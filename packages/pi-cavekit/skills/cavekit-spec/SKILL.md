@@ -17,7 +17,7 @@ Inspect the user's request and project state:
 2. No `SPEC.md` at project root AND request includes `from-code` → **DISTILL**
 3. `SPEC.md` exists AND request starts with or clearly means `bug:` → **BACKPROP**
 4. `SPEC.md` exists AND request starts with or clearly means `amend` → **AMEND**
-5. `SPEC.md` exists and no mode is clear → use `ask_user_question` to choose mode before proceeding
+5. `SPEC.md` exists and no mode is clear → ask the user to choose mode before proceeding
 
 ## INPUTS — spec is the sole mutator
 
@@ -35,7 +35,7 @@ arrives; omit it otherwise (right-size).
 
 ## Question protocol
 
-Use `ask_user_question` whenever Cavekit needs a decision from the user. Do not print prose-only choice lists and wait.
+Follow the [user decision policy](../../FORMAT.md#user-decisions) whenever Cavekit needs a decision from the user.
 
 Required cases:
 
@@ -47,17 +47,17 @@ Required cases:
 
 Rules:
 
-1. Share needed context in normal assistant text before invoking `ask_user_question`: current § item, evidence, proposed diff/plan, tradeoffs, and recommendation.
-2. Invoke `ask_user_question` only after that context is already visible to the user. The question UI must be a decision step, not the place where the plan is explained.
+1. Share needed context in normal assistant text before asking: current § item, evidence, proposed diff/plan, tradeoffs, and recommendation.
+2. Ask only after that context is visible to the user. The question is a decision step, not the place where the plan is explained.
 3. Do not put full plan, diff, evidence, nuanced rationale, or long replacement text in the question string, option descriptions, or previews.
 4. Keep the `question` field short: ask only for the decision.
 5. Options are decision controls, not context transport.
-6. Ask 1-4 grouped questions in one tool call.
+6. Group 1-4 questions in one tool call when supported.
 7. Use 2-4 concrete options per question.
 8. Put recommended option first and suffix label with `(Recommended)` when applicable.
 9. Keep option labels ≤60 chars and headers ≤16 chars.
 10. Keep option descriptions concise: identify action and key consequence only. Exact § refs are OK; long replacement text belongs in pre-question context.
-11. If user must supply arbitrary text, ask with concise options and let built-in `Type something.` handle custom input; do not invent an `Other` option.
+11. If the user must supply arbitrary text, use the host's supported custom input.
 
 Example for missing amend target/change:
 
@@ -76,19 +76,13 @@ Tradeoff:
 - V149-only fixes spec drift.
 - V149 + task adds explicit regression guard if tests do not already cover it.
 
-Then invoke `ask_user_question` separately:
+Then ask separately using the available decision tool:
 
-ask_user_question({
-  questions: [{
-    header: "Amend target",
-    question: "Which amendment should apply?",
-    options: [
-      { label: "Amend V149 (Recommended)", description: "Update invariant only; no new task." },
-      { label: "Amend + task", description: "Update invariant and add guard task/test." },
-      { label: "Different target", description: "Use typed custom answer with exact § ref or text." }
-    ]
-  }]
-})
+Question: Which amendment should apply?
+Options:
+- Amend V149 (Recommended): Update invariant only; no new task.
+- Amend + task: Update invariant and add guard task/test.
+- Different target: Supply the exact § ref or text.
 ```
 
 ## NEW — idea → spec
@@ -104,7 +98,7 @@ Steps:
 5. Break goal into ordered tasks → §T pipe table with status `.`, ids `T1...`, and `cites` entries for relevant §V/§I refs.
 6. Create §B with only header row: `id|date|cause|fix`.
 
-Write `SPEC.md` at project root. Show the full file and use `ask_user_question` for `spec OK?` with options like accept, amend, or stop.
+Write `SPEC.md` at project root. Show the full file and ask `spec OK?` with options like accept, amend, or stop.
 
 ## DISTILL — code → spec
 
@@ -140,7 +134,7 @@ Input examples: `amend §V.3`, `amend §T`, `amend interfaces`.
 
 1. Read the named section or item.
 2. Show current content.
-3. Use `ask_user_question` for desired change if target or replacement is not already specified.
+3. Ask for the desired change if target or replacement is not already specified.
 4. Edit only the named section or item.
 5. Show diff.
 

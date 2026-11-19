@@ -91,7 +91,7 @@ Two sources can hold a bash call: the offline floor (static catastrophic-command
 
 The judge considers the command, working directory, and latest operator request when assessing unwanted loss, damage, or unauthorized disclosure. A requested repository push is not exfiltration solely because it transfers data. The offline floor still applies independently of these questions.
 
-1. **UI confirm at the hold.** When the host has a UI, dredd asks the operator immediately ("Run it once?"). Yes runs the original call right away; no blocks it and marks it declined. No judge involved.
+1. **Prompt at the hold.** On omp, Dredd prefers the ask dialog when available. Otherwise, and in Pi approval hooks, it uses native confirmation. Only explicit approval runs the original call. Decline or cancel blocks it. No judge involved.
 2. **Reply token.** Without a UI (or after a blocked call), the operator's next reply `dredd: approve` releases the identical command exactly once. Deterministic, full-line match, and it works while the judge is unreachable.
 3. **Natural-language yes.** When the judge is reachable, one noul question (at or above 0.7) reads whether the operator's reply approves the held command.
 
