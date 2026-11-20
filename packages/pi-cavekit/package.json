@@ -1,6 +1,6 @@
 {
   "name": "@casualjim/pi-cavekit",
-  "version": "0.2.32",
+  "version": "0.2.33",
   "license": "MIT",
   "description": "Cavekit SPEC.md workflow packaged for Pi",
   "keywords": [
