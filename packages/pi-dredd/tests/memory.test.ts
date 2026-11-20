@@ -56,7 +56,7 @@ describe("policy compilation", () => {
 		expect(Object.keys(questions)).toEqual(["policy0", "policy1"]);
 		expect(questions.policy0).toEqual({
 			type: "noul",
-			instructions: 'Does this call violate the operator\'s standing rule: "never push to main"?',
+			instructions: 'Does this call violate the operator\'s standing rule: "never push to main"? Weigh this rule on its own terms: the other questions\' caution and leniency do not apply to it.',
 		});
 	});
 

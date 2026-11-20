@@ -251,10 +251,9 @@ async function confirmAtHold(
 
 /**
  * The bash gate: offline floor first (holds with no key), then the judge
- * under capture rules. `recall` judges everything; `strict` keeps the
- * read-only skip; `balanced` skips read-only reads of other tools only
- * when they name no write. Every non-allow verdict is recorded; only a
- * hold blocks, and the reason tells the agent to ask the operator.
+ * with the damage questions and any policies. Every non-allow verdict is
+ * recorded; only a hold blocks, and the reason tells the agent to ask
+ * the operator.
  */
 export function registerGate(pi: ExtensionAPI, runtime: DreddRuntime): void {
  const { config, ledger } = runtime;

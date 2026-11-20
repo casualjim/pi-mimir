@@ -89,7 +89,7 @@ An operator message judged to be a standing rule can be recorded automatically. 
 
 Two sources can hold a bash call: the offline floor (static catastrophic-command patterns, no key needed) and the judge (any answer at or above 0.9). A held call has three release paths:
 
-The judge considers the command, working directory, and latest operator request when assessing unwanted loss, damage, or unauthorized disclosure. A requested repository push is not exfiltration solely because it transfers data. The offline floor still applies independently of these questions.
+The judge considers the command, working directory, and latest operator request when assessing unwanted loss, damage, or unauthorized disclosure. A requested repository push is not exfiltration solely because it transfers data. A high answer requires a concrete, nameable loss or unauthorized destination; uncertainty scores low. The offline floor still applies independently of these questions.
 
 1. **Prompt at the hold.** On omp, Dredd prefers the ask dialog when available. Otherwise, and in Pi approval hooks, it uses native confirmation. Only explicit approval runs the original call. Decline or cancel blocks it. No judge involved.
 2. **Reply token.** Without a UI (or after a blocked call), the operator's next reply `dredd: approve` releases the identical command exactly once. Deterministic, full-line match, and it works while the judge is unreachable.

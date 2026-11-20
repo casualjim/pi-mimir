@@ -20,6 +20,9 @@ export interface JudgeState {
 	subject: string;
 	tool: string | null;
 	guard: Guard;
+	/** Production runGate also sends these when the surface has them. */
+	cwd?: string;
+	operatorRequest?: string;
 }
 
 /** State shape pickSkill sends; `isFirstBatch` rides batch zero only, where the switch question lives. */

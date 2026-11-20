@@ -52,8 +52,8 @@ export function compilePolicyQuestions(lessons: readonly LessonRecord[]): Record
   questions[`policy${index}`] = {
    type: "noul",
    instructions: lesson.trigger
-    ? `Does this call violate the operator's rule "${lesson.text}" when its applicability condition is met: "${lesson.trigger}"? Answer no if the condition does not apply.`
-    : `Does this call violate the operator's standing rule: "${lesson.text}"?`,
+    ? `Does this call violate the operator's rule "${lesson.text}" when its applicability condition is met: "${lesson.trigger}"? Answer no if the condition does not apply. Weigh this rule on its own terms: the other questions' caution and leniency do not apply to it.`
+    : `Does this call violate the operator's standing rule: "${lesson.text}"? Weigh this rule on its own terms: the other questions' caution and leniency do not apply to it.`,
   };
  });
  return questions;

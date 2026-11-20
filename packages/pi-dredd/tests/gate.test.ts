@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { APPROVAL_REPLY, floorCheck, foldVerdict, gateQuestions, isReadOnlyCommand, HOLD_THRESHOLD, WARN_THRESHOLD } from "../lib/gate";
+import { APPROVAL_REPLY, floorCheck, foldVerdict, gateQuestions, HOLD_THRESHOLD, WARN_THRESHOLD } from "../lib/gate";
 import type { Answers } from "../lib/jev";
 
 describe("offline floor", () => {
@@ -36,31 +36,6 @@ describe("offline floor", () => {
 		expect(APPROVAL_REPLY.test("  DREDD: APPROVE ")).toBe(true);
 		expect(APPROVAL_REPLY.test("please dredd: approve this")).toBe(false);
 		expect(APPROVAL_REPLY.test("do the delete")).toBe(false);
-	});
-});
-
-describe("read-only skip", () => {
-	it("recognizes plain reads", () => {
-		expect(isReadOnlyCommand("ls -la")).toBe(true);
-		expect(isReadOnlyCommand("git status && git diff")).toBe(true);
-		expect(isReadOnlyCommand("cat foo | grep bar")).toBe(true);
-		expect(isReadOnlyCommand("jj status && jj log && jj diff")).toBe(true);
-		expect(isReadOnlyCommand("jj bookmark list && jj file annotate src/main.ts && jj op log && jj workspace root")).toBe(true);
-	});
-
-	it("does not skip writes or mutations", () => {
-		expect(isReadOnlyCommand("npm install")).toBe(false);
-		expect(isReadOnlyCommand("git commit -m x")).toBe(false);
-		expect(isReadOnlyCommand("git push origin main")).toBe(false);
-		expect(isReadOnlyCommand("echo hi > file.txt")).toBe(false);
-		expect(isReadOnlyCommand("jj bookmark delete obsolete")).toBe(false);
-		expect(isReadOnlyCommand("jj file delete src/main.ts")).toBe(false);
-		expect(isReadOnlyCommand("jj op restore abc")).toBe(false);
-	});
-
-	it("looks past wrappers and env prefixes", () => {
-		expect(isReadOnlyCommand("FOO=1 git status")).toBe(true);
-		expect(isReadOnlyCommand("sudo git status")).toBe(true);
 	});
 });
 

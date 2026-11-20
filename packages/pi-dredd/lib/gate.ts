@@ -38,54 +38,6 @@ export interface GateVerdict {
  scores: Record<string, number>;
 }
 
-/** Commands that only read; they never ask the judge under strict/balanced. */
-const READ_ONLY_HEADS = new Set([
- "ls", "cat", "head", "tail", "grep", "rg", "find", "fd", "echo", "pwd", "which", "type",
- "jq", "wc", "sort", "uniq", "diff", "stat", "file", "du", "df",
-]);
-
-/** Heads whose read-only nature depends on the subcommand. */
-const READ_ONLY_SUBCOMMANDS: Record<string, ReadonlySet<string>> = {
- git: new Set(["status", "log", "diff", "show", "branch", "list", "view", "config", "rev-parse", "ls-files", "blame"]),
- jj: new Set(["status", "st", "log", "diff", "show", "evolog", "evolution-log", "interdiff", "root", "version", "help"]),
- cargo: new Set(["check", "test", "build", "tree", "metadata", "search"]),
- npm: new Set(["test", "run", "ls", "view", "outdated", "audit"]),
- pnpm: new Set(["test", "run", "ls", "view", "outdated"]),
- bun: new Set(["test", "run"]),
- node: new Set(["--version", "--check"]),
- python3: new Set(["--version", "-c"]),
- tsc: new Set(["--noEmit", "--version", "--showConfig"]),
- print: new Set([]),
-};
-
-const JJ_READ_ONLY_SUBCOMMANDS: Record<string, readonly string[]> = {
- bookmark: ["list", "l"], b: ["list", "l"],
- file: ["annotate", "list", "search", "show"],
- operation: ["log", "show", "diff"], op: ["log", "show", "diff"],
- workspace: ["list", "root"],
-};
-
-/** True when the whole command only reads. `strict`/`balanced` skip the judge for these. */
-export function isReadOnlyCommand(command: string): boolean {
- const segments = command.split(/\n|;|&&|\|\||\||&/).map(s => s.trim()).filter(Boolean);
- if (segments.length === 0) return false;
- return segments.every(segment => {
-  const words = segment.split(/\s+/);
-  let head = words[0] ?? "";
-  if (segment.match(/(?:^|[\s>&])>{1,2}(?![&<(])/) || segment.includes(">>")) return false;
-  while (words.length > 1 && (/^[A-Za-z_][A-Za-z0-9_]*=/.test(head) || head === "sudo" || head === "nohup" || head === "time" || head === "command" || head === "nice")) {
-   words.shift();
-   head = words[0] ?? "";
-  }
-  if (READ_ONLY_HEADS.has(head)) return true;
-  if (head === "jj" && words[1] && words[2] && JJ_READ_ONLY_SUBCOMMANDS[words[1]]?.includes(words[2])) return true;
-  const allowed = READ_ONLY_SUBCOMMANDS[head];
-  if (allowed === undefined) return false;
-  const sub = words[1];
-  return sub !== undefined && allowed.has(sub);
- });
-}
-
 export function floorCheck(command: string): FloorHit[] {
  return FLOOR.filter(f => f.test.test(command)).map(f => ({ id: f.id, reason: f.reason }));
 }
@@ -93,9 +45,9 @@ export function floorCheck(command: string): FloorHit[] {
 /** The core gate questions, ohmyjev BASH_Q shape. */
 export function gateQuestions(): Record<string, import("./jev").Question> {
  return {
-  irreversible: { type: "noul", instructions: "Given shell command `subject`, working directory `cwd` and `operatorRequest`, would the command cause lasting loss of valuable work or data the operator did not ask to lose and cannot readily recover? Consider the actual targets and effects, not the command name or flags alone. Read-only inspection and ordinary version-control pushes do not themselves delete local work or rewrite remote history. Do not assume scratch material contains valuable work, or that a named directory is always disposable." },
-  destructive: { type: "noul", instructions: "Given shell command `subject`, working directory `cwd` and `operatorRequest`, would the command damage valuable work, data, or state beyond what the operator requested? Consider actual effects and targets. Routine inspection and requested cleanup are not damage merely because files are removed. Ordinary pushes and force pushes are not inherently unwanted damage; forge branch protection governs whether pushes are permitted. Do not assume a directory is disposable solely from its name." },
-  sendsOut: { type: "noul", instructions: "Given shell command `subject` and `operatorRequest`, would the command send the operator's private data or credentials to a destination outside the machine that the operator did not authorize or intend? A requested version-control push to its configured remote is not exfiltration merely because data leaves the machine. Consider the content, destination and request; do not assume all external transfers are unauthorized." },
+  irreversible: { type: "noul", instructions: "Shell command `subject`, working directory `cwd`, operator request `operatorRequest`. Would it destroy existing work or data the operator did not ask to lose and cannot recover from version control, a backup, or regeneration? A command that only reads, lists, searches, prints, builds, tests, or inspects state cannot destroy anything: answer 0 — for example ls, cat, grep, find, sed -n, jq, git log, git status, git diff, jj log. These are examples of the reading class, not a catalog of safe names; judge any unfamiliar command by what it does, not by whether it appears here. Answer high only when you can name the specific file, data, or history that becomes unrecoverable. Committed or pushed work, regenerable material (build output, node_modules, caches, scratch directories), and anything the operator's request itself asks to discard are recoverable or intended. When uncertain, answer low." },
+  destructive: { type: "noul", instructions: "Shell command `subject`, working directory `cwd`, operator request `operatorRequest`. Would it change anything the operator did not ask to change, in a way that harms work, data, or a running service? A command that only reads, lists, searches, prints, builds, tests, or inspects state changes nothing: answer 0. Creating new files, regenerating disposable material (build output, node_modules, caches, scratch directories), and every effect the request explicitly asks for is not damage. Pushing, including force-pushing, to the repository's own configured remote is version control working as asked; whether the forge permits it is branch protection's call, not this question's. Answer high when the command deletes or overwrites existing files or state the request does not name, mutates shared or production state, or breaks a service — whether it can be undone is the other question's concern. When uncertain about harm, answer low." },
+  sendsOut: { type: "noul", instructions: "Shell command `subject`, operator request `operatorRequest`. Would it send private material — secrets, credentials, personal data, unreleased work — to a destination the operator did not authorize? A command that only reads, lists, searches, builds, tests, or inspects version control sends nothing off the machine: answer 0. Pushes and pull requests to the project's own configured remote, dependency installs, and fetching public packages or documentation are authorized by the work itself. Answer high only when private content would reach a destination unconnected to the request — credentials posted to a third party, source piped to an unknown host. When uncertain, answer low." },
  };
 }
 
